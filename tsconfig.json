@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Node 14",
+  "include": ["src/**/*.ts", "./tsconfig.json", "./jsconfig.json"],
+
+  "compilerOptions": {
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "target": "es2020",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "baseUrl": ".",
+    "composite": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "allowUnreachableCode": false,
+    "outDir": "build",
+    "allowUnusedLabels": false
+  }
+}
