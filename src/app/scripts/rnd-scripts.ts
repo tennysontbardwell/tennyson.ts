@@ -1,46 +1,9 @@
 import * as fzf from "src/lib/core/fzf";
 import * as execlib from "src/lib/core/exec";
-import * as common from "src/lib/core/common";
 import * as path from "path";
-import * as fs from "fs/promises";
 import * as git from "src/lib/unixplus/git";
-
-function cd(dir: string): fzf.FzfItem {
-  dir = common.resolveHome(dir);
-  const action = async () => {
-    const outpath = process.env["BASH_EVAL_FILE"];
-    if (typeof outpath === "string") {
-      await execlib.ExecHelpers.putFile(execlib.exec, outpath, `cd ${dir}`);
-    }
-  };
-  const preview = async () => {
-    const files = await fs.readdir(dir);
-    return files.map((x) => path.basename(x)).join("\n");
-  };
-  return { choice: dir, preview: preview, action: action };
-}
-
-function static_snippet(val: string, key?: string, preview?: string) {
-  const choice = typeof key === "string" ? `${key} | ${val}` : val;
-  preview = preview || val;
-  const action = async () => execlib.exec("pbcopy", [], { stdin: val });
-  return { choice: choice, preview: preview, action: action };
-}
-
-function sh_snippet(
-  template: string,
-  key?: string,
-  preview?: fzf.LazyString
-): fzf.FzfItem {
-  const choice = typeof key === "string" ? `${key} | ${template}` : template;
-  const runSnip = async () => execlib.sh(template).then((x) => x.stdout);
-  const preview_ = preview || runSnip;
-  const action = async () => {
-    const val = await runSnip();
-    execlib.exec("pbcopy", [], { stdin: val });
-  };
-  return { choice: choice, preview: preview_, action: action };
-}
+import * as fs from "fs/promises";
+import * as common from "src/lib/core/common";
 
 function py_docs(name: string) {
   var modules: Promise<string[]> | null = null;
@@ -79,13 +42,14 @@ function py_docs(name: string) {
   return fzf.lazySubtree(name, items, main_preview);
 }
 
+const nop = async () => null;
+
 async function run() {
-  const nop = async () => null;
   await fzf.richFzf([
     fzf.subtree("snippets", [
-      sh_snippet('date +"%Y-%m-%d"', "datetime/today"),
-      sh_snippet('date +"%Y-%m-%d %H:%M:%S"', "datetime/nnow"),
-      sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
+      fzf.sh_snippet('date +"%Y-%m-%d"', "datetime/today"),
+      fzf.sh_snippet('date +"%Y-%m-%d %H:%M:%S"', "datetime/nnow"),
+      fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
     ]),
     fzf.subtree("websites", [
       fzf.website("google.com"),
@@ -93,10 +57,26 @@ async function run() {
       fzf.website("xkcd.com"),
       fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
     ]),
-    fzf.subtree("favorite files", [
-      cd("~/projects/misc-projects"),
-      cd("~/projects/dotfiles/zsh"),
+    fzf.subtree("ff | favorite files", [
+      fzf.cd("~/projects/misc-projects"),
+      fzf.cd("~/projects/dotfiles/zsh"),
+      fzf.cd("~/projects/misc-projects/scripts"),
     ]),
+    fzf.lazySubtree("ss | scripts", async () => {
+      const glob: any = await require("glob");
+      const dir = common.resolveHome("~/projects/misc-projects/scripts");
+      const scripts: Array<string> = glob.sync(`${dir}/**/*.{sh,py}`);
+      return scripts.map((name: string) => {
+        const choice = path.relative(dir, name);
+        const action = async () =>
+          {
+            await execlib.exec('chmod', ['+x', name]);
+            await fzf.evalAfterExit("LBUFFER=${LBUFFER}".concat(name));
+          }
+        const preview = () => fzf.displayPath(name);
+        return { choice: choice, action: action, preview: preview };
+      });
+    }),
     py_docs("python-docs"),
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),
     fzf.subtree("commands", [

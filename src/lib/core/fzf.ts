@@ -2,6 +2,7 @@ import * as common from "src/lib/core/common";
 import * as execlib from "src/lib/core/exec";
 import * as fs from "fs/promises";
 import * as http from "http";
+import * as path from "path";
 import process from "process";
 import shellescape from "shell-escape";
 
@@ -140,15 +141,27 @@ export function subtree(
 export async function evalAfterExit(cmd: string) {
   const p = process.env["BASH_EVAL_FILE"];
   if (p !== undefined) {
-    await fs.writeFile(p, cmd);
+    await fs.writeFile(p, `${cmd}\n`);
   }
 }
 
-export function cd(dir: string, display?: string) {
+export async function displayPath(path_: string) : Promise<string> {
+  const stats = await fs.stat(path_);
+  if (stats.isFile()) {
+    return fs.readFile(path_, { encoding: "utf8" });
+  } else if (stats.isDirectory()) {
+    return (await fs.readdir(path_)).join("\n");
+  } else {
+    return 'not dir or file'
+  }
+}
+
+export function cd(dir: string, display?: string): FzfItem {
   const display_ = display === undefined ? dir : display;
+  dir = common.resolveHome(dir);
   return {
     choice: display_,
-    preview: dir,
+    preview: () => displayPath(dir),
     action: async () => evalAfterExit(shellescape(["cd", dir])),
   };
 }
@@ -159,4 +172,26 @@ export function command(name: string, action: () => Promise<any>) {
     preview: "",
     action: action,
   };
+}
+
+export function static_snippet(val: string, key?: string, preview?: string) {
+  const choice = typeof key === "string" ? `${key} | ${val}` : val;
+  preview = preview || val;
+  const action = async () => execlib.exec("pbcopy", [], { stdin: val });
+  return { choice: choice, preview: preview, action: action };
+}
+
+export function sh_snippet(
+  template: string,
+  key?: string,
+  preview?: LazyString
+): FzfItem {
+  const choice = typeof key === "string" ? `${key} | ${template}` : template;
+  const runSnip = async () => execlib.sh(template).then((x) => x.stdout);
+  const preview_ = preview || runSnip;
+  const action = async () => {
+    const val = await runSnip();
+    execlib.exec("pbcopy", [], { stdin: val });
+  };
+  return { choice: choice, preview: preview_, action: action };
 }
