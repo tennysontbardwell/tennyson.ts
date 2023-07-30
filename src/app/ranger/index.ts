@@ -58,8 +58,14 @@ class RangerScreen {
   }
 }
 
-interface Dir { state: "dir"; node: Widgets.ListElement }
-interface Leaf { state: "leaf"; node: Widgets.TextElement }
+interface Dir {
+  state: "dir";
+  node: Widgets.ListElement;
+}
+interface Leaf {
+  state: "leaf";
+  node: Widgets.TextElement;
+}
 
 class RangerNode<T extends Dir | Leaf> {
   readonly node: T;
@@ -71,7 +77,7 @@ class RangerNode<T extends Dir | Leaf> {
   static leaf(contents: string) {
     const node = blessed.text({});
     node.setContent(contents);
-    return new RangerNode({ state: 'leaf', node: node });
+    return new RangerNode({ state: "leaf", node: node });
   }
 
   static dir(items: string[]) {
@@ -90,7 +96,7 @@ class RangerNode<T extends Dir | Leaf> {
       },
       items: items,
     });
-    return new RangerNode({ state: 'dir', node: node });
+    return new RangerNode({ state: "dir", node: node });
   }
 
   static auto(arg: string | string[]) {
@@ -102,7 +108,7 @@ class RangerNode<T extends Dir | Leaf> {
   }
 
   selected() {
-    if (this.node.state == 'dir') {
+    if (this.node.state == "dir") {
       return this.node.node.getItem(this.node.node.getScroll()).getText();
     } else {
       return null;
@@ -121,7 +127,8 @@ class RangerNode<T extends Dir | Leaf> {
 
 export class Ranger {
   readonly rangerScreen = new RangerScreen();
-  readonly allNodes: StringArrayMap<RangerNode<Dir | Leaf>> = new StringArrayMap();
+  readonly allNodes: StringArrayMap<RangerNode<Dir | Leaf>> =
+    new StringArrayMap();
   readonly getChildrenFunc: (path: string[]) => string[] | string;
   activePath: string[] = [];
 
@@ -142,7 +149,7 @@ export class Ranger {
         fun();
         const active = this_.getActiveNode();
         const activeNode = active.node;
-        if (activeNode.state == 'dir') {
+        if (activeNode.state == "dir") {
           onDirFun(activeNode.node);
           activeNode.node.select(activeNode.node.getScroll());
         }
@@ -206,7 +213,7 @@ export class Ranger {
     const node = this.getNode(this.activePath);
     if (node === null || node === undefined) {
       throw "active node should always exist";
-    } else if (node.node.state == 'leaf') {
+    } else if (node.node.state == "leaf") {
       throw "active node should always be a dir";
     } else {
       return node;
@@ -221,7 +228,6 @@ export class Ranger {
     const curr = this.getActiveNode();
     const nextPath = this.activePath.concat(this.getActiveNode().selectedExn());
     const next = this.getNode(nextPath);
-    fs.writeFileSync("/tmp/z", JSON.stringify({next: nextPath.join('/'), nextnode: next?.node.state}));
     this.rangerScreen.detachAll();
     this.rangerScreen.col2.append(curr.node.node);
     if (next !== undefined) {
@@ -239,7 +245,7 @@ export class Ranger {
     }
     const newPath = this.activePath.concat(selected);
     const subcontents = this.getChildren(newPath);
-    if (typeof subcontents !== 'string' && subcontents.length > 0) {
+    if (typeof subcontents !== "string" && subcontents.length > 0) {
       this.activePath = newPath;
       this.allNodes.set(this.activePath, RangerNode.auto(subcontents));
     }
