@@ -4,6 +4,8 @@ import * as path from "path";
 import * as git from "src/lib/unixplus/git";
 import * as fs from "fs/promises";
 import * as common from "src/lib/core/common";
+import shellescape from "shell-escape";
+import * as child_process from "child_process";
 
 function py_docs(name: string) {
   var modules: Promise<string[]> | null = null;
@@ -44,6 +46,52 @@ function py_docs(name: string) {
 
 const nop = async () => null;
 
+async function scripts(
+  dir: string,
+  glob_: string,
+  prefix: string = "",
+  preActionHook: (name: string) => Promise<void> = async (_) => {}
+) {
+  const glob: any = await require("glob");
+  dir = common.resolveHome(dir);
+  const scripts: Array<string> = glob.sync(path.join(dir, glob_));
+  return scripts.map((name: string) => {
+    const choice = path.relative(dir, name);
+    const action = async () => {
+      await preActionHook(name);
+      const toType = shellescape([`${prefix}${name}`]);
+      await fzf.evalAfterExit(`LBUFFER=\${LBUFFER}${toType}`);
+    };
+    const preview = () => fzf.displayPath(name);
+    return { choice: choice, action: action, preview: preview };
+  });
+}
+
+async function zshExec(cmd: string) {
+  const ssh = child_process.spawn("zsh", ["-ic", cmd], { detached: true }
+  );
+  const stdoutPromise = execlib.readableToString(ssh.stdout);
+  const stderrPromise = execlib.readableToString(ssh.stderr);
+  const code = await new Promise((resolve) =>
+    ssh.on("exit", (code, signal) => resolve(code))
+  );
+  const stdout = await stdoutPromise;
+  const stderr = await stderrPromise;
+  if (code != 0) {
+    throw {msg: 'Failed zsh exec', cmd: cmd, code: code, stdout: stdout, stderr: stderr }
+  }
+  return stdout;
+}
+
+async function functions() {
+  const funs = await zshExec("print -rl -- ${(k)aliases} ${(k)functions}");
+  return funs.split("\n").map((choice) => {
+    const action = () => fzf.evalAfterExit(`LBUFFER=\${LBUFFER}${choice}`);
+    const preview = () => zshExec(shellescape(['which', choice]));
+    return { choice: `[zsh] ${choice}`, preview: preview, action: action };
+  });
+}
+
 async function run() {
   await fzf.richFzf([
     fzf.subtree("snippets", [
@@ -63,19 +111,22 @@ async function run() {
       fzf.cd("~/projects/misc-projects/scripts"),
     ]),
     fzf.lazySubtree("ss | scripts", async () => {
-      const glob: any = await require("glob");
-      const dir = common.resolveHome("~/projects/misc-projects/scripts");
-      const scripts: Array<string> = glob.sync(`${dir}/**/*.{sh,py}`);
-      return scripts.map((name: string) => {
-        const choice = path.relative(dir, name);
-        const action = async () =>
-          {
-            await execlib.exec('chmod', ['+x', name]);
-            await fzf.evalAfterExit("LBUFFER=${LBUFFER}".concat(name));
-          }
-        const preview = () => fzf.displayPath(name);
-        return { choice: choice, action: action, preview: preview };
-      });
+      const bash = await scripts(
+        "~/projects/misc-projects/scripts",
+        "**/*.{sh,py}",
+        "",
+        async (name: string) => {
+          await execlib.exec("chmod", ["+x", name]);
+        }
+      );
+      const ts = await scripts(
+        "~/repos/tennysontbardwell/tennyson.ts/build/src/app/scripts/",
+        "**/*.js",
+        "~/repos/tennysontbardwell/tennyson.ts/run-script.sh "
+      );
+      const funcs = await functions();
+      const res = bash.concat(ts, funcs);
+      return res;
     }),
     py_docs("python-docs"),
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),

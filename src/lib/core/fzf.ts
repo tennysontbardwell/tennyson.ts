@@ -40,8 +40,9 @@ export async function fzf(
     await execlib.ExecHelpers.withTempDir(execlib.exec, async (path) => {
       const in_ = path + "/in";
       const out = path + "/out";
+
       const choicesStr = choices.map((x) => x.replace("\n", "\\n")).join("\n");
-      await execlib.ExecHelpers.putFile(execlib.exec, in_, choicesStr);
+      await fs.writeFile(in_, choicesStr)
       const preview = `--preview 'curl --silent ${host}:${port} --data-raw {}'`;
       await common.passthru("/bin/bash", [
         "-c",

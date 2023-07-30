@@ -1,7 +1,8 @@
 import * as blessed from "blessed";
 import { Widgets } from "blessed";
 import * as fs from "fs";
-import * as xml from 'fast-xml-parser'
+import * as xml from "fast-xml-parser";
+import * as common from "src/lib/core/common";
 
 class StringArrayMap<T> {
   data: Map<string, T> = new Map();
@@ -57,11 +58,31 @@ class RangerScreen {
   }
 }
 
-class RangerNode {
-  readonly node: Widgets.ListElement;
+interface Dir { state: "dir"; node: Widgets.ListElement }
+interface Leaf { state: "leaf"; node: Widgets.TextElement }
 
-  constructor(items: string[]) {
-    this.node = blessed.list({
+class RangerNode<T extends Dir | Leaf> {
+  readonly node: T;
+
+  private constructor(node: T) {
+    this.node = node;
+  }
+
+  static leaf(contents: string) {
+    fs.writeFileSync("/tmp/z", contents);
+    const node = blessed.text({
+      width: "100%",
+      height: "100%",
+      contents: contents,
+    });
+    return new RangerNode({ state: 'leaf', node: node });
+  }
+
+  static dir(items: string[]) {
+    if (items.length == 0) {
+      throw "cannot construct 0 length RangerNode";
+    }
+    const node = blessed.list({
       width: "100%",
       height: "100%",
       scrollable: true,
@@ -73,35 +94,62 @@ class RangerNode {
       },
       items: items,
     });
+    return new RangerNode({ state: 'dir', node: node });
+  }
+
+  static auto(arg: string | string[]) {
+    if (typeof arg == "string") {
+      return RangerNode.leaf(arg);
+    } else {
+      return RangerNode.dir(arg);
+    }
   }
 
   selected() {
-    return this.node.getItem(this.node.getScroll()).getText();
+    if (this.node.state == 'dir') {
+      return this.node.node.getItem(this.node.node.getScroll()).getText();
+    } else {
+      return null;
+    }
+  }
+
+  selectedExn() {
+    const selected = this.selected();
+    if (typeof selected === "string") {
+      return selected;
+    } else {
+      throw "this Node is a leaf";
+    }
   }
 }
 
-class Ranger {
+export class Ranger {
   readonly rangerScreen = new RangerScreen();
-  readonly allNodes: StringArrayMap<RangerNode> = new StringArrayMap();
-  readonly getChildrenFunc: (path: string[]) => string[];
+  readonly allNodes: StringArrayMap<RangerNode<Dir | Leaf>> = new StringArrayMap();
+  readonly getChildrenFunc: (path: string[]) => string[] | string;
   activePath: string[] = [];
 
-  constructor(getChildrenFunc: (path: string[]) => string[]) {
+  constructor(getChildrenFunc: (path: string[]) => string[] | string) {
     this.getChildrenFunc = getChildrenFunc;
-    this.allNodes.set([], new RangerNode(this.getChildren([])));
+    this.allNodes.set([], RangerNode.auto(this.getChildren([])));
     const screen = this.rangerScreen.screen;
     screen.key(["escape", "q", "C-c"], function (ch, key) {
       screen.destroy();
     });
     const this_ = this;
-    function onkey(
+    function onKeyGeneral(
       key: string | string[],
-      fun: (active: Widgets.ListElement) => void
+      fun: () => void,
+      onDirFun: (active: Widgets.ListElement) => void
     ) {
       screen.key(key, function (ch, key) {
+        fun();
         const active = this_.getActiveNode();
-        fun(active.node);
-        active.node.select(active.node.getScroll());
+        const activeNode = active.node;
+        if (activeNode.state == 'dir') {
+          onDirFun(activeNode.node);
+          activeNode.node.select(activeNode.node.getScroll());
+        }
         this_.redraw();
         this_.rangerScreen.header.setContent(
           "/" + this_.activePath.join("/") + active.selected()
@@ -109,15 +157,29 @@ class Ranger {
         screen.render();
       });
     }
+    const nop = () => null;
+    function onKey(key: string | string[], fun: () => void) {
+      onKeyGeneral(key, fun, nop);
+    }
+    function onDirKey(
+      key: string | string[],
+      fun: (active: Widgets.ListElement) => void
+    ) {
+      onKeyGeneral(key, nop, fun);
+    }
 
-    onkey("j", (active) => active.down(1));
-    onkey("k", (active) => active.up(1));
-    onkey("h", (active) => this.popUnlessRoot());
-    onkey("l", (active) => this.dive());
-    onkey("g", (active) => active.select(0));
-    onkey("S-g", (active) => active.select(active.getScrollHeight()));
-    onkey("C-d", (active) => active.down(Math.ceil(Number(active.height) / 2)));
-    onkey("C-u", (active) => active.up(Math.ceil(Number(active.height) / 2)));
+    onDirKey("j", (active) => active.down(1));
+    onDirKey("k", (active) => active.up(1));
+    onKey("h", () => this.popUnlessRoot());
+    onKey("l", () => this.dive());
+    onDirKey("g", (active) => active.select(0));
+    onDirKey("S-g", (active) => active.select(active.getScrollHeight()));
+    onDirKey("C-d", (active) =>
+      active.down(Math.ceil(Number(active.height) / 2))
+    );
+    onDirKey("C-u", (active) =>
+      active.up(Math.ceil(Number(active.height) / 2))
+    );
 
     screen.render();
   }
@@ -133,9 +195,9 @@ class Ranger {
   getNode(path: string[]) {
     const node = this.allNodes.get(path);
     if (node === undefined && path.length > 0) {
-      const items = this.getChildren(path);
-      if (items.length > 0) {
-        const newNode = new RangerNode(items);
+      const subcontents = this.getChildren(path);
+      if (typeof subcontents === "string" || subcontents.length > 0) {
+        const newNode = RangerNode.auto(subcontents);
         this.allNodes.set(path, newNode);
         return newNode;
       }
@@ -148,6 +210,8 @@ class Ranger {
     const node = this.getNode(this.activePath);
     if (node === null || node === undefined) {
       throw "active node should always exist";
+    } else if (node.node.state == 'leaf') {
+      throw "active node should always be a dir";
     } else {
       return node;
     }
@@ -160,25 +224,28 @@ class Ranger {
         : null;
     const curr = this.getActiveNode();
     const next = this.getNode(
-      this.activePath.concat(this.getActiveNode().selected())
+      this.activePath.concat(this.getActiveNode().selectedExn())
     );
     this.rangerScreen.detachAll();
-    this.rangerScreen.col2.append(curr.node);
+    this.rangerScreen.col2.append(curr.node.node);
     if (next !== undefined) {
-      this.rangerScreen.col3.append(next.node);
+      this.rangerScreen.col3.append(next.node.node);
     }
     if (prev !== undefined && prev !== null) {
-      this.rangerScreen.col1.append(prev.node);
+      this.rangerScreen.col1.append(prev.node.node);
     }
   }
 
   dive() {
-    const selected_ = this.getActiveNode().selected();
-    const newPath = this.activePath.concat(selected_);
-    const children = this.getChildren(newPath);
-    if (children.length > 0) {
+    const selected = this.getActiveNode().selected();
+    if (selected === null) {
+      return;
+    }
+    const newPath = this.activePath.concat(selected);
+    const subcontents = this.getChildren(newPath);
+    if (subcontents.length > 0) {
       this.activePath = newPath;
-      this.allNodes.set(this.activePath, new RangerNode(children));
+      this.allNodes.set(this.activePath, RangerNode.auto(subcontents));
     }
     this.redraw();
   }
@@ -189,28 +256,19 @@ class Ranger {
   }
 }
 
-function lsFiles(path: string[]) {
-  const path_ = "/" + path.join("/");
-  if (!fs.lstatSync(path_).isDirectory()) {
-    return [];
-  } else {
-    return fs.readdirSync(path_);
-  }
-}
-
 const parser = new xml.XMLParser();
 
 function objLs(path: string[]) {
   var obj: any = {};
-  path.forEach(name => {
+  path.forEach((name) => {
     obj = obj[name];
   });
-  if (typeof obj === 'object') {
+  if (typeof obj === "object") {
     return Object.keys(obj);
   } else {
     return [String(obj)];
   }
 }
 
-const ranger = new Ranger(lsFiles);
+// const ranger = new Ranger(lsFiles);
 // const ranger = new Ranger(objLs);

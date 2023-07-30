@@ -69,17 +69,19 @@ export class ExecHelpers {
     // https://github.com/nodejs/node/issues/21941
     return this.map(exec, (cmd, args) => [
       "bash",
-      ["-c", 'tee /dev/null | '+ shellescape([cmd].concat(args))],
+      ["-c", "tee /dev/null | " + shellescape([cmd].concat(args))],
     ]);
   }
 
+  // TODO fix, 560 line limit?
   static async appendFile(exec: ExecLike, path: string, contents: string) {
     await exec("mkdir", ["-p", Path.dirname(path)]);
-    await exec("bash", ["-c" , 'tee /dev/null >> ' + shellescape([path])], {
+    await exec("bash", ["-c", "tee /dev/null >> " + shellescape([path])], {
       stdin: contents,
     });
   }
 
+  // TODO fix, 560 line limit?
   static async putFile(exec: ExecLike, path: string, contents: string) {
     await exec("mkdir", ["-p", Path.dirname(path)]);
     await exec("dd", ["of=" + path, "status=none"], {
@@ -124,8 +126,8 @@ export async function exec(
     ssh.on("exit", (code, signal) => resolve({ code: code, signal: signal }))
   );
 
-  const stdout= await stdoutPromise;
-  const stderr= await stderrPromise;
+  const stdout = await stdoutPromise;
+  const stderr = await stderrPromise;
 
   const results = {
     command,
