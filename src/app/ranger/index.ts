@@ -69,12 +69,8 @@ class RangerNode<T extends Dir | Leaf> {
   }
 
   static leaf(contents: string) {
-    fs.writeFileSync("/tmp/z", contents);
-    const node = blessed.text({
-      width: "100%",
-      height: "100%",
-      contents: contents,
-    });
+    const node = blessed.text({});
+    node.setContent(contents);
     return new RangerNode({ state: 'leaf', node: node });
   }
 
@@ -223,9 +219,9 @@ export class Ranger {
         ? this.getNode(this.activePath.slice(0, -1))
         : null;
     const curr = this.getActiveNode();
-    const next = this.getNode(
-      this.activePath.concat(this.getActiveNode().selectedExn())
-    );
+    const nextPath = this.activePath.concat(this.getActiveNode().selectedExn());
+    const next = this.getNode(nextPath);
+    fs.writeFileSync("/tmp/z", JSON.stringify({next: nextPath.join('/'), nextnode: next?.node.state}));
     this.rangerScreen.detachAll();
     this.rangerScreen.col2.append(curr.node.node);
     if (next !== undefined) {
@@ -243,7 +239,7 @@ export class Ranger {
     }
     const newPath = this.activePath.concat(selected);
     const subcontents = this.getChildren(newPath);
-    if (subcontents.length > 0) {
+    if (typeof subcontents !== 'string' && subcontents.length > 0) {
       this.activePath = newPath;
       this.allNodes.set(this.activePath, RangerNode.auto(subcontents));
     }
