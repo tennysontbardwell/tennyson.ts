@@ -78,9 +78,19 @@ async function zshExec(cmd: string) {
   const stdout = await stdoutPromise;
   const stderr = await stderrPromise;
   if (code != 0) {
-    throw {msg: 'Failed zsh exec', cmd: cmd, code: code, stdout: stdout, stderr: stderr }
+    throw { msg: 'Failed zsh exec', cmd: cmd, code: code, stdout: stdout, stderr: stderr }
   }
   return stdout;
+}
+
+async function personalSnippets() {
+  const contents = await fs.readFile(common.resolveHome("~/.config/tennyson/snippets.json"), { encoding: "utf-8" })
+  const snippets: string[][] = JSON.parse(contents)
+  try {
+    return snippets.map((elm) => fzf.static_snippet(elm[1], elm[0]));
+  } catch (e) {
+    return []
+  }
 }
 
 async function functions() {
@@ -94,11 +104,14 @@ async function functions() {
 
 async function run() {
   await fzf.richFzf([
-    fzf.subtree("snippets", [
-      fzf.sh_snippet('date +"%Y-%m-%d"', "datetime/today"),
-      fzf.sh_snippet('date +"%Y-%m-%d %H:%M:%S"', "datetime/nnow"),
-      fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
-    ]),
+    fzf.lazySubtree("snippets", async () => {
+      const more = await personalSnippets();
+      return [
+        fzf.sh_snippet('date +"%Y-%m-%d"', "datetime/today"),
+        fzf.sh_snippet('date +"%Y-%m-%d %H:%M:%S"', "datetime/nnow"),
+        fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
+      ].concat(more)
+    }),
     fzf.subtree("websites", [
       fzf.website("google.com"),
       fzf.website("old.reddit.com"),
@@ -106,13 +119,13 @@ async function run() {
       fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
     ]),
     fzf.subtree("ff | favorite files", [
-      fzf.cd("~/projects/misc-projects"),
+      fzf.cd("~/repos/tennysontbardwell/misc-projects"),
       fzf.cd("~/projects/dotfiles/zsh"),
-      fzf.cd("~/projects/misc-projects/scripts"),
+      fzf.cd("~/repos/tennysontbardwell/misc-projects/scripts"),
     ]),
     fzf.lazySubtree("ss | scripts", async () => {
       const bash = await scripts(
-        "~/projects/misc-projects/scripts",
+        "~/repos/tennysontbardwell/misc-projects/scripts",
         "**/*.{sh,py}",
         "",
         async (name: string) => {

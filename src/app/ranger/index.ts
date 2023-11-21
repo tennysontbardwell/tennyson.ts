@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as xml from "fast-xml-parser";
 import * as common from "src/lib/core/common";
 
-class StringArrayMap<T> {
+export class StringArrayMap<T> {
   data: Map<string, T> = new Map();
   constructor() {}
 
