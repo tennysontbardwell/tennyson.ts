@@ -89,7 +89,7 @@ async function personalSnippets() {
   try {
     return snippets.map((elm) => fzf.static_snippet(elm[1], elm[0]));
   } catch (e) {
-    return []
+    return [];
   }
 }
 
