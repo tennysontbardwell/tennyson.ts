@@ -44,7 +44,7 @@
     "@aws-sdk/client-route-53": "^3.49.0",
     "@aws-sdk/client-ses": "^3.67.0",
     "async": "^3.2.0",
-    "axios": "^0.26.1",
+    "axios": "^1.8.4",
     "blessed": "^0.1.81",
     "cmd-ts": "0.7.0",
     "express": "^4.17.1",
