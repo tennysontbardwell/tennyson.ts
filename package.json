@@ -46,7 +46,7 @@
     "async": "^3.2.0",
     "axios": "^1.8.4",
     "blessed": "^0.1.81",
-    "cmd-ts": "0.7.0",
+    "cmd-ts": "^0.13.0",
     "express": "^4.17.1",
     "fast-xml-parser": "4.2.4",
     "shell-escape": "0.2.0",
