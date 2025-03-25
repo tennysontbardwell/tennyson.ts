@@ -61,6 +61,16 @@ async function main() {
   const infra = yargs
     .scriptName("tbardwell.ts")
     .command(
+      simple("devbox", async () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+        let name = "temp-box-" + rnd;
+        let box = await ec2.createNewSmall(name)
+        await box.passthroughSsh();
+        await ec2.purgeByName(name)
+      })
+    )
+    .command(
       simple("quickdev", async () => {
         await common.passthru("zsh", ['-ic', 'find . | fzf']);
       })
