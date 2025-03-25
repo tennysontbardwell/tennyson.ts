@@ -1,5 +1,6 @@
 import * as host from "src/lib/infra/host";
 import * as common from "src/lib/core/common";
+import { _InstanceType } from "@aws-sdk/client-ec2";
 
 const debAMIs = {
   "af-south-1": "ami-06188182a9c0e4394",
@@ -28,14 +29,16 @@ const debAMIs = {
 export type Region = keyof typeof debAMIs;
 
 const sizes = {
-  small: "t4g.small",
-  big: "t4g.2xlarge",
+  small: _InstanceType.t4g_small,
+  big: _InstanceType.t4g_2xlarge,
+  // small: "t4g.small",
+  // big: "t4g.2xlarge",
 };
 
 type Params = {
   onExisting: "ignore" | "purge" | "fail";
   diskSizeGb: number;
-  instance: string;
+  instance: _InstanceType;
   region: Region;
   additionalSecurityGroups: string[],
 };
@@ -44,6 +47,7 @@ const defaultParams: Params = {
   onExisting: "fail",
   diskSizeGb: 8,
   instance: "t4g.small",
+  // instance: _InstanceType.t4g_small , ///"t4g.small",
   region: "us-east-1",
   additionalSecurityGroups: [],
 };
