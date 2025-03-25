@@ -22,6 +22,7 @@ import * as util from "src/lib/infra/util";
 import * as vault from "src/lib/infra/vault";
 import * as webwatcher from "src/lib/misc/webwatcher";
 import * as workstation from "src/lib/infra/work-station";
+import * as hometty from "src/app/scripts/hometty";
 
 function askQuestion(query: string) {
   const rl = readline.createInterface({
@@ -73,6 +74,11 @@ async function main() {
     .command(
       simple("quickdev", async () => {
         await common.passthru("zsh", ['-ic', 'find . | fzf']);
+      })
+  )
+    .command(
+      simple("hometty", async () => {
+        await hometty.run();
       })
     )
     .command(simple("api-run", async () => api.run()))

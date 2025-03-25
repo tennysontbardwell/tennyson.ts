@@ -102,7 +102,7 @@ async function functions() {
   });
 }
 
-async function run() {
+export async function run() {
   await fzf.richFzf([
     fzf.lazySubtree("snippets", async () => {
       const more = await personalSnippets();
