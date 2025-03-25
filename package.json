@@ -51,7 +51,7 @@
     "fast-xml-parser": "5.0.9",
     "shell-escape": "0.2.0",
     "source-map-support": "^0.5.19",
-    "tslog": "^3.2.0",
+    "tslog": "^4.9.3",
     "typed-cli": "^1.2.0",
     "url-parse": "^1.5.10",
     "yaml": "^2.7.0",
