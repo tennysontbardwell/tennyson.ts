@@ -2514,10 +2514,10 @@
     "@types/node" "*"
     "@types/send" "*"
 
-"@types/shell-escape@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@types/shell-escape/-/shell-escape-0.2.0.tgz#cd2f0df814388599dd07196dcc510de2669d1ed2"
-  integrity sha512-7kUdtJtUylvyISJbe9FMcvMTjRdP0EvNDO1WbT0lT22k/IPBiPRTpmWaKu5HTWLCGLQRWVHrzVHZktTDvvR23g==
+"@types/shell-escape@0.2.3":
+  version "0.2.3"
+  resolved "https://registry.yarnpkg.com/@types/shell-escape/-/shell-escape-0.2.3.tgz#6cccf2b429193795bc3ba36c0686d5a5828b7c0f"
+  integrity sha512-xZWkMuQkn1I20gEzhYRa4/t1pwZ8XiIkqGA1Iee1D2IgAUIRLr57nrgJgF2QmHEfkfVzOM59gi/4xp6V+Aq+4A==
 
 "@types/shell-quote@^1.7.5":
   version "1.7.5"
