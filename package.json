@@ -28,8 +28,8 @@
     "@typescript-eslint/eslint-plugin": "^4.24.0",
     "@typescript-eslint/parser": "^4.24.0",
     "babel-jest": "^29.7.0",
-    "del": "^6.0.0",
-    "eslint": "^7.26.0",
+    "del": "^8.0.0",
+    "eslint": "^9.23.0",
     "gulp": "^4.0.2",
     "gulp-jest": "^4.0.4",
     "gulp-sourcemaps": "^3.0.0",
@@ -48,13 +48,13 @@
     "blessed": "^0.1.81",
     "cmd-ts": "^0.13.0",
     "express": "^4.17.1",
-    "fast-xml-parser": "4.2.4",
+    "fast-xml-parser": "5.0.9",
     "shell-escape": "0.2.0",
     "source-map-support": "^0.5.19",
     "tslog": "^3.2.0",
     "typed-cli": "^0.2.6",
     "url-parse": "^1.5.10",
-    "yaml": "^1.10.2",
+    "yaml": "^2.7.0",
     "yargs": "^17.3.0"
   }
 }
