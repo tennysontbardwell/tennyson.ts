@@ -5,6 +5,7 @@ import * as ansible from "src/lib/infra/ansible";
 import * as api from "src/app/api";
 import * as common from "src/lib/core/common";
 import * as execlib from "src/lib/core/exec";
+import * as util from "src/lib/core/util";
 import * as consul from "src/lib/infra/consul";
 import * as ec2 from "src/lib/infra/ec2";
 import * as hassio from "src/lib/infra/hassio";
@@ -18,7 +19,6 @@ import * as prox from "src/lib/infra/prox";
 import * as readline from "readline";
 import * as samba from "src/lib/infra/samba";
 import * as secrets from "src/secrets/secrets";
-import * as util from "src/lib/infra/util";
 import * as vault from "src/lib/infra/vault";
 import * as webwatcher from "src/lib/misc/webwatcher";
 import * as workstation from "src/lib/infra/work-station";
@@ -63,11 +63,16 @@ async function main() {
     .scriptName("tbardwell.ts")
     .command(
       simple("devbox", async () => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
         let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
-        let name = "temp-box-" + rnd;
+        let name = "temp-box-" + rnd.join("");
         let box = await ec2.createNewSmall(name)
         await box.passthroughSsh();
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        await util.askQuestion("Proceed?");
         await ec2.purgeByName(name)
       })
     )

@@ -93,7 +93,7 @@ async function createNew(name: string, params: Params) {
   const cmd = new client_ec2.RunInstancesCommand({
     ImageId: debAMIs[params.region],
     InstanceType: params.instance,
-    KeyName: "nyc1-arch-misc1",
+    KeyName: "tennyson@artemis",
     SecurityGroups: ["public-ssh", "web-ingress"].concat(params.additionalSecurityGroups),
     TagSpecifications: [
       {
