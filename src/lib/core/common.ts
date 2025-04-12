@@ -73,7 +73,7 @@ export class Log {
   }
 }
 
-export const log = new tslog.Logger({ minLevel: 4 });
+export const log = new tslog.Logger({ minLevel: 3 });
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -71,6 +71,7 @@ export class Host {
   }
 
   async passthroughSsh() {
+    common.log.info("Consider doing TERM=ansi");
     await common.passthru("ssh", [`${this.user}@${this.fqdn()}`]);
   }
 

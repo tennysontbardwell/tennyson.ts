@@ -68,10 +68,6 @@ async function main() {
         let name = "temp-box-" + rnd.join("");
         let box = await ec2.createNewSmall(name)
         await box.passthroughSsh();
-        const rl = readline.createInterface({
-          input: process.stdin,
-          output: process.stdout
-        });
         await util.askQuestion("Proceed?");
         await ec2.purgeByName(name)
       })

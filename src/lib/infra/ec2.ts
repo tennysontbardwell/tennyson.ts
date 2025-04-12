@@ -78,7 +78,7 @@ export async function purgeByName(name: string, region: Region = defaultParams.r
         InstanceIds: ids,
       })
     );
-    common.log.info({
+    common.log.debug({
       message: "Terminated ec2 instances",
       region: region,
       ids: ids,
@@ -148,7 +148,7 @@ async function createNew(name: string, params: Params) {
     const instance = await getInstance();
     return instance?.State?.Name == "running";
   }
-  await common.retryExn(3000, 5, isRunning);
+  await common.retryExn(3000, 10, isRunning);
   const instance = await getInstance();
   common.log.info(newId);
   if (instance) {
@@ -156,7 +156,7 @@ async function createNew(name: string, params: Params) {
     common.log.info(name);
     if (name) {
       const host_ = new host.Host(name, "admin");
-      await common.retryExn(3000, 5, () =>
+      await common.retryExn(3000, 10, () =>
         common.didRaise(() => common.ignore(host_.learnHostKey()))
       );
       return host_;
