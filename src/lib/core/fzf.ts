@@ -98,7 +98,7 @@ export function website(url: string, name?: string) {
   return {
     choice: choice,
     preview: url,
-    action: async () => execlib.sh(`open ${url}`),
+    action: async () => execlib.sh(`open "https://${url}"`),
   };
 }
 
