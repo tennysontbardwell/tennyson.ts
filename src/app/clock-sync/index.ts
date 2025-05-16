@@ -8,7 +8,7 @@ import * as path from 'path';
 import Papa from 'papaparse';
 import * as fs from "fs";
 
-const iterations = 20;
+const iterations = 10;
 const jitterDelay = 0.01;
 const delay = 0.1;
 const fleetSize = 20;
@@ -21,6 +21,7 @@ import socket
 import uuid
 import sys
 import time
+import random
 
 FLEET_FILE = '/tmp/fleet.json'
 PORT = 8000
@@ -44,6 +45,12 @@ def send_ping(host):
     send_udp_packet(host, f'ping {ping_count} {my_ip} {host} null')
     ping_count += 1
 
+ping_pong_count = 0
+def send_ping_pong(h1, h2):
+    global ping_pong_count
+    send_udp_packet(h1, f'ping2 {ping_count} {my_ip} {h1} {h2}')
+    ping_pong_count += 1
+
 def receive_udp_packets():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("0.0.0.0", PORT))
@@ -53,7 +60,7 @@ def receive_udp_packets():
         cmd, id, host1, host2, host3 = data.decode().split(' ')
         if cmd == 'ping' and host3 == 'null':
             send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
-        if cmd == 'ping' and host3 != 'null':
+        if cmd == 'ping2' and host3 != 'null':
             send_udp_packet(host3, f'pong {id} {host1} {host2} {host3}')
         if cmd == 'pong':
             send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
@@ -61,15 +68,17 @@ def receive_udp_packets():
 
 def ping_bot():
     time.sleep(5)
+    others = [node for node in fleet['nodes'] if node['name'] != my_name]
     for _ in range(${iterations}):
-        for node in fleet['nodes']:
-            if my_name == node['name']:
-                continue
+        for node in others:
             host = node['ip']
             send_ping(host);
             time.sleep(${jitterDelay})
             send_ping(host);
-            time.sleep(${delay})
+            time.sleep(${jitterDelay})
+            h1, h2 = random.sample(others, 2)
+            send_ping_pong(h1['ip'], h2['ip']);
+            time.sleep(${delay} - ${jitterDelay} * 2)
 
 if __name__ == "__main__":
     if sys.argv[1] == "server":
@@ -289,6 +298,5 @@ async function main() {
 
 main().catch((error) => {
   common.log.error("error in main");
-  common.Log.error(["error in main", error]);
   common.log.error("error in main", error);
 });
