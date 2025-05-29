@@ -1,28 +1,14 @@
 import * as yargs from "yargs";
 import axios from "axios";
 
-import * as ansible from "src/lib/infra/ansible";
+import * as cli from "src/lib/core/cli";
 import * as api from "src/app/api";
 import * as common from "src/lib/core/common";
-import * as execlib from "src/lib/core/exec";
 import * as util from "src/lib/core/util";
-import * as consul from "src/lib/infra/consul";
 import * as ec2 from "src/lib/infra/ec2";
-import * as hassio from "src/lib/infra/hassio";
-import * as host from "src/lib/infra/host";
-import * as infraBuilder from "src/lib/infra/infra-builder";
-import * as jupyter from "src/lib/infra/jupyter";
-import * as kerb from "src/lib/infra/kerb";
-import * as nginx from "src/lib/infra/nginx";
-import * as openvpn from "src/lib/infra/openvpn";
-import * as prox from "src/lib/infra/prox";
 import * as readline from "readline";
-import * as samba from "src/lib/infra/samba";
-import * as secrets from "src/secrets/secrets";
-import * as vault from "src/lib/infra/vault";
-import * as webwatcher from "src/lib/misc/webwatcher";
-import * as workstation from "src/lib/infra/work-station";
 import * as hometty from "src/app/scripts/hometty";
+import * as host from "src/lib/infra/host";
 
 function askQuestion(query: string) {
   const rl = readline.createInterface({
@@ -53,23 +39,65 @@ function simple(name: string, cmd: () => Promise<void>) {
   };
 }
 
-// function group(name: string, subcommands: (any => any) {
-//   return subcommands;
-// }
+namespace Devbox {
+  const choices = Object.keys(ec2.sizes);
+  type Size = keyof typeof ec2.sizes;
+
+  function rndName() {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+    return "temp-box-" + rnd.join("");
+  }
+
+  async function runThenKill(size: Size) {
+    let name = rndName();
+    let instance = ec2.sizes[size];
+    let box = await ec2.createNew(name, {instance});
+    await box.passthroughSsh();
+    await util.askQuestion("Proceed?");
+    await ec2.purgeByName(name)
+  }
+
+  export const cmd: yargs.CommandModule<{},{}> = {
+    command: "quickbox",
+      describe: "",
+      builder: {
+        "type": {
+          describe: '',
+          type: 'string',
+          choices,
+          default: 'small'
+        }
+      },
+    handler: (async (args: any) => { await runThenKill(args.type); })
+  }
+}
+
+function test(x: string) {
+  return cli.command(x, async () => { common.log.info(x) });
+}
 
 async function main() {
-  const arch = host.Host.ofLocalName("nyc1-arch-misc1");
-  const infra = yargs
+  await cli.execute([
+    Devbox.cmd,
+    test("c"),
+    cli.group("test", [
+      test("a"),
+      test("b"),
+      test("*"),
+    ])
+  ]);
+}
+
+async function _main() {
+  yargs
     .scriptName("tbardwell.ts")
     .command(
       simple("devbox", async () => {
-        const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-        let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
-        let name = "temp-box-" + rnd.join("");
-        let box = await ec2.createNewSmall(name)
-        await box.passthroughSsh();
-        await util.askQuestion("Proceed?");
-        await ec2.purgeByName(name)
+      })
+  )
+    .command(
+      simple("devbox", async () => {
       })
     )
     .command(
@@ -82,8 +110,9 @@ async function main() {
         await hometty.run();
       })
     )
+    // .command(simple("*", async () => { common.log.info("default top level"); }))
     .command(simple("api-run", async () => api.run()))
-    .demandCommand()
+    .demandCommand(1)
     .help()
     .parse(process.argv.slice(2));
 }

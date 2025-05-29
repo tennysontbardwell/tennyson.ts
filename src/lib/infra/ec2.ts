@@ -28,9 +28,10 @@ const debAMIs = {
 
 export type Region = keyof typeof debAMIs;
 
-const sizes = {
+export const sizes = {
   small: _InstanceType.t4g_small,
   big: _InstanceType.t4g_2xlarge,
+  gpu_medium: _InstanceType.g5g_4xlarge,
   // small: "t4g.small",
   // big: "t4g.2xlarge",
 };
@@ -87,7 +88,7 @@ export async function purgeByName(name: string, region: Region = defaultParams.r
   }
 }
 
-async function createNew(name: string, params: Params) {
+async function createNewFromParams(name: string, params: Params) {
   const client_ec2 = await import("@aws-sdk/client-ec2");
   const ec2 = new client_ec2.EC2Client({ region: params.region });
   const cmd = new client_ec2.RunInstancesCommand({
@@ -165,21 +166,18 @@ async function createNew(name: string, params: Params) {
   throw { message: "unable to create aws ec2 host", instance: instance };
 }
 
-export async function createNewBig(name: string, params: Partial<Params> = {}) {
-  return createNew(name, {
+export async function createNew(name: string, params: Partial<Params> = {}) {
+  return createNewFromParams(name, {
     ...defaultParams,
     ...params,
-    instance: sizes.big,
   });
 }
 
-export async function createNewSmall(
-  name: string,
-  params: Partial<Params> = {}
+export async function createNewBig(name: string, params: Partial<Params> = {}) {
+  return createNew(name, {instance: sizes.big});
+}
+
+export async function createNewSmall(name: string, params: Partial<Params> = {}
 ) {
-  return createNew(name, {
-    ...defaultParams,
-    ...params,
-    instance: sizes.small,
-  });
+  return createNew(name, {instance: sizes.small});
 }
