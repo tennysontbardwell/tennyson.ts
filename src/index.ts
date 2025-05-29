@@ -73,48 +73,17 @@ namespace Devbox {
   }
 }
 
-function test(x: string) {
-  return cli.command(x, async () => { common.log.info(x) });
+async function quickdev() {
+  await common.passthru("zsh", ['-ic', 'find . | fzf']);
 }
 
 async function main() {
   await cli.execute([
     Devbox.cmd,
-    test("c"),
-    cli.group("test", [
-      test("a"),
-      test("b"),
-      test("*"),
-    ])
+    cli.command("hometty", () => hometty.run()),
+    cli.command("api-run", () => api.run()),
+    cli.command("quickdev", () => quickdev()),
   ]);
-}
-
-async function _main() {
-  yargs
-    .scriptName("tbardwell.ts")
-    .command(
-      simple("devbox", async () => {
-      })
-  )
-    .command(
-      simple("devbox", async () => {
-      })
-    )
-    .command(
-      simple("quickdev", async () => {
-        await common.passthru("zsh", ['-ic', 'find . | fzf']);
-      })
-  )
-    .command(
-      simple("hometty", async () => {
-        await hometty.run();
-      })
-    )
-    // .command(simple("*", async () => { common.log.info("default top level"); }))
-    .command(simple("api-run", async () => api.run()))
-    .demandCommand(1)
-    .help()
-    .parse(process.argv.slice(2));
 }
 
 main().catch((error) =>
