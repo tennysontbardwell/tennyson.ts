@@ -1,6 +1,9 @@
 import process from "process";
 import * as tslog from "tslog";
 import * as os from "os";
+import * as path from 'path';
+import { promises as fs } from 'fs';
+import * as uuid from 'uuid';
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -162,4 +165,35 @@ export function cache<T>(fun: () => T): (() => T) {
     }
     return res[1];
   };
+}
+
+export async function withTempDir(f: (dir: string) => Promise<void>) {
+  const tempDir = path.join(os.tmpdir(), uuid.v4());
+
+  try {
+    await fs.mkdir(tempDir);
+    await f(tempDir);
+  } catch (error) {
+    console.error('Error occurred:', error);
+  } finally {
+    await fs.rmdir(tempDir, { recursive: true });
+  }
+}
+
+export async function jless(data: any) {
+  withTempDir(async (dir: string) => {
+    let text = (typeof data === 'string') ? data : JSON.stringify(data);
+    let file = path.join(dir, 'data.json');
+    await fs.writeFile(file, text);
+    await passthru("jless", [file])
+  })
+}
+
+export async function vdJson(data: any) {
+  withTempDir(async (dir: string) => {
+    let text = (typeof data === 'string') ? data : JSON.stringify(data);
+    let file = path.join(dir, 'data.json');
+    await fs.writeFile(file, text);
+    await passthru("vd", [file])
+  })
 }
