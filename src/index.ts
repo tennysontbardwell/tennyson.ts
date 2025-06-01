@@ -1,5 +1,4 @@
 import * as yargs from "yargs";
-import axios from "axios";
 
 import * as cli from "src/lib/core/cli";
 import * as api from "src/app/api";
@@ -8,7 +7,6 @@ import * as util from "src/lib/core/util";
 import * as ec2 from "src/lib/infra/ec2";
 import * as readline from "readline";
 import * as hometty from "src/app/scripts/hometty";
-import * as host from "src/lib/infra/host";
 
 function askQuestion(query: string) {
   const rl = readline.createInterface({

@@ -1,10 +1,11 @@
+import * as path from "path";
+import shellescape from "shell-escape";
+import * as fs from "fs/promises";
+
 import * as fzf from "src/lib/core/fzf";
 import * as execlib from "src/lib/core/exec";
-import * as path from "path";
 import * as git from "src/lib/unixplus/git";
-import * as fs from "fs/promises";
 import * as common from "src/lib/core/common";
-import shellescape from "shell-escape";
 import * as child_process from "child_process";
 
 function py_docs(name: string) {
