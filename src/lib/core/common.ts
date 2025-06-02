@@ -176,24 +176,42 @@ export async function withTempDir(f: (dir: string) => Promise<void>) {
   } catch (error) {
     console.error('Error occurred:', error);
   } finally {
-    await fs.rmdir(tempDir, { recursive: true });
+    await fs.rm(tempDir, { recursive: true });
   }
 }
 
 export async function jless(data: any) {
-  withTempDir(async (dir: string) => {
+  await withTempDir(async (dir: string) => {
     let text = (typeof data === 'string') ? data : JSON.stringify(data);
     let file = path.join(dir, 'data.json');
     await fs.writeFile(file, text);
-    await passthru("jless", [file])
+    await passthru("jless", [file]);
+  })
+}
+
+export async function nvim(data: any, name = 'data.json') {
+  await withTempDir(async (dir: string) => {
+    let text = (typeof data === 'string') ? data : JSON.stringify(data);
+    let file = path.join(dir, name);
+    await fs.writeFile(file, text);
+    await passthru("nvim", [file]);
   })
 }
 
 export async function vdJson(data: any) {
-  withTempDir(async (dir: string) => {
+  await withTempDir(async (dir: string) => {
     let text = (typeof data === 'string') ? data : JSON.stringify(data);
     let file = path.join(dir, 'data.json');
     await fs.writeFile(file, text);
-    await passthru("vd", [file])
+    await passthru("vd", [file]);
   })
 }
+
+export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
+  const data = await fs.readFile(filePath, 'utf-8');
+  return data.split('\n')
+    .filter(line => line.trim() !== '')
+    .map(line => JSON.parse(line));
+}
+
+export const range = (n: number) => Array.from({ length: n }, (value, key) => key)
