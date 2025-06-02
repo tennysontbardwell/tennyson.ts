@@ -1,5 +1,5 @@
-import * as host from "src/lib/infra/host";
-import * as execlib from "src/lib/core/exec";
+import * as host from "tennyson/lib/infra/host";
+import * as execlib from "tennyson/lib/core/exec";
 
 const proxyConfigHeader = `\
 load_module /usr/lib/nginx/modules/ngx_stream_module.so;

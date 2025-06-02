@@ -1,13 +1,13 @@
-import { Host, Apt } from "src/lib/infra/host";
-import * as memory from "src/lib/core/memory";
-import * as consul from "src/lib/infra/consul";
-import * as common from "src/lib/core/common";
-import { ExecHelpers, ExecLike } from "src/lib/core/exec";
-import * as secrets from "src/secrets/secrets";
+import { Host, Apt } from "tennyson/lib/infra/host";
+import * as memory from "tennyson/lib/core/memory";
+import * as consul from "tennyson/lib/infra/consul";
+import * as common from "tennyson/lib/core/common";
+import { ExecHelpers, ExecLike } from "tennyson/lib/core/exec";
+import * as secrets from "tennyson/secrets/secrets";
 import * as yaml from "yaml";
 
 import Path from "path";
-import { proxmoxInstances } from "src/lib/infra/common-infra";
+import { proxmoxInstances } from "tennyson/lib/infra/common-infra";
 
 export class Prox {
   readonly host: Host;
