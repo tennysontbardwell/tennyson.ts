@@ -1,4 +1,4 @@
-import { Ranger, StringArrayMap } from "tennyson/app/ranger/index";
+import { Ranger, StringArrayMap } from "src/app/ranger/index";
 import * as client_route_53 from "@aws-sdk/client-route-53";
 import * as client_ec2 from "@aws-sdk/client-ec2";
 import * as fs from "fs";

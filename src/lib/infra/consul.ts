@@ -1,10 +1,10 @@
-import * as commonInfra from "tennyson/lib/infra/common-infra";
-import * as prox from "tennyson/lib/infra/prox";
-import * as nginx from "tennyson/lib/infra/nginx";
-import * as host from "tennyson/lib/infra/host";
-import * as execlib from "tennyson/lib/core/exec";
-import * as common from "tennyson/lib/core/common";
-import * as secrets from "tennyson/secrets/secrets";
+import * as commonInfra from "src/lib/infra/common-infra";
+import * as prox from "src/lib/infra/prox";
+import * as nginx from "src/lib/infra/nginx";
+import * as host from "src/lib/infra/host";
+import * as execlib from "src/lib/core/exec";
+import * as common from "src/lib/core/common";
+import * as secrets from "src/secrets/secrets";
 import axios from "axios";
 
 export async function addConsulService(

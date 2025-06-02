@@ -1,7 +1,7 @@
-import * as ec2 from "tennyson/lib/infra/ec2";
-import * as common from "tennyson/lib/core/common";
-import * as host from "tennyson/lib/infra/host";
-import * as execlib from "tennyson/lib/core/exec";
+import * as ec2 from "src/lib/infra/ec2";
+import * as common from "src/lib/core/common";
+import * as host from "src/lib/infra/host";
+import * as execlib from "src/lib/core/exec";
 import { Dictionary } from "async";
 import dns from "dns";
 import * as path from 'path';

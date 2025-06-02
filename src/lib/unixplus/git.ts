@@ -1,7 +1,7 @@
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 import * as process from "process";
-import * as execlib from "tennyson/lib/core/exec";
-import * as fzf from "tennyson/lib/core/fzf";
+import * as execlib from "src/lib/core/exec";
+import * as fzf from "src/lib/core/fzf";
 import * as readline from "readline";
 import { default as urlparse } from "url-parse";
 import * as fs from "fs/promises";

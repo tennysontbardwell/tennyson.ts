@@ -1,11 +1,11 @@
-import * as infraBuilder from "tennyson/lib/infra/infra-builder";
-import * as host from "tennyson/lib/infra/host";
-import * as prox from "tennyson/lib/infra/prox";
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
-import * as vault from "tennyson/lib/infra/vault";
-import * as commonInfra from "tennyson/lib/infra/common-infra";
-import * as secrets from "tennyson/secrets/secrets";
+import * as infraBuilder from "src/lib/infra/infra-builder";
+import * as host from "src/lib/infra/host";
+import * as prox from "src/lib/infra/prox";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
+import * as vault from "src/lib/infra/vault";
+import * as commonInfra from "src/lib/infra/common-infra";
+import * as secrets from "src/secrets/secrets";
 import axios from "axios";
 import https from "https";
 

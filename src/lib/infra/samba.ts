@@ -1,6 +1,6 @@
-import * as host from "tennyson/lib/infra/host";
-import * as execlib from "tennyson/lib/core/exec";
-import { sambaPassword } from "tennyson/secrets/secrets";
+import * as host from "src/lib/infra/host";
+import * as execlib from "src/lib/core/exec";
+import { sambaPassword } from "src/secrets/secrets";
 
 export async function makeSamba(exec: execlib.ExecLike) {
   // await execlib.ExecHelpers.putFile(

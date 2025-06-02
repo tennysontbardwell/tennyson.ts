@@ -6,8 +6,8 @@ import dns from "dns";
 import shellescape from "shell-escape";
 import axios from "axios";
 
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
 
 export class Apt {
   readonly exec: execlib.ExecLike;

@@ -1,4 +1,4 @@
-import { Host } from "tennyson/lib/infra/host";
+import { Host } from "src/lib/infra/host";
 
 export const proxmoxInstances = {
   1: Host.ofLocalName("nyc1-prox-1"),

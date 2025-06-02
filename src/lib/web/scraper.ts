@@ -1,7 +1,7 @@
 import * as sqlite from "sqlite3"
 import stableStringify from "json-stable-stringify"
 
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 
 export interface Cache {
   get(version: number, params: string, name: string): Promise<string | undefined>;

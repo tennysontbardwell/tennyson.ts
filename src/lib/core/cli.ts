@@ -1,5 +1,5 @@
 import * as yargs from "yargs";
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 
 export type TransformYargs = (yargs: yargs.Argv) => yargs.Argv;
 

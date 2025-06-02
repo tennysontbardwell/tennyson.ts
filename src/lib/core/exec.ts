@@ -1,6 +1,6 @@
 import shellescape from "shell-escape";
 import Path from "path";
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 import { spawn } from "child_process";
 
 export type ExecLike = (

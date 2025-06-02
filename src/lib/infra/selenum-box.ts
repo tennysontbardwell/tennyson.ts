@@ -1,7 +1,7 @@
-import * as host from "tennyson/lib/infra/host";
-import * as jupyter from "tennyson/lib/infra/jupyter";
-import * as prox from "tennyson/lib/infra/prox";
-import * as infraBuilder from "tennyson/lib/infra/infra-builder";
+import * as host from "src/lib/infra/host";
+import * as jupyter from "src/lib/infra/jupyter";
+import * as prox from "src/lib/infra/prox";
+import * as infraBuilder from "src/lib/infra/infra-builder";
 
 export async function makeSelenium(host_: host.Host) {
   await jupyter.setup(host_.exec.bind(host_));

@@ -18,9 +18,6 @@
     "sourceMap": true,
     "allowUnreachableCode": false,
     "outDir": "build",
-    "allowUnusedLabels": false,
-    "paths": {
-      "tennyson/*": ["src/*"]
-    }
+    "allowUnusedLabels": false
   }
 }

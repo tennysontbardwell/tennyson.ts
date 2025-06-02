@@ -1,6 +1,6 @@
 import * as express from "express";
 import * as path from "path";
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 import axios from "axios";
 
 function home(body: string) {

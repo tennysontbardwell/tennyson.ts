@@ -1,8 +1,8 @@
-import * as commonInfra from "tennyson/lib/infra/common-infra";
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
-import * as prox from "tennyson/lib/infra/prox";
-import * as host from "tennyson/lib/infra/host";
+import * as commonInfra from "src/lib/infra/common-infra";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
+import * as prox from "src/lib/infra/prox";
+import * as host from "src/lib/infra/host";
 
 export async function setupServer(exec: execlib.ExecLike) {
   await new host.Apt(exec).install(["nomad"]);

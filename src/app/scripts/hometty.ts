@@ -2,10 +2,10 @@ import * as path from "path";
 import shellescape from "shell-escape";
 import * as fs from "fs/promises";
 
-import * as fzf from "tennyson/lib/core/fzf";
-import * as execlib from "tennyson/lib/core/exec";
-import * as git from "tennyson/lib/unixplus/git";
-import * as common from "tennyson/lib/core/common";
+import * as fzf from "src/lib/core/fzf";
+import * as execlib from "src/lib/core/exec";
+import * as git from "src/lib/unixplus/git";
+import * as common from "src/lib/core/common";
 import * as child_process from "child_process";
 
 function py_docs(name: string) {

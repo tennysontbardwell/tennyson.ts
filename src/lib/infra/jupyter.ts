@@ -1,13 +1,13 @@
-import * as commonInfra from "tennyson/lib/infra/common-infra";
-import * as secrets from "tennyson/secrets/secrets";
-import * as infraBuilder from "tennyson/lib/infra/infra-builder";
-import * as prox from "tennyson/lib/infra/prox";
-import * as nginx from "tennyson/lib/infra/nginx";
-import * as host from "tennyson/lib/infra/host";
-import * as letsencrypt from "tennyson/lib/infra/letsencrypt";
-import * as memory from "tennyson/lib/core/memory";
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
+import * as commonInfra from "src/lib/infra/common-infra";
+import * as secrets from "src/secrets/secrets";
+import * as infraBuilder from "src/lib/infra/infra-builder";
+import * as prox from "src/lib/infra/prox";
+import * as nginx from "src/lib/infra/nginx";
+import * as host from "src/lib/infra/host";
+import * as letsencrypt from "src/lib/infra/letsencrypt";
+import * as memory from "src/lib/core/memory";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
 
 export const defaultHostname = "nyc1-jupyter-a01";
 

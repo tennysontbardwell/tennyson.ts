@@ -1,6 +1,6 @@
 import { request } from "http";
-import * as common from "tennyson/lib/core/common";
-import * as util from "tennyson/lib/infra/util";
+import * as common from "src/lib/core/common";
+import * as util from "src/lib/infra/util";
 
 import axios from "axios";
 

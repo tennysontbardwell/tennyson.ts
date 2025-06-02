@@ -1,5 +1,5 @@
-import * as host from "tennyson/lib/infra/host";
-import * as common from "tennyson/lib/core/common";
+import * as host from "src/lib/infra/host";
+import * as common from "src/lib/core/common";
 import { _InstanceType } from "@aws-sdk/client-ec2";
 
 const debAMIs = {

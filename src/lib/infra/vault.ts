@@ -1,8 +1,8 @@
-import * as host from "tennyson/lib/infra/host";
-import * as consul from "tennyson/lib/infra/consul";
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
-import * as commonInfra from "tennyson/lib/infra/common-infra";
+import * as host from "src/lib/infra/host";
+import * as consul from "src/lib/infra/consul";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
+import * as commonInfra from "src/lib/infra/common-infra";
 import axios from "axios";
 import https from "https";
 

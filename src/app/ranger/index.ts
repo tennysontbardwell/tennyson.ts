@@ -2,7 +2,7 @@ import * as blessed from "blessed";
 import { Widgets } from "blessed";
 import * as fs from "fs";
 import * as xml from "fast-xml-parser";
-import * as common from "tennyson/lib/core/common";
+import * as common from "src/lib/core/common";
 
 export class StringArrayMap<T> {
   data: Map<string, T> = new Map();

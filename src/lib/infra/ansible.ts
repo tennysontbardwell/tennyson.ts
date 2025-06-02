@@ -1,6 +1,6 @@
-import * as host from "tennyson/lib/infra/host";
-import * as common from "tennyson/lib/core/common";
-import * as execlib from "tennyson/lib/core/exec";
+import * as host from "src/lib/infra/host";
+import * as common from "src/lib/core/common";
+import * as execlib from "src/lib/core/exec";
 
 export async function test(hostname: string, user = "root") {
   const fqdn = host.Host.ofLocalName(hostname).fqdn();
