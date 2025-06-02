@@ -1,6 +1,6 @@
-import * as host from "src/lib/infra/host";
-import * as prox from "src/lib/infra/prox";
-import * as infraBuilder from "src/lib/infra/infra-builder";
+import * as host from "tennyson/lib/infra/host";
+import * as prox from "tennyson/lib/infra/prox";
+import * as infraBuilder from "tennyson/lib/infra/infra-builder";
 
 // https://devopstales.github.io/linux/install-unifi-controller/
 const rootInstallScript = `

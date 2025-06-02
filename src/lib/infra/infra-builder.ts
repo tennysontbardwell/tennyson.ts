@@ -1,15 +1,15 @@
-import * as host from "src/lib/infra/host";
-import * as prox from "src/lib/infra/prox";
-import * as kerb from "src/lib/infra/kerb";
-import * as jupyter from "src/lib/infra/jupyter";
-import * as samba from "src/lib/infra/samba";
-import * as common from "src/lib/core/common";
-import * as execlib from "src/lib/core/exec";
-import * as vault from "src/lib/infra/vault";
-import * as nomad from "src/lib/infra/nomad";
-import * as consul from "src/lib/infra/consul";
-import { proxmoxInstances } from "src/lib/infra/common-infra";
-import { Memory } from "src/lib/core/memory";
+import * as host from "tennyson/lib/infra/host";
+import * as prox from "tennyson/lib/infra/prox";
+import * as kerb from "tennyson/lib/infra/kerb";
+import * as jupyter from "tennyson/lib/infra/jupyter";
+import * as samba from "tennyson/lib/infra/samba";
+import * as common from "tennyson/lib/core/common";
+import * as execlib from "tennyson/lib/core/exec";
+import * as vault from "tennyson/lib/infra/vault";
+import * as nomad from "tennyson/lib/infra/nomad";
+import * as consul from "tennyson/lib/infra/consul";
+import { proxmoxInstances } from "tennyson/lib/infra/common-infra";
+import { Memory } from "tennyson/lib/core/memory";
 
 export async function forceLeave(name: string) {
   await execlib.exec("consul", ["force-leave", name], {

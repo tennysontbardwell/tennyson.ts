@@ -1,12 +1,12 @@
 import * as yargs from "yargs";
 
-import * as cli from "src/lib/core/cli";
-import * as api from "src/app/api";
-import * as common from "src/lib/core/common";
-import * as util from "src/lib/core/util";
-import * as ec2 from "src/lib/infra/ec2";
+import * as cli from "tennyson/lib/core/cli";
+import * as api from "tennyson/app/api";
+import * as common from "tennyson/lib/core/common";
+import * as util from "tennyson/lib/core/util";
+import * as ec2 from "tennyson/lib/infra/ec2";
 import * as readline from "readline";
-import * as hometty from "src/app/scripts/hometty";
+import * as hometty from "tennyson/app/scripts/hometty";
 
 function askQuestion(query: string) {
   const rl = readline.createInterface({

@@ -1,5 +1,5 @@
-import * as common from "src/lib/core/common";
-import * as execlib from "src/lib/core/exec";
+import * as common from "tennyson/lib/core/common";
+import * as execlib from "tennyson/lib/core/exec";
 import * as fs from "fs/promises";
 import * as http from "http";
 import * as path from "path";
