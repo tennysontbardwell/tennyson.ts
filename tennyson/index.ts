@@ -1,4 +1,6 @@
 import * as yargs from "yargs";
+import * as path from "path";
+import * as os from "os";
 
 import * as cli from "tennyson/lib/core/cli";
 import * as api from "tennyson/app/api";
@@ -7,6 +9,9 @@ import * as util from "tennyson/lib/core/util";
 import * as ec2 from "tennyson/lib/infra/ec2";
 import * as readline from "readline";
 import * as hometty from "tennyson/app/scripts/hometty";
+import * as fleet from "tennyson/lib/fleet";
+import * as exec from "tennyson/lib/core/exec";
+import * as host from "tennyson/lib/infra/host";
 
 function askQuestion(query: string) {
   const rl = readline.createInterface({
@@ -72,7 +77,23 @@ namespace Devbox {
 }
 
 async function quickdev() {
-  await common.passthru("zsh", ['-ic', 'find . | fzf']);
+  // await common.passthru("zsh", ['-ic', 'find . | fzf']);
+  await fleet.Member.with(async (member: fleet.Member) => {
+    for await (const repo of ["misc-projects", "tennyson.ts"]) {
+      await member.sendGitRepo(
+        path.join(os.homedir(), "repos/tennysontbardwell", repo),
+        path.join("/home/admin/", repo)
+      );
+    }
+    let su = exec.ExecHelpers.su(member.host.exec.bind(member.host), "root", false)
+    let apt = new host.Apt(su);
+    await apt.upgrade();
+    await apt.install(["npm"]);
+    await su("npm", ["install", "--global", "yarn"]);
+    await member.host.exec("bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
+    await member.host.exec("bash", ["-c", "cd misc-projects/personal.ts; yarn install; yarn run build"]);
+    await member.host.passthroughSsh()
+  });
 }
 
 async function main() {

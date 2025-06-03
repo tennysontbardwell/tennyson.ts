@@ -341,3 +341,10 @@ export function splitArray<K extends string | number | symbol, V>(
 ): Record<K, V[]> {
   return splitMap(array, x => [keyFn(x), x]);
 }
+
+
+export function rndAlphNum(length: number) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let rnd = Array.from({ length }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+  return rnd.join("");
+}

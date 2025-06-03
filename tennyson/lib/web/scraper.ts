@@ -203,6 +203,9 @@ export abstract class Node<P, R> {
     let uncached: P[] = checkResults
       .filter(x => !x.cached)
       .map(x => this.deserializeParams(x.params));
+    common.log.info(
+      `Node ${this.name} has cached` +
+      `${checkResults.length - uncached.length}/${checkResults.length}`);
     for await (const params of tqdm(uncached)) {
       await this.get(params);
     }
@@ -215,7 +218,7 @@ export abstract class Node<P, R> {
     let res: { params: P, results: R }[] = [];
     let tofetch: P[] = [];
     for (const elm of cachedResults) {
-      let {params, results} = elm;
+      let { params, results } = elm;
       if (results === undefined)
         tofetch.push(this.deserializeParams(elm.params));
       else

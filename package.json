@@ -2,10 +2,10 @@
   "name": "tennyson",
   "license": "UNLICENSED",
   "scripts": {
-    "run": "source .env && node --enable-source-maps build/tennyson/index.js",
-    "build": "source .env && tsc",
-    "test": "source .env && jest",
-    "watch": "source .env && tsc --watch",
+    "run": "export NODE_PATH=./build && node --enable-source-maps build/tennyson/index.js",
+    "build": "export NODE_PATH=./build && tsc",
+    "test": "export NODE_PATH=./build && jest",
+    "watch": "export NODE_PATH=./build && tsc --watch",
     "clean": "rm -rf build"
   },
   "devDependencies": {

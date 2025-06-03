@@ -16,9 +16,13 @@ export class Apt {
     this.exec = exec;
   }
 
-  async upgrade() {
+  async update() {
     // "--allow-releaseinfo-change" needed b/c we're using an old deb version
     await this.exec("apt-get", ["update", "-y", "--allow-releaseinfo-change"]);
+  }
+
+  async upgrade() {
+    await this.update();
     await this.exec("apt-get", ["upgrade", "-y"]);
     return this;
   }
@@ -173,5 +177,11 @@ export class Host {
       process.env["HOME"] + "/.ssh/known_hosts",
       hostKey.stdout
     );
+  }
+
+  async scpTo(localPath: string, remotePath: string){
+    await execlib.exec("scp", [
+      localPath,
+      `${this.user}@${this.fqdn()}:${remotePath}`])
   }
 }
