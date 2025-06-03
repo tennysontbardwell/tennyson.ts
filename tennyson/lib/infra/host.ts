@@ -186,16 +186,18 @@ export class Host {
   }
 
   async sshTunnel(remotePort: number, localPort?: number) {
-    const localPort_ = (localPort === null)
+    const localPort_ = (localPort === undefined)
       ? await net_util.getRandomFreePort()
       : localPort;
 
-    return spawn("ssh", [
+    const process = spawn("ssh", [
       "-NL",
       `${localPort_}:localhost:${remotePort}`,
       `${this.user}@${this.fqdn()}`,
       ]
     );
+
+    return { localPort: localPort_, process };
   }
 }
 

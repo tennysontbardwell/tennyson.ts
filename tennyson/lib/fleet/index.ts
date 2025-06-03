@@ -46,11 +46,24 @@ export class Member {
     await apt.upgrade();
     await apt.install(["npm"]);
     await su("npm", ["install", "--global", "yarn"]);
-    await this.host.exec("bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
-    await this.host.exec("bash", ["-c", "cd misc-projects/personal.ts; yarn install; yarn run build"]);
+    await this.host.exec(
+      "bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
+    // await this.host.exec("bash",
+    //   ["-c", "cd misc-projects/personal.ts; yarn install; yarn run build"]);
   }
 
-  async setupComms() {
+  async becomeWorker() {
+    common.log.info("Setting Up Typescript");
+    await this.setupTypescript();
+    common.log.info("Starting SSH Tunnel");
+    const { localPort, process } = await this.host.sshTunnel(8080);
+    common.log.info(`Tunnel Created on port ${localPort}`);
+    common.log.info("Starting Fleet-Member Exec");
+    const _fleetMemberProc = this.host.exec(
+      "bash",
+      ["-c", "cd tennyson.ts; yarn install; yarn run run fleet-member"]);
+    common.log.info("Finished");
+    return new Comms.Worker(this, localPort);
   }
 
   static async with(

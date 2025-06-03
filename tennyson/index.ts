@@ -78,8 +78,8 @@ namespace Devbox {
 async function quickdev() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
   await fleet.Member.with(async (member: fleet.Member) => {
-    await member.setupTypescript();
-    await member.host.passthroughSsh()
+    await member.becomeWorker();
+    await member.host.passthroughSsh();
   });
 }
 
