@@ -53,6 +53,7 @@ type Params = {
   instance: _InstanceType;
   region: Region;
   additionalSecurityGroups: string[],
+  terminateOnShutdown: Boolean,
 };
 
 const defaultParams: Params = {
@@ -62,6 +63,7 @@ const defaultParams: Params = {
   // instance: _InstanceType.t4g_small , ///"t4g.small",
   region: "us-east-1",
   additionalSecurityGroups: [],
+  terminateOnShutdown: false,
 };
 
 export async function lookupByName(name: string, region: Region) {
@@ -102,6 +104,12 @@ export async function purgeByName(name: string, region: Region = defaultParams.r
 async function createNewFromParams(name: string, params: Params) {
   const client_ec2 = await import("@aws-sdk/client-ec2");
   const ec2 = new client_ec2.EC2Client({ region: params.region });
+  const InstanceInitiatedShutdownBehavior = (function() {
+    if (params.terminateOnShutdown)
+      return "terminate"
+    else
+      "stop"
+      })()
   const cmd = new client_ec2.RunInstancesCommand({
     ImageId: debAMIs[params.region]["arm"],
     InstanceType: params.instance,
@@ -133,6 +141,7 @@ async function createNewFromParams(name: string, params: Params) {
     ],
     MinCount: 1,
     MaxCount: 1,
+    InstanceInitiatedShutdownBehavior,
   });
   const res = await ec2.send(cmd);
   function id() {

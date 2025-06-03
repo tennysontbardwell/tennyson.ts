@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 14",
-  "include": ["src/**/*.ts", "./tsconfig.json", "./jsconfig.json"],
+  "include": ["tennyson/**/*.ts", "./tsconfig.json", "./jsconfig.json"],
 
   "compilerOptions": {
     "lib": ["es2020"],
@@ -20,7 +20,7 @@
     "outDir": "build",
     "allowUnusedLabels": false,
     "paths": {
-      "tennyson/*": ["src/*"]
+      "tennyson/*": ["tennyson/*"]
     }
   }
 }

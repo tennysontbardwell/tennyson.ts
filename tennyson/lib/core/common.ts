@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import * as uuid from 'uuid';
+import { tqdm } from "./tqdm";
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -167,6 +168,29 @@ export function cache<T>(fun: () => T): (() => T) {
   };
 }
 
+export async function fsExists(path: string) {
+  try {
+    await fs.access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function fsCacheResult<T extends NonNullable<any>>(
+  path: string,
+  f: () => Promise<T>)
+: Promise<T> {
+  if (await fsExists(path)) {
+    return JSON.parse(await fs.readFile(path, 'utf-8'));
+  } else {
+    let res = await f();
+    let str = JSON.stringify(res);
+    await fs.writeFile(path, str);
+    return res;
+  }
+}
+
 export async function withTempDir(f: (dir: string) => Promise<void>) {
   const tempDir = path.join(os.tmpdir(), uuid.v4());
 
@@ -215,3 +239,105 @@ export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
 }
 
 export const range = (n: number) => Array.from({ length: n }, (value, key) => key)
+
+export class Semaphore {
+  private current: number;
+  private readonly max: number;
+  private readonly waiting: (() => void)[];
+
+  constructor(max: number) {
+    this.current = 0;
+    this.max = max;
+    this.waiting = [];
+  }
+
+  async acquire(): Promise<void> {
+    if (this.current < this.max) {
+      this.current++;
+      return;
+    }
+
+    return new Promise<void>((resolve) => {
+      this.waiting.push(() => {
+        this.current++;
+        resolve();
+      });
+    });
+  }
+
+  release(): void {
+    this.current--;
+    if (this.current < this.max && this.waiting.length > 0) {
+      const next = this.waiting.shift();
+      if (next) {
+        next();
+      }
+    }
+  }
+
+  async with<T>(fn: () => Promise<T>): Promise<T> {
+    await this.acquire();
+    try {
+      return await fn();
+    } finally {
+      this.release();
+    }
+  }
+}
+
+export async function runInLimitedConcurrency<T>(
+  fns: (() => Promise<T>)[],
+  maxConcurrency: number)
+  : Promise<T[]> {
+  const results: T[] = [];
+  const executing: Set<Promise<void>> = new Set();
+
+  for await (const fn of tqdm(fns)) {
+    const p = fn().then(result => {
+      results.push(result);
+      executing.delete(p);
+    });
+    executing.add(p);
+
+    if (executing.size >= maxConcurrency) {
+      await Promise.race(executing);
+    }
+  }
+
+  await Promise.all(executing); // Wait for all remaining promises
+  return results;
+}
+
+export async function mapInLimitedConcurrency<A, B>(
+  fn: ((x: A) => Promise<B>),
+  inputs: A[],
+  maxConcurrency: number)
+: Promise<B[]> {
+  return runInLimitedConcurrency(
+    inputs.map(elm => (() => fn(elm))),
+    maxConcurrency
+  );
+}
+
+export function splitMap<K extends string | number | symbol, A, B>(
+  array: A[],
+  fn: (input: A) => [K, B]
+): Record<K, B[]> {
+  const res = {} as Record<K, B[]>;
+  for (const item of array) {
+    let [key, newItem] = fn(item);
+    if (key in res) {
+      res[key].push(newItem);
+    } else {
+      res[key] = [newItem];
+    }
+  }
+  return res;
+}
+
+export function splitArray<K extends string | number | symbol, V>(
+  array: V[],
+  keyFn: (input: V) => K
+): Record<K, V[]> {
+  return splitMap(array, x => [keyFn(x), x]);
+}

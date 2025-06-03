@@ -2,7 +2,7 @@
   "name": "tennyson",
   "license": "UNLICENSED",
   "scripts": {
-    "run": "source .env && node build/src/index.js",
+    "run": "source .env && node --enable-source-maps build/tennyson/index.js",
     "build": "source .env && tsc",
     "test": "source .env && jest",
     "watch": "source .env && tsc --watch",
