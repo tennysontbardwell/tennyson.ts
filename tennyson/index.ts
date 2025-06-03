@@ -1,6 +1,5 @@
 import * as yargs from "yargs";
 import * as path from "path";
-import * as os from "os";
 
 import * as cli from "tennyson/lib/core/cli";
 import * as api from "tennyson/app/api";
@@ -79,19 +78,7 @@ namespace Devbox {
 async function quickdev() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
   await fleet.Member.with(async (member: fleet.Member) => {
-    for await (const repo of ["misc-projects", "tennyson.ts"]) {
-      await member.sendGitRepo(
-        path.join(os.homedir(), "repos/tennysontbardwell", repo),
-        path.join("/home/admin/", repo)
-      );
-    }
-    let su = exec.ExecHelpers.su(member.host.exec.bind(member.host), "root", false)
-    let apt = new host.Apt(su);
-    await apt.upgrade();
-    await apt.install(["npm"]);
-    await su("npm", ["install", "--global", "yarn"]);
-    await member.host.exec("bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
-    await member.host.exec("bash", ["-c", "cd misc-projects/personal.ts; yarn install; yarn run build"]);
+    await member.setupTypescript();
     await member.host.passthroughSsh()
   });
 }

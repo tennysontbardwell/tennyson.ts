@@ -1,6 +1,7 @@
 import * as sqlite from "sqlite3"
 import stableStringify from "json-stable-stringify"
 
+import * as net_util from "tennyson/lib/core/net-util";
 import * as common from "tennyson/lib/core/common";
 import { tqdm } from "../core/tqdm";
 
@@ -238,31 +239,13 @@ export abstract class Node<P, R> {
   }
 }
 
-export async function checkResponseExn(response: Response) {
-  if (!response.ok) {
-    let text = await response.text();
-    try {
-      common.log.error(JSON.parse(text));
-    } catch {
-      common.log.error(text.substring(0,10_000));
-    }
-    throw new Error(`HTTP error! status: ${response.status} | url: ${response.url}`);
-  }
-  return response;
-}
-
-export async function responseJsonExn<T>(response: Response) {
-  await checkResponseExn(response);
-  return <T>response.json();
-}
-
 export class Get extends Node<{ url: string }, { content: string, status: number }> {
   name = "get";
 
   async getUncached(params: { url: string; }) {
     let response = await fetch(params.url);
     if (![404].includes(response.status)) {
-      await checkResponseExn(response);
+      await net_util.checkResponseExn(response);
     }
     let content = await response.text();
     return { content, status: response.status };

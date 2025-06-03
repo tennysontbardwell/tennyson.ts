@@ -2,7 +2,9 @@ import shellescape from "shell-escape";
 import * as http from 'http';
 import * as path from "path";
 import * as uuid from 'uuid';
+import * as os from "os";
 
+import * as net_util from "tennyson/lib/core/net-util";
 import * as ec2 from "tennyson/lib/infra/ec2";
 import * as common from "tennyson/lib/core/common";
 import * as exec from "tennyson/lib/core/exec";
@@ -30,6 +32,25 @@ export class Member {
 
   async destroy() {
     await ec2.purgeByName(this.name);
+  }
+
+  async setupTypescript() {
+    for await (const repo of ["misc-projects", "tennyson.ts"]) {
+      await this.sendGitRepo(
+        path.join(os.homedir(), "repos/tennysontbardwell", repo),
+        path.join("/home/admin/", repo)
+      );
+    }
+    let su = exec.ExecHelpers.su(this.host.exec.bind(this.host), "root", false)
+    let apt = new host.Apt(su);
+    await apt.upgrade();
+    await apt.install(["npm"]);
+    await su("npm", ["install", "--global", "yarn"]);
+    await this.host.exec("bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
+    await this.host.exec("bash", ["-c", "cd misc-projects/personal.ts; yarn install; yarn run build"]);
+  }
+
+  async setupComms() {
   }
 
   static async with(
@@ -64,7 +85,7 @@ export namespace Comms {
     url: string
   }
 
-  type IncomingMessage = GetCommand
+  type WorkerCommand = GetCommand
 
   interface GetReply {
     kind: "getReply",
@@ -88,13 +109,34 @@ export namespace Comms {
     }
   }
 
+  export class Worker {
+    member: Member;
+    localPort: number;
+
+    constructor(member: Member, localPort: number) {
+      this.member = member;
+      this.localPort = localPort;
+    }
+
+    async process(msg: WorkerCommand): Promise<ReplyMessage> {
+      const response = await fetch(`localhost:${this.localPort}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(msg)
+      });
+      return await net_util.responseJsonExn(response);
+    }
+  }
+
   export function startServer(port: number = 8080): http.Server {
     const server = http.createServer((req, res) => {
       let body = '';
       req.on('data', chunk => { body += chunk.toString(); });
       req.on('end', async () => {
         try {
-          const msg: IncomingMessage = JSON.parse(body);
+          const msg: WorkerCommand = JSON.parse(body);
           const reply = await processMessage(msg);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(reply));
