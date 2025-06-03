@@ -7,6 +7,7 @@ import shellescape from "shell-escape";
 import axios from "axios";
 
 import * as common from "tennyson/lib/core/common";
+import * as net_util from "tennyson/lib/core/net-util";
 import * as execlib from "tennyson/lib/core/exec";
 
 export class Apt {
@@ -75,7 +76,6 @@ export class Host {
   }
 
   async passthroughSsh() {
-    common.log.info("Consider doing TERM=ansi");
     await common.passthru("ssh", [`${this.user}@${this.fqdn()}`]);
   }
 
@@ -184,4 +184,18 @@ export class Host {
       localPath,
       `${this.user}@${this.fqdn()}:${remotePath}`])
   }
+
+  async sshTunnel(remotePort: number, localPort?: number) {
+    const localPort_ = (localPort === null)
+      ? await net_util.getRandomFreePort()
+      : localPort;
+
+    return spawn("ssh", [
+      "-NL",
+      `${localPort_}:localhost:${remotePort}`,
+      `${this.user}@${this.fqdn()}`,
+      ]
+    );
+  }
 }
+

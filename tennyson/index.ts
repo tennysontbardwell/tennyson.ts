@@ -102,6 +102,7 @@ async function main() {
     cli.command("hometty", () => hometty.run()),
     cli.command("api-run", () => api.run()),
     cli.command("quickdev", () => quickdev()),
+    cli.command("fleet-member", () => fleet.Comms.becomeFleetMember()),
   ]);
 }
 

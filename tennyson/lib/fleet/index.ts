@@ -1,4 +1,5 @@
 import shellescape from "shell-escape";
+import * as http from 'http';
 import * as path from "path";
 import * as uuid from 'uuid';
 
@@ -56,6 +57,66 @@ export class Member {
     });
   }
 }
+
+export namespace Comms {
+  interface GetCommand {
+    kind: "getCommand",
+    url: string
+  }
+
+  type IncomingMessage = GetCommand
+
+  interface GetReply {
+    kind: "getReply",
+    url: string,
+    status: number,
+    contents: string
+  }
+
+  type ReplyMessage = GetReply
+
+  // function processMessage(msg: GetCommand): Promise<GetReply>;
+
+  async function processMessage(msg: GetCommand) {
+    const response = await fetch(msg.url);
+    const text = await response.text();
+    return {
+      kind: "getReply",
+      url: msg.url,
+      status: response.status,
+      text
+    }
+  }
+
+  export function startServer(port: number = 8080): http.Server {
+    const server = http.createServer((req, res) => {
+      let body = '';
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', async () => {
+        try {
+          const msg: IncomingMessage = JSON.parse(body);
+          const reply = await processMessage(msg);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(reply));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON or some other issue' }));
+        }
+      });
+    });
+
+    server.listen(port, () => {
+      console.log(`Server listening on port ${port}`);
+    });
+    return server;
+  }
+
+  export async function becomeFleetMember(): Promise<void> {
+    const server = startServer();
+    new Promise((resolve) => server.on("close", () => resolve(null)));
+  }
+}
+
 // async Fleet {
 
 // }
