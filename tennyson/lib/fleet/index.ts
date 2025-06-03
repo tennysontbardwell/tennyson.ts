@@ -53,8 +53,6 @@ export class Member {
   }
 
   async becomeWorker() {
-    common.log.info("Setting Up Typescript");
-    await this.setupTypescript();
     common.log.info("Starting SSH Tunnel");
     const { localPort, process } = await this.host.sshTunnel(8080);
     common.log.info(`Tunnel Created on port ${localPort}`);
@@ -98,7 +96,7 @@ export namespace Comms {
     url: string
   }
 
-  type WorkerCommand = GetCommand
+  export type WorkerCommand = GetCommand
 
   interface GetReply {
     kind: "getReply",
@@ -107,7 +105,7 @@ export namespace Comms {
     contents: string
   }
 
-  type ReplyMessage = GetReply
+  export type ReplyMessage = GetReply
 
   // function processMessage(msg: GetCommand): Promise<GetReply>;
 
@@ -172,6 +170,35 @@ export namespace Comms {
   }
 }
 
-// async Fleet {
+class Fleet {
+  members: Member[];
+  name: string;
+  workers: Comms.Worker[] | undefined;
 
-// }
+  constructor(name: string | null, members: Member[]) {
+    this.name = (name === null) ? common.rndAlphNum(5) : name;
+    this.members = members;
+  }
+
+  async runAll(fn: (member: Member) => Promise<void>) {
+    return Promise.all(this.members.map(fn));
+  }
+
+  static async createWorkerFleet(size: number) {
+    if (size > 50)
+      throw new Error("too big of fleet, confirm")
+    const name = common.rndAlphNum(5);
+    const membersAsync = common.range(size)
+      .map(async () => Member.create(name));
+    const members = await Promise.all(membersAsync);
+    const fleet = new Fleet(name, members);
+    await fleet.runAll((member: Member) => member.setupTypescript());
+    fleet.workers = await Promise.all(
+      fleet.members.map(member => member.becomeWorker()));
+    return fleet;
+  }
+
+  async process(msg: Comms.WorkerCommand): Promise<Comms.ReplyMessage> {
+    return common.getRandomElement(this.workers!)!.process(msg);
+  }
+}

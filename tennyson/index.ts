@@ -78,7 +78,9 @@ namespace Devbox {
 async function quickdev() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
   await fleet.Member.with(async (member: fleet.Member) => {
-    await member.becomeWorker();
+    const worker = await member.becomeWorker();
+    common.log.info(await worker.process(
+      { kind: "getCommand", url: "https://ipecho.net/plain"}));
     await member.host.passthroughSsh();
   });
 }
