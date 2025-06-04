@@ -104,14 +104,14 @@ export namespace Comms {
     kind: "getReply",
     url: string,
     status: number,
-    contents: string
+    text: string
   }
 
   export type ReplyMessage = GetReply
 
   // function processMessage(msg: GetCommand): Promise<GetReply>;
 
-  async function processMessage(msg: GetCommand) {
+  async function processMessage(msg: GetCommand): Promise<GetReply> {
     const response = await fetch(msg.url);
     const text = await response.text();
     return {
