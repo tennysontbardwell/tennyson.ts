@@ -204,9 +204,11 @@ export abstract class Node<P, R> {
     let uncached: P[] = checkResults
       .filter(x => !x.cached)
       .map(x => this.deserializeParams(x.params));
+    let topNum = checkResults.length - uncached.length;
+    let botNum = checkResults.length;
     common.log.info(
-      `Node ${this.name} has cached` +
-      `${checkResults.length - uncached.length}/${checkResults.length}`);
+      `Node ${this.name} has cached ` +
+      `${topNum}/${botNum} (${100 * topNum / botNum}%)`);
     for await (const params of tqdm(uncached)) {
       await this.get(params);
     }
@@ -229,7 +231,8 @@ export abstract class Node<P, R> {
         });
     }
     common.log.info(
-      `Node ${this.name} has cached ${res.length}/${params.length}`);
+      `Node ${this.name} has cached ${res.length}/${params.length} ` +
+      `(${100 * res.length / params.length}%)`);
     await common.mapInLimitedConcurrency(
       (x: P) => this.get(x).then(results => res.push({ params: x, results })),
       tofetch,

@@ -19,12 +19,14 @@ export class Member {
     this.host = host;
   }
 
-  static async create(fleetname?: string) {
+  static async create(fleetname?: string, memberName?: string) {
+    let memberName_ = (memberName === undefined)
+      ? common.rndAlphNum(5) : memberName;
     let name = [
       "tmp-fleet",
       fleetname,
       "box",
-      common.rndAlphNum(5)
+      memberName_
     ].filter(x => x !== null).join("-");
     let host = await ec2.createNewSmall(name, { terminateOnShutdown: true });
     return new Member(name, host);
@@ -53,14 +55,14 @@ export class Member {
   }
 
   async becomeWorker() {
-    common.log.info("Starting SSH Tunnel");
+    // common.log.info("Starting SSH Tunnel");
     const { localPort, process } = await this.host.sshTunnel(8080);
     common.log.info(`Tunnel Created on port ${localPort}`);
-    common.log.info("Starting Fleet-Member Exec");
+    // common.log.info("Starting Fleet-Member Exec");
     const _fleetMemberProc = this.host.exec(
       "bash",
-      ["-c", "cd tennyson.ts; yarn install; yarn run run fleet-member"]);
-    common.log.info("Finished");
+      ["-c", "cd tennyson.ts; yarn install; yarn run run fleet-member > stdout 2> stderr"]);
+    // common.log.info("Finished");
     return new Comms.Worker(this, localPort);
   }
 
@@ -129,15 +131,24 @@ export namespace Comms {
       this.localPort = localPort;
     }
 
-    async process(msg: WorkerCommand): Promise<ReplyMessage> {
-      const response = await fetch(`localhost:${this.localPort}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(msg)
-      });
-      return await net_util.responseJsonExn(response);
+    async process(request: WorkerCommand): Promise<ReplyMessage> {
+      try {
+        const msg = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request)
+        };
+        const url = `http://localhost:${this.localPort}`;
+        common.log.info({ url, msg });
+        const response = await fetch(url, msg);
+        return await net_util.responseJsonExn(response);
+      } catch (error) {
+        common.log.error({
+          message: "Error while processing request",
+          worker: this,
+          request, error });
+        throw error;
+      }
     }
   }
 
@@ -170,7 +181,7 @@ export namespace Comms {
   }
 }
 
-class Fleet {
+export class Fleet {
   members: Member[];
   name: string;
   workers: Comms.Worker[] | undefined;

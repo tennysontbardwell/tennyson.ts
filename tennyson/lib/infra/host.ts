@@ -194,8 +194,11 @@ export class Host {
       "-NL",
       `${localPort_}:localhost:${remotePort}`,
       `${this.user}@${this.fqdn()}`,
-      ]
+    ]
     );
+
+    // Needed to ensure the tunnel is setup
+    await common.sleep(10_000);
 
     return { localPort: localPort_, process };
   }
