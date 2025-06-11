@@ -3,8 +3,14 @@ import * as tslog from "tslog";
 import * as os from "os";
 import * as path from 'path';
 import { promises as fs } from 'fs';
+import * as fsSync from 'fs';
 import * as uuid from 'uuid';
 import { tqdm } from "./tqdm";
+import { Writable } from 'stream';
+import chain from 'stream-chain';
+import { parser } from 'stream-json'; // JSON parser factory
+import Assembler from 'stream-json/Assembler'; // Class to assemble the JS object
+
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -177,18 +183,135 @@ export async function fsExists(path: string) {
   }
 }
 
+// https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
+export async function parseJsonFileStream(filePath: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const pipeline = chain([
+            fsSync.createReadStream(filePath, { encoding: 'utf8' }),
+            parser(),
+        ]);
+
+        const asm = Assembler.connectTo(pipeline);
+        asm.on('done', asm => resolve(asm.current));
+    });
+}
+
+async function writeChunk(stream: Writable, chunk: string): Promise<void> {
+  // Attempt to write the chunk. If stream.write() returns false, the internal buffer is full.
+  if (!stream.write(chunk, 'utf8')) {
+    // Wait for the 'drain' event before resolving the promise, allowing more data to be written.
+    await new Promise<void>(resolve => stream.once('drain', resolve));
+  }
+  // If stream.write() returns true, the chunk was accepted, and we can proceed.
+}
+
+// https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
+export async function recursivelyWriteObjectToStream(
+    data: any,
+    stream: Writable
+): Promise<void> {
+    if (data === undefined) {
+        // For standalone 'undefined' or if 'undefined' is explicitly passed.
+        // JSON.stringify(undefined) returns undefined (no string output).
+        // In a streaming context, writing "null" is a common way to represent it.
+        await writeChunk(stream, 'null');
+        return;
+    }
+    if (data === null) {
+        await writeChunk(stream, 'null');
+    } else if (typeof data === 'string') {
+        // Use JSON.stringify to ensure proper escaping and quoting of strings.
+        await writeChunk(stream, JSON.stringify(data));
+    } else if (typeof data === 'number' || typeof data === 'boolean') {
+        await writeChunk(stream, String(data));
+    } else if (Array.isArray(data)) {
+        await writeChunk(stream, '[');
+        for (let i = 0; i < data.length; i++) {
+            if (i > 0) {
+                await writeChunk(stream, ',');
+            }
+            // In JSON, 'undefined' in an array becomes 'null'.
+            // Functions and Symbols in arrays also become 'null'.
+            const element = data[i];
+            if (element === undefined || typeof element === 'function' || typeof element === 'symbol') {
+                await recursivelyWriteObjectToStream(null, stream);
+            } else {
+                await recursivelyWriteObjectToStream(element, stream);
+            }
+        }
+        await writeChunk(stream, ']');
+    } else if (typeof data === 'object') { // Excludes null, which is handled above.
+        await writeChunk(stream, '{');
+        const keys = Object.keys(data);
+        let firstPropertyWritten = false;
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const value = (data as Record<string, any>)[key];
+
+            // JSON.stringify omits keys with 'undefined', function, or symbol values.
+            if (value !== undefined && typeof value !== 'function' && typeof value !== 'symbol') {
+                if (firstPropertyWritten) {
+                    await writeChunk(stream, ',');
+                }
+                await writeChunk(stream, JSON.stringify(key)); // Keys are always strings in JSON.
+                await writeChunk(stream, ':');
+                await recursivelyWriteObjectToStream(value, stream);
+                firstPropertyWritten = true;
+            }
+        }
+        await writeChunk(stream, '}');
+    } else {
+        // This case handles types not explicitly covered, primarily top-level functions or symbols.
+        // JSON.stringify would produce 'undefined' (no output) for these.
+        // We write 'null' as a sensible default for a streaming context.
+        await writeChunk(stream, 'null');
+    }
+}
+
 export async function fsCacheResult<T extends NonNullable<any>>(
   path: string,
   f: () => Promise<T>)
-: Promise<T> {
+  : Promise<T> {
   if (await fsExists(path)) {
-    return JSON.parse(await fs.readFile(path, 'utf-8'));
+    return parseJsonFileStream(path);
+    // return JSON.parse(await fs.readFile(path, 'utf-8'));
   } else {
     let res = await f();
-    let str = JSON.stringify(res);
-    await fs.writeFile(path, str);
+    // await writeToFile(res, path);
+    const writeStream = fsSync.createWriteStream(path);
+    await recursivelyWriteObjectToStream(res, writeStream);
+    // streamJsonData(writeStream, res);
+    // await new Promise((resolve, reject) => {
+    //   writeStream.on('finish', () => resolve(null));
+    //   writeStream.on('error', reject);
+    // });
+    // writeStream.close();
     return res;
+
+    // let str = JSON.stringify(res);
+    // await fs.writeFile(path, str);
+    // jsonStream = JSONStream.stringify();
+    // let str = JSONStream.stringify(res);
+    // return res;
   }
+}
+
+export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
+  return {
+    data: null as null | Promise<T>,
+    get() {
+      if (this.data === null) {
+        this.data = f();
+      }
+      return this.data
+    }
+  }
+}
+
+export function mkCachable<T extends NonNullable<any>>(
+  path: string, f: () => Promise<T>)
+{
+  return lazy(() => fsCacheResult(path, f))
 }
 
 export async function withTempDir(f: (dir: string) => Promise<void>) {
