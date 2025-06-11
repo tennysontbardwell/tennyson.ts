@@ -55,14 +55,16 @@ export class Member {
   }
 
   async becomeWorker() {
-    // common.log.info("Starting SSH Tunnel");
     const { localPort, process } = await this.host.sshTunnel(8080);
     common.log.info(`Tunnel Created on port ${localPort}`);
-    // common.log.info("Starting Fleet-Member Exec");
     const _fleetMemberProc = this.host.exec(
       "bash",
-      ["-c", "cd tennyson.ts; yarn install; yarn run run fleet-member > stdout 2> stderr"]);
-    // common.log.info("Finished");
+      ["-c",
+        "cd tennyson.ts; yarn install; " +
+        "yarn run run fleet-member > ~/stdout 2> ~/stderr"]);
+
+    // Needed to ensure the tunnel & command is setup
+    await common.sleep(10_000);
     return new Comms.Worker(this, localPort);
   }
 
@@ -139,7 +141,7 @@ export namespace Comms {
           body: JSON.stringify(request)
         };
         const url = `http://localhost:${this.localPort}`;
-        common.log.info({ url, msg });
+        // common.log.info({ url, msg });
         const response = await fetch(url, msg);
         return await net_util.responseJsonExn(response);
       } catch (error) {
