@@ -184,7 +184,7 @@ export async function fsExists(path: string) {
 }
 
 // https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
-export async function parseJsonFileStream(filePath: string): Promise<any> {
+export async function parseBigJson(filePath: string): Promise<any> {
     return new Promise((resolve, reject) => {
         const pipeline = chain([
             fsSync.createReadStream(filePath, { encoding: 'utf8' }),
@@ -268,31 +268,22 @@ export async function recursivelyWriteObjectToStream(
     }
 }
 
+export async function writeBigJson(path: string, data: any) {
+  const writeStream = fsSync.createWriteStream(path);
+  return await recursivelyWriteObjectToStream(data, writeStream);
+}
+
 export async function fsCacheResult<T extends NonNullable<any>>(
   path: string,
   f: () => Promise<T>)
   : Promise<T> {
   if (await fsExists(path)) {
-    return parseJsonFileStream(path);
-    // return JSON.parse(await fs.readFile(path, 'utf-8'));
+    return parseBigJson(path);
   } else {
     let res = await f();
-    // await writeToFile(res, path);
     const writeStream = fsSync.createWriteStream(path);
     await recursivelyWriteObjectToStream(res, writeStream);
-    // streamJsonData(writeStream, res);
-    // await new Promise((resolve, reject) => {
-    //   writeStream.on('finish', () => resolve(null));
-    //   writeStream.on('error', reject);
-    // });
-    // writeStream.close();
     return res;
-
-    // let str = JSON.stringify(res);
-    // await fs.writeFile(path, str);
-    // jsonStream = JSONStream.stringify();
-    // let str = JSONStream.stringify(res);
-    // return res;
   }
 }
 
