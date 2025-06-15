@@ -1,3 +1,18 @@
+// Fix module resolution for Electron
+if (process.versions.electron) {
+  const Module = require('module');
+  const path = require('path');
+
+  const originalResolveFilename = Module._resolveFilename;
+  Module._resolveFilename = function (request: any, parent: any, isMain: any) {
+    if (request.startsWith('tennyson/')) {
+      const buildPath = path.join(__dirname, '..', '..', 'build');
+      return originalResolveFilename.call(this, path.join(buildPath, request), parent, isMain);
+    }
+    return originalResolveFilename.call(this, request, parent, isMain);
+  };
+}
+
 import * as yargs from "yargs";
 import * as path from "path";
 
@@ -75,14 +90,28 @@ namespace Devbox {
   }
 }
 
-async function quickdev() {
+async function electron() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
-  await fleet.Member.with(async (member: fleet.Member) => {
-    const worker = await member.becomeWorker();
-    common.log.info(await worker.process(
-      { kind: "getCommand", url: "https://ipecho.net/plain"}));
-    await member.host.passthroughSsh();
-  });
+  const { app, BrowserWindow } = await import('electron');
+
+  const createWindow = () => {
+    const win = new BrowserWindow({ width: 800, height: 1500 });
+    win.loadURL('https://google.com');
+  }
+
+  app.whenReady().then(() => {
+    createWindow()
+  })
+
+}
+
+async function quickdev() {
+  // await fleet.Member.with(async (member: fleet.Member) => {
+  //   const worker = await member.becomeWorker();
+  //   common.log.info(await worker.process(
+  //     { kind: "getCommand", url: "https://ipecho.net/plain"}));
+  //   await member.host.passthroughSsh();
+  // });
 }
 
 async function main() {
@@ -91,6 +120,7 @@ async function main() {
     cli.command("hometty", () => hometty.run()),
     cli.command("api-run", () => api.run()),
     cli.command("quickdev", () => quickdev()),
+    cli.command("electron", () => electron()),
     cli.command("fleet-member", () => fleet.Comms.becomeFleetMember()),
   ]);
 }
