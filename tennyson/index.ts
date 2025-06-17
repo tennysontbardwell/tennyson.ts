@@ -106,12 +106,14 @@ async function electron() {
 }
 
 async function quickdev() {
-  // await fleet.Member.with(async (member: fleet.Member) => {
-  //   const worker = await member.becomeWorker();
-  //   common.log.info(await worker.process(
-  //     { kind: "getCommand", url: "https://ipecho.net/plain"}));
-  //   await member.host.passthroughSsh();
-  // });
+  let aichat = await import("tennyson/lib/ai/aichat");
+  // let page = await aichat.webpage("https://www.rottentomatoes.com/")
+  let resp = await aichat.query({
+    userText: "Fetch the contents of this page https://www.rottentomatoes.com/ and then answer this: What is the best movie on this page?",
+    attachments: [],
+ // tools: [aichat.urlFetchTool],
+  })
+  common.log.info(resp);
 }
 
 async function main() {

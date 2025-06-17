@@ -1,14 +1,14 @@
 import * as common from "tennyson/lib/core/common";
+import * as secrets from "tennyson/secrets/secrets";
 
 // openai-api.ts
+// https://kagi.com/assistant/f87f6e6e-167d-4a0a-a054-72fd4832f2e5
 
 /**
  * TypeScript module for OpenAI GPT-4.1 API inference
  */
 
-// https://kagi.com/assistant/f87f6e6e-167d-4a0a-a054-72fd4832f2e5
 // Types and Interfaces
-
 export interface Message {
   role: 'developer' | 'user' | 'assistant';
   content: string;
@@ -39,23 +39,8 @@ export interface OpenAIResponse {
 
 // Configuration
 export class OpenAIConfig {
-  private static apiKey: string;
-  private static baseUrl: string = 'https://api.openai.com/v1/responses';
-
-  static setApiKey(key: string): void {
-    this.apiKey = key;
-  }
-
-  static getApiKey(): string {
-    if (!this.apiKey) {
-      throw new Error('OpenAI API key not set. Call OpenAIConfig.setApiKey() first.');
-    }
-    return this.apiKey;
-  }
-
-  static getBaseUrl(): string {
-    return this.baseUrl;
-  }
+  static apiKey: string = secrets.openAIKey!;
+  static baseUrl: string = 'https://api.openai.com/v1/responses';
 }
 
 // Main API client class
@@ -120,15 +105,12 @@ export class OpenAIClient {
    * Make the API request
    */
   private async makeRequest(options: OpenAIRequestOptions): Promise<OpenAIResponse> {
-    const apiKey = OpenAIConfig.getApiKey();
-    const url = OpenAIConfig.getBaseUrl();
-
     try {
-      const response = await fetch(url, {
+      const response = await fetch(OpenAIConfig.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Authorization': `Bearer ${OpenAIConfig.apiKey}`
         },
         body: JSON.stringify(options)
       });
@@ -194,32 +176,3 @@ export const openai = {
     return new OpenAIClient(model);
   }
 };
-
-// Example usage helper
-export function createPromptWithExamples(
-  identity: string,
-  instructions: string[],
-  examples: Array<{ input: string; output: string }>,
-  context?: string
-): string {
-  let prompt = `# Identity\n\n${identity}\n\n`;
-
-  prompt += `# Instructions\n\n`;
-  instructions.forEach(instruction => {
-    prompt += `* ${instruction}\n`;
-  });
-
-  if (examples.length > 0) {
-    prompt += `\n# Examples\n\n`;
-    examples.forEach((example, index) => {
-      prompt += `<user_query id="example-${index + 1}">\n${example.input}\n</user_query>\n\n`;
-      prompt += `<assistant_response id="example-${index + 1}">\n${example.output}\n</assistant_response>\n\n`;
-    });
-  }
-
-  if (context) {
-    prompt += `# Context\n\n${context}\n`;
-  }
-
-  return prompt.trim();
-}
