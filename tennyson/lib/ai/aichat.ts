@@ -23,15 +23,70 @@ interface Query {
   outputSchema?: string,
 }
 
-export async function query(query: Query): Promise<string> {
-  let query_ = {
-    tools: [],
-    attachments: [],
-    maxToolCalls: 10,
-    ...query
+interface ToolCall {
+  name: string;
+  input: any;
+}
+
+async function parseToolCalls(response: string): Promise<ToolCall[] | null> {
+  const lines = response.split('\n');
+  const toolCallIndex = lines.findIndex(line => line.trim() === 'TOOL_CALL');
+
+  if (toolCallIndex === -1) {
+    return null;
   }
+
+  // Get the JSON array after TOOL_CALL
+  const jsonStart = toolCallIndex + 1;
+  if (jsonStart >= lines.length) {
+    return null;
+  }
+
+  try {
+    const jsonStr = lines.slice(jsonStart).join('\n');
+    const toolCalls = JSON.parse(jsonStr);
+    return Array.isArray(toolCalls) ? toolCalls : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function executeToolsInParallel(toolCalls: ToolCall[], availableTools: Tool[]): Promise<Attachment[]> {
+  const toolMap = new Map(availableTools.map(tool => [tool.name, tool]));
+
+  const toolPromises = toolCalls.map(async (call): Promise<Attachment> => {
+    const tool = toolMap.get(call.name);
+    if (!tool) {
+      return {
+        title: `Tool Error: ${call.name}`,
+        contents: `Tool "${call.name}" not found`
+      };
+    }
+
+    try {
+      const result = await tool.callback(JSON.stringify(call.input));
+      return result;
+    } catch (error) {
+      return {
+        title: `Tool Error: ${call.name}`,
+        contents: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+  });
+
+  return Promise.all(toolPromises);
+}
+
+async function generatePrompt(query_: {
+  userText: string;
+  tools: Tool[];
+  maxToolCalls: number;
+  attachments: Attachment[];
+  outputSchema?: string;
+}): Promise<string> {
   let prompt = "";
   let sep = '==================================';
+
   function addSection(title: string, contents: string) {
     prompt += sep;
     prompt += " ";
@@ -39,18 +94,178 @@ export async function query(query: Query): Promise<string> {
     prompt += "\n";
     prompt += contents;
   }
-  addSection("frontmatter", `This prompt will involve instructions from a user, ${query_.tools.length} tools, ${query_.attachments.length} attachments. You may either attempt to complete the task, you may call one or more of the tools. If you choose to call tools, then output the text TOOL_CALL followed by a newline, and a json array of the tool calls that you wish to invoke. If the information gained by calling the tools would improve the ability of a future agent to answer the user's prompt, then that is the best choice. You may call up to 5 tools.`);
+
+  const toolCallsRemaining = Math.max(0, query_.maxToolCalls);
+  addSection("frontmatter", `This prompt will involve instructions from a user, ${query_.tools.length} tools, ${query_.attachments.length} attachments. You may either attempt to complete the task, you may call one or more of the tools. If you choose to call tools, then output the text TOOL_CALL followed by a newline, and a json array of the tool calls that you wish to invoke in the format { name: <name>, input: <input data> }. The <name> field must match the \"name\" key in the list of tools that follow. If the information gained by calling the tools would improve the ability of a future agent to answer the user's prompt, then that is the best choice. You have ${toolCallsRemaining} tool calls remaining.`);
+
   addSection("Instructions From User", query_.userText);
+
   query_.attachments.forEach((attachment: Attachment, i: number) => {
     addSection(`Attachment ${i+1} of ${query_.attachments.length}; Title: ${attachment.title}`, attachment.contents);
-  })
+  });
+
   query_.tools.forEach((tool: Tool, i: number) => {
     addSection(
-      `Tool ${i+1} of ${query_.attachments.length}; Name: ${tool.name}`,
-      `Description: ${tool.description}\nInput Schema: ${JSON.stringify(tool.inputSchema)}\nOutput Schema: ${JSON.stringify(tool.outSchema)}`
+      `Tool Number ${i+1} of ${query_.tools.length}; Tool Name: \"${tool.name}\"`,
+      JSON.stringify({
+        name: tool.name,
+        inputSchema: tool.inputSchema,
+        outputSchema: tool.outSchema,
+      })
     );
-  })
+  });
+
   return await openai.openai.generate(prompt);
+}
+
+interface TraceEntry {
+  type: 'query' | 'response' | 'tool_calls' | 'tool_results';
+  timestamp: string;
+  data: any;
+}
+
+export async function query(queryInput: Query, traceFile?: string): Promise<string> {
+  let query_ = {
+    tools: [],
+    attachments: [],
+    maxToolCalls: 10,
+    ...queryInput
+  }
+
+  // Initialize trace array if traceFile is provided
+  const trace: TraceEntry[] = [];
+
+  const result = await queryWithTrace(query_, trace);
+
+  // Write trace file after completion
+  if (traceFile && trace.length > 0) {
+    await writeTraceFile(traceFile, trace);
+  }
+
+  return result;
+}
+
+async function queryWithTrace(query_: {
+  userText: string;
+  tools: Tool[];
+  maxToolCalls: number;
+  attachments: Attachment[];
+  outputSchema?: string;
+}, trace: TraceEntry[]): Promise<string> {
+
+  // Add query to trace
+  trace.push({
+    type: 'query',
+    timestamp: new Date().toISOString(),
+    data: {
+      userText: query_.userText,
+      toolsCount: query_.tools.length,
+      maxToolCalls: query_.maxToolCalls,
+      attachmentsCount: query_.attachments.length,
+      outputSchema: query_.outputSchema,
+      attachments: query_.attachments.map(a => ({ title: a.title, contentLength: a.contents.length }))
+    }
+  });
+
+  // Base case: no more tool calls allowed
+  if (query_.maxToolCalls <= 0) {
+    const response = await generatePrompt(query_);
+
+    trace.push({
+      type: 'response',
+      timestamp: new Date().toISOString(),
+      data: {
+        response: response,
+        reason: 'max_tool_calls_reached'
+      }
+    });
+
+    return response;
+  }
+
+  const response = await generatePrompt(query_);
+
+  // Check if tools were called
+  const toolCalls = await parseToolCalls(response);
+  if (!toolCalls || toolCalls.length === 0) {
+    trace.push({
+      type: 'response',
+      timestamp: new Date().toISOString(),
+      data: {
+        response: response,
+        reason: 'no_tool_calls'
+      }
+    });
+
+    return response;
+  }
+
+  // Log tool calls
+  trace.push({
+    type: 'tool_calls',
+    timestamp: new Date().toISOString(),
+    data: {
+      rawResponse: response,
+      toolCalls: toolCalls,
+      toolCallsCount: toolCalls.length
+    }
+  });
+
+  // Execute tools in parallel
+  const toolResults = await executeToolsInParallel(toolCalls, query_.tools);
+
+  // Log tool results
+  trace.push({
+    type: 'tool_results',
+    timestamp: new Date().toISOString(),
+    data: {
+      results: toolResults.map(result => ({
+        title: result.title,
+        contentLength: result.contents.length,
+        contentPreview: result.contents.substring(0, 200) + (result.contents.length > 200 ? '...' : '')
+      }))
+    }
+  });
+
+  // Add tool results as attachments and recurse
+  const updatedQuery = {
+    ...query_,
+    attachments: [...query_.attachments, ...toolResults],
+    maxToolCalls: query_.maxToolCalls - toolCalls.length
+  };
+
+  return await queryWithTrace(updatedQuery, trace);
+}
+
+async function writeTraceFile(traceFile: string, trace: TraceEntry[]): Promise<void> {
+  const fs = await import('fs/promises');
+  const path = await import('path');
+
+  try {
+    // Ensure directory exists
+    const dir = path.dirname(traceFile);
+    await fs.mkdir(dir, { recursive: true });
+
+    // Write trace file
+    const traceData = {
+      timestamp: new Date().toISOString(),
+      totalEntries: trace.length,
+      entries: trace
+    };
+
+    await fs.writeFile(traceFile, JSON.stringify(traceData, null, 2), 'utf-8');
+    console.log(`Trace file written to: ${traceFile}`);
+  } catch (error) {
+    console.error(`Failed to write trace file ${traceFile}:`, error);
+    // Also try to write to current directory as fallback
+    try {
+      const fallbackPath = path.basename(traceFile);
+      await fs.writeFile(fallbackPath, JSON.stringify({ timestamp: new Date().toISOString(), totalEntries: trace.length, entries: trace }, null, 2), 'utf-8');
+      console.log(`Trace file written to fallback location: ${fallbackPath}`);
+    } catch (fallbackError) {
+      console.error(`Failed to write trace file to fallback location:`, fallbackError);
+    }
+  }
 }
 
 // https://kagi.com/assistant/f6131177-2407-42d0-9b63-3f7e3bf2e48f
@@ -103,7 +318,7 @@ export async function file(path: string, fullPathInTitle = false)
 }
 
 export const urlFetchTool: Tool = {
-  name: "urlFetch",
+  name: "tool/network/fetch-webpage",
   inputSchema: Type.Object({
     url: Type.String({ format: "uri" })
   }),
@@ -293,3 +508,39 @@ export const modifyFileTool = (startingPath: string, proposeChangesOnly = true):
     }
   }
 });
+
+/**
+ * Reads all files in a directory (recursively) and returns them as attachments.
+ * @param dirPath - the root directory to start searching files from
+ * @returns Promise<Attachment[]>
+ */
+export async function readDirectoryAsAttachments(dirPath: string): Promise<Attachment[]> {
+  const fs = await import('fs/promises');
+  const pathModule = await import('path');
+
+  async function walk(currentPath: string): Promise<Attachment[]> {
+    let entries: any[] = [];
+    try {
+      entries = await fs.readdir(currentPath, { withFileTypes: true });
+    } catch (e) {
+      return [];
+    }
+    const results: Attachment[] = [];
+    for (const entry of entries) {
+      const fullPath = pathModule.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        results.push(...(await walk(fullPath)));
+      } else if (entry.isFile()) {
+        try {
+          const contents = await fs.readFile(fullPath, 'utf-8');
+          results.push({ title: entry.name, contents });
+        } catch (error) {
+          results.push({ title: entry.name, contents: `ERROR: ${error instanceof Error ? error.message : String(error)}` });
+        }
+      }
+    }
+    return results;
+  }
+
+  return walk(dirPath);
+}

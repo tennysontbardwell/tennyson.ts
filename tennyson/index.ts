@@ -109,10 +109,15 @@ async function quickdev() {
   let aichat = await import("tennyson/lib/ai/aichat");
   // let page = await aichat.webpage("https://www.rottentomatoes.com/")
   let resp = await aichat.query({
-    userText: "Fetch the contents of this page https://www.rottentomatoes.com/ and then answer this: What is the best movie on this page?",
+    userText: "Read the TODO comment in /Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai/aichat.ts and execute it. Write the results back to the file.",
     attachments: [],
- // tools: [aichat.urlFetchTool],
-  })
+    tools: [
+      aichat.urlFetchTool,
+      aichat.readFilesTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai"),
+      aichat.modifyFileTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai")
+    ],
+    maxToolCalls: 3,
+  }, "/tmp/aitrace.json")
   common.log.info(resp);
 }
 
