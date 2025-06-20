@@ -1,5 +1,6 @@
 // Fix module resolution for Electron
 if (process.versions.electron) {
+  console.log("ELECTRON SETUP");
   const Module = require('module');
   const path = require('path');
 
@@ -14,20 +15,14 @@ if (process.versions.electron) {
 }
 
 import * as yargs from "yargs";
-import * as path from "path";
 
 import * as cli from "tennyson/lib/core/cli";
-import * as api from "tennyson/app/api";
 import * as common from "tennyson/lib/core/common";
-import * as util from "tennyson/lib/core/util";
-import * as ec2 from "tennyson/lib/infra/ec2";
-import * as readline from "readline";
-import * as hometty from "tennyson/app/scripts/hometty";
-import * as fleet from "tennyson/lib/fleet";
-import * as exec from "tennyson/lib/core/exec";
-import * as host from "tennyson/lib/infra/host";
+import * as aicmd from "tennyson/lib/ai/cmd";
+import * as infra_cmd from "tennyson/lib/infra/cmd";
 
-function askQuestion(query: string) {
+async function askQuestion(query: string) {
+  let readline = await import("readline");
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -56,40 +51,6 @@ function simple(name: string, cmd: () => Promise<void>) {
   };
 }
 
-namespace Devbox {
-  const choices = Object.keys(ec2.sizes);
-  type Size = keyof typeof ec2.sizes;
-
-  function rndName() {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
-    return "temp-box-" + rnd.join("");
-  }
-
-  async function runThenKill(size: Size) {
-    let name = rndName();
-    let instance = ec2.sizes[size];
-    let box = await ec2.createNew(name, {instance});
-    await box.passthroughSsh();
-    await util.askQuestion("Proceed?");
-    await ec2.purgeByName(name)
-  }
-
-  export const cmd: yargs.CommandModule<{},{}> = {
-    command: "quickbox",
-      describe: "",
-      builder: {
-        "type": {
-          describe: '',
-          type: 'string',
-          choices,
-          default: 'small'
-        }
-      },
-    handler: (async (args: any) => { await runThenKill(args.type); })
-  }
-}
-
 async function electron() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
   const { app, BrowserWindow } = await import('electron');
@@ -105,8 +66,11 @@ async function electron() {
 
 }
 
+
 async function quickdev() {
   let aichat = await import("tennyson/lib/ai/aichat");
+  // let exec = import("tennyson/lib/core/exec");
+  // let host = import("tennyson/lib/infra/host");
   // let page = await aichat.webpage("https://www.rottentomatoes.com/")
   let resp = await aichat.query({
     userText: "Read the TODO comment in /Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai/aichat.ts and execute it. Write the results back to the file.",
@@ -123,12 +87,22 @@ async function quickdev() {
 
 async function main() {
   await cli.execute([
-    Devbox.cmd,
-    cli.command("hometty", () => hometty.run()),
-    cli.command("api-run", () => api.run()),
+    aicmd.cmd,
+    infra_cmd.Devbox.cmd,
+    cli.command("hometty", async () => {
+      let hometty = await import("tennyson/app/scripts/hometty");
+      await hometty.run();
+    }),
+    cli.command("api-run", async () => {
+      let api = await import("tennyson/app/api");
+      await api.run();
+    }),
     cli.command("quickdev", () => quickdev()),
     cli.command("electron", () => electron()),
-    cli.command("fleet-member", () => fleet.Comms.becomeFleetMember()),
+    cli.command("fleet-member", async () => {
+      let fleet = await import("tennyson/lib/fleet");
+      await fleet.Comms.becomeFleetMember();
+    }),
   ]);
 }
 

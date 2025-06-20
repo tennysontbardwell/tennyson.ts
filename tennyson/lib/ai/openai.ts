@@ -47,7 +47,7 @@ export class OpenAIConfig {
 export class OpenAIClient {
   private model: string;
 
-  constructor(model: string = 'gpt-4.1') {
+  constructor(model: string = 'gpt-4.1-mini') {
     this.model = model;
   }
 

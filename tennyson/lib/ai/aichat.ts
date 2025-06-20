@@ -292,9 +292,10 @@ export async function webpage(url: string): Promise<Attachment> {
     .trim();
 
   // Cap length to keep prompt size manageable
-  const MAX_CHARS = 15000;
+  const MAX_CHARS = 400_000;
   if (text.length > MAX_CHARS) {
-    text = text.slice(0, MAX_CHARS) + ' …';
+    throw new Error(`text length exceeds MAX_CHARS of ${MAX_CHARS}, is ${text.length}`);
+    // text = text.slice(0, MAX_CHARS) + ' …';
   }
 
   return {
