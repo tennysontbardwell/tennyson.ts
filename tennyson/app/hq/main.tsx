@@ -1,5 +1,13 @@
 import * as common from "tennyson/lib/core/common";
 import * as d3 from 'd3';
+import React, { useState, useEffect } from 'react';
+import {useRef} from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import {fetchFileSystem} from './ItemDisplay';
+import { Ranger, RangerItem } from './Ranger';
+import * as echarts from 'echarts';
+
 
 console.log("test test test");
 
@@ -143,3 +151,72 @@ let items = [
 let lst = d3.select("body")
   .append("li")
   .data(items)
+
+// Find the root element from the HTML
+const rootElement = document.getElementById('root');
+
+let option = {
+  xAxis: {
+    type: 'category',
+    data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  },
+  yAxis: {
+    type: 'value'
+  },
+  series: [
+    {
+      data: [150, 230, 224, 218, 135, 147, 260],
+      type: 'line',
+      animationDuration: 200,
+    }
+  ]
+};
+
+let myManualChart = echarts.init(document.getElementById("manual-chart"));
+myManualChart.setOption(option);
+
+function Echart() {
+  const ref: React.RefObject<null | HTMLDivElement> = useRef(null);
+
+  useEffect(() => {
+    let myChart = echarts.init(ref.current!);
+    myChart.setOption(option);
+  });
+
+  return (
+    <div style={{ height: "200px", width: "400px" }} ref={ref} />
+  )
+}
+
+let sublist = (prefix: string): Array<RangerItem> => [
+  {
+    name: prefix + "A",
+    subitems: async () => sublist(prefix + "A"),
+    display: () => <App />
+  },
+  {
+    name: prefix + "B",
+    subitems: async () => sublist(prefix + "B"),
+    display: () => <App />
+  },
+  {
+    name: prefix + "C",
+    subitems: async () => sublist(prefix + "C"),
+    display: () => <Echart />
+  },
+]
+
+// Ensure the element exists before trying to render
+if (rootElement) {
+  // Create a React root and render the App component
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+    <App />
+    <Echart />
+    <Ranger items={sublist("")} />
+    <br/>
+    </React.StrictMode>
+  );
+} else {
+  console.error('Failed to find the root element');
+}
