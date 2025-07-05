@@ -79,7 +79,6 @@
     "stream-chain": "^3.4.0",
     "stream-json": "^1.9.1",
     "tslog": "^4.9.3",
-    "typed-cli": "^1.2.0",
     "url-parse": "^1.5.10",
     "yaml": "^2.7.0",
     "yargs": "^17.3.0",

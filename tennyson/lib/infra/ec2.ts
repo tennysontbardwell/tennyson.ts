@@ -113,19 +113,19 @@ async function createNewFromParams(name: string, params: Params) {
   const cmd = new client_ec2.RunInstancesCommand({
     ImageId: debAMIs[params.region]["arm"],
     InstanceType: params.instance,
-    KeyName: "tennyson@artemis",
+    KeyName: "tennyson@onyx",
     SecurityGroups: ["public-ssh", "web-ingress"].concat(params.additionalSecurityGroups),
     TagSpecifications: [
       {
         Tags: [
-          { Key: "source", Value: "tbardwell.ts/v0" },
+          { Key: "source", Value: "tennyson.ts/v0" },
           { Key: "Name", Value: name },
         ],
         ResourceType: "volume",
       },
       {
         Tags: [
-          { Key: "source", Value: "tbardwell.ts/v0" },
+          { Key: "source", Value: "tennyson.ts/v0" },
           { Key: "Name", Value: name },
         ],
         ResourceType: "instance",

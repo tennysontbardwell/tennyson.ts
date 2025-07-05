@@ -318,32 +318,17 @@ export async function withTempDir(f: (dir: string) => Promise<void>) {
   }
 }
 
-export async function jless(data: any) {
+async function dataExamineCommand(cmd: string, data: any) {
   await withTempDir(async (dir: string) => {
-    let text = (typeof data === 'string') ? data : JSON.stringify(data);
     let file = path.join(dir, 'data.json');
-    await fs.writeFile(file, text);
-    await passthru("jless", [file]);
+    await writeBigJson(file, data);
+    await passthru(cmd, [file]);
   })
 }
 
-export async function nvim(data: any, name = 'data.json') {
-  await withTempDir(async (dir: string) => {
-    let text = (typeof data === 'string') ? data : JSON.stringify(data);
-    let file = path.join(dir, name);
-    await fs.writeFile(file, text);
-    await passthru("nvim", [file]);
-  })
-}
-
-export async function vdJson(data: any) {
-  await withTempDir(async (dir: string) => {
-    let text = (typeof data === 'string') ? data : JSON.stringify(data);
-    let file = path.join(dir, 'data.json');
-    await fs.writeFile(file, text);
-    await passthru("vd", [file]);
-  })
-}
+export const jless = (data: any) => dataExamineCommand("jless", data);
+export const nvim = (data: any) => dataExamineCommand("nvim", data);
+export const vdJson = (data: any) => dataExamineCommand("vd", data);
 
 export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
   const data = await fs.readFile(filePath, 'utf-8');

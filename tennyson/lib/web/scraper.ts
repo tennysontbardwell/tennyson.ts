@@ -4,6 +4,7 @@ import stableStringify from "json-stable-stringify"
 import * as net_util from "tennyson/lib/core/net-util";
 import * as common from "tennyson/lib/core/common";
 import { tqdm } from "../core/tqdm";
+import * as pipe from "tennyson/lib/core/pipe";
 
 export interface Cache {
   get(version: number, params: string, name: string): Promise<string | undefined>;
@@ -69,11 +70,12 @@ export class DBCache implements Cache {
     });
   }
 
-  private dbget<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+  private dbget<T>(sql: string, sqlParams: any[] = [])
+    : Promise<T> {
     return new Promise((resolve, reject) => {
-      this.db.get(sql, params, (err, row: T) => {
+      this.db.get(sql, sqlParams, (err, row: T) => {
         if (err) {
-          common.log.error({sql, params, err});
+          common.log.error({ sql, sqlParams, err });
           reject(err)
         }
         else resolve(row)
@@ -105,11 +107,11 @@ export class DBCache implements Cache {
     );
   }
 
-  private dball<T>(sql: string, params: any[] = []): Promise<T[]> {
+  private dball<T>(sql: string, sqlParams: any[] = []): Promise<T[]> {
     return new Promise((resolve, reject) => {
-      this.db.all(sql, params, (err, rows: T[]) => {
+      this.db.all(sql, sqlParams, (err, rows: T[]) => {
         if (err) {
-          common.log.error({ sql, params, err });
+          common.log.error({ sql, sqlParams, err });
           reject(err)
         }
         else resolve(rows || [])
@@ -123,44 +125,59 @@ export class DBCache implements Cache {
 
     if (params.length === 0) return [];
 
-    const placeholders = params.map(() => '?').join(',');
-    const cachedParams = await this.dball<{ params: string }>(`
-    SELECT DISTINCT params FROM cacheline
-      WHERE name = ?
-        AND version = ?
-        AND params IN (${placeholders})`,
-      [name, version, ...params]
-    );
+    return await pipe.Pipe.ofArray(params)
+      .batch(10_000)
+      .map(async params => {
+        const placeholders = params.map(() => '?').join(',');
+        const cachedParams = await this.dball<{ params: string }>(`
+          SELECT DISTINCT params FROM cacheline
+          WHERE name = ?
+            AND version = ?
+            AND params IN (${placeholders})`,
+          [name, version, ...params]
+        );
 
-    const cachedSet = new Set(cachedParams.map(row => row.params));
+        const cachedSet = new Set(cachedParams.map(row => row.params));
 
-    return params.map(params => ({
-      params: params,
-      cached: cachedSet.has(params)
-    }));
-  }
+        return params.map(params => ({
+          params: params,
+          cached: cachedSet.has(params)
+        }));
+      })
+      .flat()
+      .gather();
+    }
 
-  async getall(version: number, name: string, params: string[]):
-    Promise<{ params: string, results: string | undefined }[]> {
-    await this.init();
+  async getall(version: number, name: string, params: string[])
+  : Promise<{ params: string, results: string | undefined }[]>
+  {
+          await this.init();
 
-    if (params.length === 0) return [];
+          if(params.length === 0) return [];
 
-    const placeholders = params.map(() => '?').join(',');
-    const cachedParams = await this.dball<{ params: string, results: string }>(`
-      SELECT DISTINCT params, results FROM cacheline
-      WHERE name = ?
-        AND version = ?
-        AND params IN (${placeholders})`,
-      [name, version, ...params]
-    );
+    return await pipe.Pipe.ofArray(params)
+      .batch(10_000)
+      .map(async params => {
+        const placeholders = params.map(() => '?').join(',');
+        const cachedParams =
+          await this.dball<{ params: string, results: string }>(`
+            SELECT DISTINCT params, results FROM cacheline
+            WHERE name = ?
+              AND version = ?
+              AND params IN (${placeholders})`,
+            [name, version, ...params]
+          );
 
-    const cachedMap = new Map(cachedParams.map(row => [row.params, row.results]));
+        const cachedMap =
+          new Map(cachedParams.map(row => [row.params, row.results]));
 
-    return params.map(params => ({
-      params,
-      results: cachedMap.get(params)
-    }));
+        return params.map(params => ({
+          params,
+          results: cachedMap.get(params)
+        }));
+      })
+      .flat()
+      .gather();
   }
 }
 
@@ -208,7 +225,7 @@ export abstract class Node<P, R> {
     let botNum = checkResults.length;
     common.log.info(
       `Node ${this.name} has cached ` +
-      `${topNum}/${botNum} (${100 * topNum / botNum}%)`);
+      `${topNum}/${botNum} (${(100 * topNum / botNum).toFixed(3)}%)`);
     for await (const params of tqdm(uncached)) {
       await this.get(params);
     }

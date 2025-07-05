@@ -211,7 +211,22 @@ export class Fleet {
     return fleet;
   }
 
-  async process(msg: Comms.WorkerCommand): Promise<Comms.ReplyMessage> {
-    return common.getRandomElement(this.workers!)!.process(msg);
+  randomWorker = () => common.getRandomElement(this.workers!)!;
+
+  process = (msg: Comms.WorkerCommand): Promise<Comms.ReplyMessage> =>
+    this.randomWorker().process(msg);
+}
+
+export async function withFleet(size: number, f: (fleet: Fleet) => Promise<void>) {
+  var fleet;
+  try {
+    fleet = await Fleet.createWorkerFleet(size);
+    await f(fleet);
+  } finally {
+    if (fleet !== undefined) {
+      common.log.info("Initially fleet destruction");
+      let destroying = fleet.members.map(member => member.destroy());
+      await Promise.all(destroying);
+    }
   }
 }
