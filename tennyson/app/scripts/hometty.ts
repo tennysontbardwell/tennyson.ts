@@ -133,13 +133,21 @@ export async function run() {
           await execlib.exec("chmod", ["+x", name]);
         }
       );
+      const publicBash = await scripts(
+        "~/repos/tennysontbardwell/public/scripts",
+        "**/*.{sh,py}",
+        "",
+        async (name: string) => {
+          await execlib.exec("chmod", ["+x", name]);
+        }
+      );
       const ts = await scripts(
         "~/repos/tennysontbardwell/tennyson.ts/build/src/app/scripts/",
         "**/*.js",
         "~/repos/tennysontbardwell/tennyson.ts/run-script.sh "
       );
       const funcs = await functions();
-      const res = bash.concat(ts, funcs);
+      const res = bash.concat(publicBash, ts, funcs);
       return res;
     }),
     py_docs("python-docs"),

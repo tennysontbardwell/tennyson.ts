@@ -23,6 +23,15 @@ export class Pipe<T> {
     return new Pipe(toAsyncGenerator(input));
   }
 
+  // static ofPromisedArray<T>(input: Promise<T[]>) {
+  //   async function* gen() {
+  //     for await (const x of input) {
+  //       yield x;
+  //     }
+  //   }
+  //   return new Pipe(gen());
+  // }
+
   mapSync<R>(f: (input: T) => R): Pipe<R> {
     let source = this.source;
     async function* gen() {
@@ -39,6 +48,46 @@ export class Pipe<T> {
       yield await f(x)
     }
     return new Pipe(gen())
+  }
+
+  batchMap<R,U>(
+    this: Pipe<U[]>,
+    f: (input: U) => Promise<R>
+  ): Pipe<R[]> {
+    let source = this.source;
+    async function* gen() {
+      for await (const x of source) {
+        let accum = [];
+        for (const y of x)
+          accum.push(await f(y));
+        yield accum;
+      }
+    }
+    return new Pipe(gen())
+  }
+
+  batchMapSync<R, U>(
+    this: Pipe<U[]>,
+    f: (input: U) => R
+  ): Pipe<R[]> {
+    let source = this.source;
+    async function* gen() {
+      for await (const x of source)
+        yield x.map(f);
+    }
+    return new Pipe(gen())
+  }
+
+  batchFlat<U>(
+    this: Pipe<U[][]>,
+  ): Pipe<U[]> {
+    let source = this.source;
+    async function* gen() {
+      for await (const batch of source) {
+        yield batch.flat();
+      }
+    }
+    return new Pipe(gen());
   }
 
   flat<U>(

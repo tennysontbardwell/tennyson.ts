@@ -57,32 +57,34 @@ export function Ranger({ items }: { items: RangerItem[] }) {
   }, [cols]);
 
   return (
-    <div
-      id="ranger-root"
-      tabIndex={0}
-      onKeyDown={onKey}
-      style={{ display: "flex", outline: "none", height: "100%" }}
-    >
-      {cols.slice(-2).map((col, i) => (
-        <div key={i} style={{ width: 200, maxHeight: 800, overflow: "scroll", borderRight: "1px solid #ccc", padding: 4 }}>
-          {col.items.map((it, j) => (
-            <div
-              key={j}
-              style={{
-                background: col.idx === j ? "#0070f3" : undefined,
-                color: col.idx === j ? "white" : undefined,
-                padding: "2px 4px",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {it.name}
-            </div>
-          ))}
-        </div>
-      ))}
+    <div>
+      <div
+        id="ranger-root"
+        tabIndex={0}
+        onKeyDown={onKey}
+        style={{ display: "flex", outline: "none", height: "100%" }}
+      >
+        {cols.slice(-3).map((col, i) => (
+          <div key={i} style={{ width: 300, maxHeight: 800, overflow: "scroll", borderRight: "1px solid #ccc", padding: 4 }}>
+            {col.items.map((it, j) => (
+              <div
+                key={j}
+                style={{
+                  background: col.idx === j ? "#0070f3" : undefined,
+                  color: col.idx === j ? "white" : undefined,
+                  padding: "2px 4px",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {it.name}
+              </div>
+            ))}
+          </div>
+        ))}
       <div style={{ flex: 1, padding: 8 }}>{curItem?.display()}</div>
+      </div>
     </div>
   );
 }

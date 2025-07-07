@@ -25,6 +25,17 @@ export type TqdmOptions = {
 const markers = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"];
 const filledMarker = markers.at(-1);
 
+function formatTime(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds.toFixed(2)}s`;
+  } else if (seconds < 3600) {
+    return `${(seconds / 60).toFixed(2)}m`;
+  } else {
+    return `${(seconds / 3600).toFixed(2)}h`;
+  }
+}
+
+// Update renderBarWithSize function
 function renderBarWithSize({
   i,
   label,
@@ -42,24 +53,21 @@ function renderBarWithSize({
   const percent = (i / size) * 100;
   const graph = `${label ? label + ": " : ""}${percent.toFixed(
     1,
-  )}% |${bar}${gap}| ${i}/${size} | ${elapsed.toFixed(2)}>${remaining.toFixed(
-    2,
-  )}s ${rate.toFixed(2)}it/s`;
+  )}% |${bar}${gap}| ${i}/${size} | ${formatTime(elapsed)}>${formatTime(remaining)} ${rate.toFixed(2)}it/s`;
   if (graph === "" && n > 0) {
     return "▏";
   }
   return graph;
 }
 
+// Update renderBarWithoutSize function
 function renderBarWithoutSize({
   i,
   label,
   elapsed,
 }: Omit<RenderBarOptions, "size">): string {
   const rate = i / elapsed;
-  const graph = `${label ? label + ": " : ""}${i} | ${elapsed.toFixed(
-    2,
-  )}s ${rate.toFixed(2)}it/s`;
+  const graph = `${label ? label + ": " : ""}${i} | ${formatTime(elapsed)} ${rate.toFixed(2)}it/s`;
   if (graph === "" && i > 0) {
     return "▏";
   }

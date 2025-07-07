@@ -226,9 +226,11 @@ export abstract class Node<P, R> {
     common.log.info(
       `Node ${this.name} has cached ` +
       `${topNum}/${botNum} (${(100 * topNum / botNum).toFixed(3)}%)`);
-    for await (const params of tqdm(uncached)) {
-      await this.get(params);
-    }
+    await common.mapInLimitedConcurrency(
+      (x: P) => this.get(x).then(results => null),
+      uncached,
+      this.maxConcurrent
+    )
   }
 
   async getall(params: P[]): Promise<{ params: P, results: R }[]> {

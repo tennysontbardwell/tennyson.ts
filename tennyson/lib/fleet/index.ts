@@ -47,7 +47,7 @@ export class Member {
     let apt = new host.Apt(su);
     await apt.upgrade();
     await apt.install(["npm"]);
-    await su("npm", ["install", "--global", "yarn"]);
+    await su("npm", ["install", "--global", "node", "yarn"]);
     await this.host.exec(
       "bash", ["-c", "cd tennyson.ts; yarn install; yarn run build"]);
     // await this.host.exec("bash",
@@ -202,7 +202,10 @@ export class Fleet {
       throw new Error("too big of fleet, confirm")
     const name = common.rndAlphNum(5);
     const membersAsync = common.range(size)
-      .map(async () => Member.create(name));
+      .map(async (i) => {
+        await common.sleep(i * 500)
+        return await Member.create(name)
+      });
     const members = await Promise.all(membersAsync);
     const fleet = new Fleet(name, members);
     await fleet.runAll((member: Member) => member.setupTypescript());
@@ -222,11 +225,13 @@ export async function withFleet(size: number, f: (fleet: Fleet) => Promise<void>
   try {
     fleet = await Fleet.createWorkerFleet(size);
     await f(fleet);
-  } finally {
+  } catch (error) {
+    common.log.error({ msg: "Error during fleet execution", error });
     if (fleet !== undefined) {
       common.log.info("Initially fleet destruction");
       let destroying = fleet.members.map(member => member.destroy());
       await Promise.all(destroying);
     }
+    throw error
   }
 }

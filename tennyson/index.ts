@@ -68,21 +68,26 @@ async function electron() {
 
 
 async function quickdev() {
-  let aichat = await import("tennyson/lib/ai/aichat");
+  // let aichat = await import("tennyson/lib/ai/aichat");
   // let exec = import("tennyson/lib/core/exec");
   // let host = import("tennyson/lib/infra/host");
   // let page = await aichat.webpage("https://www.rottentomatoes.com/")
-  let resp = await aichat.query({
-    userText: "Read the TODO comment in /Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai/aichat.ts and execute it. Write the results back to the file.",
-    attachments: [],
-    tools: [
-      aichat.urlFetchTool,
-      aichat.readFilesTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai"),
-      aichat.modifyFileTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai")
-    ],
-    maxToolCalls: 3,
-  }, "/tmp/aitrace.json")
-  common.log.info(resp);
+  // let resp = await aichat.query({
+  //   userText: "Read the TODO comment in /Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai/aichat.ts and execute it. Write the results back to the file.",
+  //   attachments: [],
+  //   tools: [
+  //     aichat.urlFetchTool,
+  //     aichat.readFilesTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai"),
+  //     aichat.modifyFileTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai")
+  //   ],
+  //   maxToolCalls: 3,
+  // }, "/tmp/aitrace.json")
+  // common.log.info(resp);
+  let f = () => common.sleep(2000);
+  await common.runInLimitedConcurrency([f, f, f, f, f], 5);
+  common.log.info("done 1");
+  await common.runInLimitedConcurrency([f, f, f, f, f], 1);
+  common.log.info("done 2");
 }
 
 async function main() {
