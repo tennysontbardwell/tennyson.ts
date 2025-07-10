@@ -218,20 +218,25 @@ export class Fleet {
 
   process = (msg: Comms.WorkerCommand): Promise<Comms.ReplyMessage> =>
     this.randomWorker().process(msg);
-}
 
-export async function withFleet(size: number, f: (fleet: Fleet) => Promise<void>) {
-  var fleet;
-  try {
-    fleet = await Fleet.createWorkerFleet(size);
-    await f(fleet);
-  } catch (error) {
-    common.log.error({ msg: "Error during fleet execution", error });
-    if (fleet !== undefined) {
-      common.log.info("Initially fleet destruction");
-      let destroying = fleet.members.map(member => member.destroy());
-      await Promise.all(destroying);
+  async destroy() {
+    common.log.info("Initially fleet destruction");
+    let destroying = this.members.map(member => member.destroy());
+    await Promise.all(destroying);
+  }
+
+  static async withFleet(size: number, f: (fleet: Fleet) => Promise<void>) {
+    var fleet;
+    try {
+      fleet = await Fleet.createWorkerFleet(size);
+      await f(fleet);
+      await fleet.destroy();
+    } catch (error) {
+      common.log.error({ msg: "Error during fleet execution", error });
+      if (fleet !== undefined) {
+        await fleet.destroy();
+      }
+      throw error
     }
-    throw error
   }
 }

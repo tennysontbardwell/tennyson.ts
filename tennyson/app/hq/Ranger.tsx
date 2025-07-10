@@ -62,7 +62,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
         id="ranger-root"
         tabIndex={0}
         onKeyDown={onKey}
-        style={{ display: "flex", outline: "none", height: "100%" }}
+        style={{ display: "flex", outline: "none", height: "100%", maxHeight: "100vh" }}
       >
         {cols.slice(-3).map((col, i) => (
           <div key={i} style={{ width: 300, maxHeight: 800, overflow: "scroll", borderRight: "1px solid #ccc", padding: 4 }}>
@@ -83,7 +83,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
             ))}
           </div>
         ))}
-      <div style={{ flex: 1, padding: 8 }}>{curItem?.display()}</div>
+      <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1, padding: 8 }}>{curItem?.display()}</div>
       </div>
     </div>
   );
