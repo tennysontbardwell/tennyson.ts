@@ -1,4 +1,5 @@
 import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
 import * as execlib from "tennyson/lib/core/exec";
 import * as fs from "fs/promises";
 import * as http from "http";
@@ -44,7 +45,7 @@ export async function fzf(
       const choicesStr = choices.map((x) => x.replace("\n", "\\n")).join("\n");
       await fs.writeFile(in_, choicesStr)
       const preview = `--preview 'curl --silent ${host}:${port} --data-raw {}'`;
-      await common.passthru("/bin/bash", [
+      await common_node.passthru("/bin/bash", [
         "-c",
         `${location} ${preview} < ${in_} > ${out}`,
       ]);
@@ -159,7 +160,7 @@ export async function displayPath(path_: string) : Promise<string> {
 
 export function cd(dir: string, display?: string): FzfItem {
   const display_ = display === undefined ? dir : display;
-  dir = common.resolveHome(dir);
+  dir = common_node.resolveHome(dir);
   return {
     choice: display_,
     preview: () => displayPath(dir),

@@ -1,16 +1,5 @@
-import process from "process";
 import * as tslog from "tslog";
-import * as os from "os";
-import * as path from 'path';
-import { promises as fs } from 'fs';
-import * as fsSync from 'fs';
-import * as uuid from 'uuid';
 import { tqdm } from "./tqdm";
-import { Writable } from 'stream';
-import chain from 'stream-chain';
-import { parser } from 'stream-json'; // JSON parser factory
-import Assembler from 'stream-json/Assembler'; // Class to assemble the JS object
-
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -45,11 +34,18 @@ function compare(a: logLevel, b: logLevel) {
   return toInt(a) - toInt(b);
 }
 
+export const inNode =
+  typeof process !== 'undefined'
+  && process.versions != null
+  && process.versions.node != null
+
 const debugOn =
-  process.env["DEBUG"] !== undefined &&
-  process.env["DEBUG"] !== null &&
-  process.env["DEBUG"] != "0" &&
-  process.env["DEBUG"] != "";
+  inNode
+  ? process.env["DEBUG"] !== undefined &&
+    process.env["DEBUG"] !== null &&
+    process.env["DEBUG"] != "0" &&
+    process.env["DEBUG"] != ""
+  : false;
 
 var logLevel = "info";
 
@@ -130,40 +126,6 @@ export async function retryExn(
   }
 }
 
-export function resolveHome(path: string) {
-  const filepath = path.split('/');
-  if (filepath[0] === '~') {
-    return [os.homedir()].concat(filepath.slice(1)).join('/');
-  }
-  return path;
-}
-
-export async function passthru(exe: string, args: string[]) {
-  const child_process = await import("child_process");
-  return new Promise((resolve, reject) => {
-    const child = child_process.spawn(exe, args, {
-      stdio: 'inherit',
-    });
-    const signals = {
-      // SIGHUP: 1,
-      SIGINT: 2,
-      // SIGQUIT: 3,
-      // SIGTERM: 15,
-      // SIGUSR1: 10,
-      // SIGUSR2: 12,
-    };
-    Object.entries(signals).every(([sig, num]) =>
-      process.on(sig, () => child.kill(num))
-    );
-    child.on("error", (error) => reject(error));
-    child.on("close", (exitCode) => {
-      // console.log("Exit code:", exitCode);
-      // process.stdin.unpipe();
-      resolve(exitCode);
-    });
-  });
-}
-
 export function cache<T>(fun: () => T): (() => T) {
   var res: null | ['set', T] = null;
   return () => {
@@ -174,118 +136,6 @@ export function cache<T>(fun: () => T): (() => T) {
   };
 }
 
-export async function fsExists(path: string) {
-  try {
-    await fs.access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
-export async function parseBigJson(filePath: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-        const pipeline = chain([
-            fsSync.createReadStream(filePath, { encoding: 'utf8' }),
-            parser(),
-        ]);
-
-        const asm = Assembler.connectTo(pipeline);
-        asm.on('done', asm => resolve(asm.current));
-    });
-}
-
-async function writeChunk(stream: Writable, chunk: string): Promise<void> {
-  // Attempt to write the chunk. If stream.write() returns false, the internal buffer is full.
-  if (!stream.write(chunk, 'utf8')) {
-    // Wait for the 'drain' event before resolving the promise, allowing more data to be written.
-    await new Promise<void>(resolve => stream.once('drain', resolve));
-  }
-  // If stream.write() returns true, the chunk was accepted, and we can proceed.
-}
-
-// https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
-export async function recursivelyWriteObjectToStream(
-    data: any,
-    stream: Writable
-): Promise<void> {
-    if (data === undefined) {
-        // For standalone 'undefined' or if 'undefined' is explicitly passed.
-        // JSON.stringify(undefined) returns undefined (no string output).
-        // In a streaming context, writing "null" is a common way to represent it.
-        await writeChunk(stream, 'null');
-        return;
-    }
-    if (data === null) {
-        await writeChunk(stream, 'null');
-    } else if (typeof data === 'string') {
-        // Use JSON.stringify to ensure proper escaping and quoting of strings.
-        await writeChunk(stream, JSON.stringify(data));
-    } else if (typeof data === 'number' || typeof data === 'boolean') {
-        await writeChunk(stream, String(data));
-    } else if (Array.isArray(data)) {
-        await writeChunk(stream, '[');
-        for (let i = 0; i < data.length; i++) {
-            if (i > 0) {
-                await writeChunk(stream, ',');
-            }
-            // In JSON, 'undefined' in an array becomes 'null'.
-            // Functions and Symbols in arrays also become 'null'.
-            const element = data[i];
-            if (element === undefined || typeof element === 'function' || typeof element === 'symbol') {
-                await recursivelyWriteObjectToStream(null, stream);
-            } else {
-                await recursivelyWriteObjectToStream(element, stream);
-            }
-        }
-        await writeChunk(stream, ']');
-    } else if (typeof data === 'object') { // Excludes null, which is handled above.
-        await writeChunk(stream, '{');
-        const keys = Object.keys(data);
-        let firstPropertyWritten = false;
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            const value = (data as Record<string, any>)[key];
-
-            // JSON.stringify omits keys with 'undefined', function, or symbol values.
-            if (value !== undefined && typeof value !== 'function' && typeof value !== 'symbol') {
-                if (firstPropertyWritten) {
-                    await writeChunk(stream, ',');
-                }
-                await writeChunk(stream, JSON.stringify(key)); // Keys are always strings in JSON.
-                await writeChunk(stream, ':');
-                await recursivelyWriteObjectToStream(value, stream);
-                firstPropertyWritten = true;
-            }
-        }
-        await writeChunk(stream, '}');
-    } else {
-        // This case handles types not explicitly covered, primarily top-level functions or symbols.
-        // JSON.stringify would produce 'undefined' (no output) for these.
-        // We write 'null' as a sensible default for a streaming context.
-        await writeChunk(stream, 'null');
-    }
-}
-
-export async function writeBigJson(path: string, data: any) {
-  const writeStream = fsSync.createWriteStream(path);
-  return await recursivelyWriteObjectToStream(data, writeStream);
-}
-
-export async function fsCacheResult<T extends NonNullable<any>>(
-  path: string,
-  f: () => Promise<T>)
-  : Promise<T> {
-  if (await fsExists(path)) {
-    return parseBigJson(path);
-  } else {
-    let res = await f();
-    const writeStream = fsSync.createWriteStream(path);
-    await recursivelyWriteObjectToStream(res, writeStream);
-    return res;
-  }
-}
 
 export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
   return {
@@ -299,43 +149,6 @@ export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
   }
 }
 
-export function mkCachable<T extends NonNullable<any>>(
-  path: string, f: () => Promise<T>)
-{
-  return lazy(() => fsCacheResult(path, f))
-}
-
-export async function withTempDir(f: (dir: string) => Promise<void>) {
-  const tempDir = path.join(os.tmpdir(), uuid.v4());
-
-  try {
-    await fs.mkdir(tempDir);
-    await f(tempDir);
-  } catch (error) {
-    console.error('Error occurred:', error);
-  } finally {
-    await fs.rm(tempDir, { recursive: true });
-  }
-}
-
-async function dataExamineCommand(cmd: string, data: any) {
-  await withTempDir(async (dir: string) => {
-    let file = path.join(dir, 'data.json');
-    await writeBigJson(file, data);
-    await passthru(cmd, [file]);
-  })
-}
-
-export const jless = (data: any) => dataExamineCommand("jless", data);
-export const nvim = (data: any) => dataExamineCommand("nvim", data);
-export const vdJson = (data: any) => dataExamineCommand("vd", data);
-
-export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
-  const data = await fs.readFile(filePath, 'utf-8');
-  return data.split('\n')
-    .filter(line => line.trim() !== '')
-    .map(line => JSON.parse(line));
-}
 
 export const range = (n: number) => Array.from({ length: n }, (value, key) => key)
 
@@ -452,4 +265,48 @@ export function getRandomElement<T>(array: T[]): T | undefined {
   if (array.length === 0) return undefined;
   const randomIndex = Math.floor(Math.random() * array.length);
   return array[randomIndex];
+}
+
+declare const __brand: unique symbol;
+type Brand<B> = { [__brand]: B }
+export type Branded<T, B> = T & Brand<B>
+
+export function groupByMulti<T>(lst: T[], keys: (elm: T) => string[]) {
+  return lst.reduce((accum, item) =>
+    keys(item).reduce((accum, key) => {
+      if (!accum[key])
+        accum[key] = [item];
+      else
+        accum[key].push(item);
+      return accum;
+    }, accum),
+    {} as Record<string, T[]>);
+}
+
+export function groupBy<T>(lst: T[], key: (elm: T) => string) {
+  return lst.reduce((accum, item) => {
+    let key_ = key(item);
+    if (!accum[key_])
+      accum[key_] = [item];
+    else
+      accum[key_].push(item);
+    return accum;
+  }, {} as Record<string, T[]>);
+}
+
+export function aListGroupBy<T>(lst: T[], key: (elm: T) => string)
+: [string, T[]][]
+{
+  let obj = groupBy(lst, key);
+  return Object.keys(obj)
+    .map(key => [key, obj[key]] as [string, T[]])
+    .sort(([a,_x], [b,_y]) => a.localeCompare(b));
+}
+
+export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
+  : [string, T[]][] {
+  let obj = groupByMulti(lst, keys);
+  return Object.keys(obj)
+    .map(key => [key, obj[key]] as [string, T[]])
+    .sort(([a,_x], [b,_y]) => a.localeCompare(b));
 }

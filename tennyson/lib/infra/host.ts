@@ -7,6 +7,7 @@ import shellescape from "shell-escape";
 import axios from "axios";
 
 import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
 import * as net_util from "tennyson/lib/core/net-util";
 import * as execlib from "tennyson/lib/core/exec";
 
@@ -76,7 +77,7 @@ export class Host {
   }
 
   async passthroughSsh() {
-    await common.passthru("ssh", [`${this.user}@${this.fqdn()}`]);
+    await common_node.passthru("ssh", [`${this.user}@${this.fqdn()}`]);
   }
 
   apt() {

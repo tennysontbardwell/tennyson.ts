@@ -62,10 +62,10 @@ function ItemDisplay({ url }: { url: string }) {
         const contentType = response.headers.get('content-type') || '';
 
         if (contentType.startsWith('image/')) {
-          setContent(<img src={url} alt="Preview" style={{ maxWidth: '100%', maxHeight: '90vh' }} />);
+          setContent(<img src={url} alt="Preview" style={{ objectFit: 'contain', height: "100%", width: "100%" }} />);
         }
         else if (contentType.startsWith("video/")) {
-          setContent(<video controls autoPlay src={url} style={{ maxWidth: '100%', maxHeight: '90vh' }} />);
+          setContent(<video controls autoPlay src={url} style={{ objectFit: 'contain', height: "100%", width: "100%" }} />);
         }
         else {
           setContent(<div></div>);

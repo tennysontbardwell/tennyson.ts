@@ -7,6 +7,7 @@ import * as os from "os";
 import * as net_util from "tennyson/lib/core/net-util";
 import * as ec2 from "tennyson/lib/infra/ec2";
 import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
 import * as exec from "tennyson/lib/core/exec";
 import * as host from "tennyson/lib/infra/host";
 
@@ -81,7 +82,7 @@ export class Member {
 
   async sendGitRepo(localPath: string, remotePath: string) {
     const remoteTarPath = path.join("/tmp", common.rndAlphNum(10) + ".tar.gz");
-    await common.withTempDir(async (dir) => {
+    await common_node.withTempDir(async (dir) => {
       const tarPath = path.join(dir, "repo.tar.gz");
       await exec.sh(
         `cd ${shellescape([localPath])}; ` +

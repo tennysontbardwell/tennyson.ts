@@ -6,6 +6,7 @@ import * as fzf from "tennyson/lib/core/fzf";
 import * as execlib from "tennyson/lib/core/exec";
 import * as git from "tennyson/lib/unixplus/git";
 import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
 import * as child_process from "child_process";
 
 function py_docs(name: string) {
@@ -37,7 +38,7 @@ function py_docs(name: string) {
           const docs = await fetch();
           const path = dir + "/doc.py";
           await execlib.ExecHelpers.putFile(execlib.exec, path, docs);
-          await common.passthru("nvim", [path]);
+          await common_node.passthru("nvim", [path]);
         });
       return { choice: mod, preview: fetch, action: action };
     });
@@ -54,7 +55,7 @@ async function scripts(
   preActionHook: (name: string) => Promise<void> = async (_) => {}
 ) {
   const glob: any = await require("glob");
-  dir = common.resolveHome(dir);
+  dir = common_node.resolveHome(dir);
   const scripts: Array<string> = glob.sync(path.join(dir, glob_));
   return scripts.map((name: string) => {
     const choice = path.relative(dir, name);
@@ -85,7 +86,7 @@ async function zshExec(cmd: string) {
 }
 
 async function personalSnippets() {
-  const contents = await fs.readFile(common.resolveHome("~/.config/tennyson/snippets.json"), { encoding: "utf-8" })
+  const contents = await fs.readFile(common_node.resolveHome("~/.config/tennyson/snippets.json"), { encoding: "utf-8" })
   const snippets: string[][] = JSON.parse(contents)
   try {
     return snippets.map((elm) => fzf.static_snippet(elm[1], elm[0]));
@@ -154,7 +155,7 @@ export async function run() {
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),
     fzf.subtree("commands", [
       fzf.command("node prompt", async () =>
-        common.passthru("node", ["--enable-source-maps"])
+        common_node.passthru("node", ["--enable-source-maps"])
       ),
     ]),
   ]);

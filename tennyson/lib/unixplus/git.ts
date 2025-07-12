@@ -1,4 +1,5 @@
 import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
 import * as process from "process";
 import * as execlib from "tennyson/lib/core/exec";
 import * as fzf from "tennyson/lib/core/fzf";
@@ -40,7 +41,7 @@ export namespace GithubRepo {
 
   export async function clone(t: t, useSSH = false) {
     await execlib.exec("mkdir", ["-p", localPath(t)]);
-    return common.passthru("git", ["clone", toRepoURL(t, useSSH), localPath(t)]);
+    return common_node.passthru("git", ["clone", toRepoURL(t, useSSH), localPath(t)]);
   }
 
   export async function fzfLocalRepos() {

@@ -244,7 +244,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
           <div
             key={i}
             ref={el => { colRefs.current[i] = el; }}
-            style={{ width: 300, maxHeight: 800, overflow: "scroll", borderRight: "1px solid #ccc", padding: 4 }}
+            style={{ width: 300, overflow: "scroll", borderRight: "1px solid #ccc", padding: 4 }}
           >
             {col.items.map((it, j) => (
               <div
@@ -265,7 +265,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
             ))}
           </div>
         ))}
-        <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1, padding: 8 }}>{curItem?.display()}</div>
+        <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1 }}>{curItem?.display()}</div>
       </div>
     </div>
   );
