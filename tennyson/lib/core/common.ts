@@ -41,11 +41,11 @@ export const inNode =
 
 const debugOn =
   inNode
-  ? process.env["DEBUG"] !== undefined &&
+    ? process.env["DEBUG"] !== undefined &&
     process.env["DEBUG"] !== null &&
     process.env["DEBUG"] != "0" &&
     process.env["DEBUG"] != ""
-  : false;
+    : false;
 
 var logLevel = "info";
 
@@ -224,7 +224,7 @@ export async function mapInLimitedConcurrency<A, B>(
   fn: ((x: A) => Promise<B>),
   inputs: A[],
   maxConcurrency: number)
-: Promise<B[]> {
+  : Promise<B[]> {
   return runInLimitedConcurrency(
     inputs.map(elm => (() => fn(elm))),
     maxConcurrency
@@ -295,12 +295,11 @@ export function groupBy<T>(lst: T[], key: (elm: T) => string) {
 }
 
 export function aListGroupBy<T>(lst: T[], key: (elm: T) => string)
-: [string, T[]][]
-{
+  : [string, T[]][] {
   let obj = groupBy(lst, key);
   return Object.keys(obj)
     .map(key => [key, obj[key]] as [string, T[]])
-    .sort(([a,_x], [b,_y]) => a.localeCompare(b));
+    .sort(([a, _x], [b, _y]) => a.localeCompare(b));
 }
 
 export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
@@ -308,5 +307,5 @@ export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
   let obj = groupByMulti(lst, keys);
   return Object.keys(obj)
     .map(key => [key, obj[key]] as [string, T[]])
-    .sort(([a,_x], [b,_y]) => a.localeCompare(b));
+    .sort(([a, _x], [b, _y]) => a.localeCompare(b));
 }

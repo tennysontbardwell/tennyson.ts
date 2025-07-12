@@ -44,13 +44,13 @@ export class Pipe<T> {
   map<R>(f: (input: T) => Promise<R>): Pipe<R> {
     let source = this.source;
     async function* gen() {
-    for await (const x of source)
-      yield await f(x)
+      for await (const x of source)
+        yield await f(x)
     }
     return new Pipe(gen())
   }
 
-  batchMap<R,U>(
+  batchMap<R, U>(
     this: Pipe<U[]>,
     f: (input: U) => Promise<R>
   ): Pipe<R[]> {
@@ -159,7 +159,7 @@ export async function* batchesOfArray<T>(
   }
 }
 
-export async function* runBatchProcessing<A,B>(
+export async function* runBatchProcessing<A, B>(
   source: AsyncIterable<A>,
   fn: (input: A[]) => Promise<B[]>,
   batchSize: number,
