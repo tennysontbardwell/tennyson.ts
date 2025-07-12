@@ -1,16 +1,26 @@
-import { defineConfig } from 'vite';
+/// <reference types="vitest" />
+// import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config'
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()], // Add the React plugin
+  test: {
+    exclude: [
+      ...configDefaults.exclude,
+      '**/build/**',
+    ],
+  },
   server: {
+    watch: {
+      ignored: ['**/build/**'],
+    },
     proxy: {
-      // Proxy requests from /api to your backend server
       '/api': {
-        target: 'http://localhost:3000', // The address of your API server
-        changeOrigin: true, // Recommended for virtual hosts
-        // You can also rewrite the path if needed, but not necessary here
+        target: 'http://localhost:3000',
+        changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },

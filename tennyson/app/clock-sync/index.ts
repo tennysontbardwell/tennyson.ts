@@ -2,7 +2,6 @@ import * as ec2 from "tennyson/lib/infra/ec2";
 import * as common from "tennyson/lib/core/common";
 import * as host from "tennyson/lib/infra/host";
 import * as execlib from "tennyson/lib/core/exec";
-import { Dictionary } from "async";
 import dns from "dns";
 import * as path from 'path';
 import Papa from 'papaparse';
@@ -131,7 +130,7 @@ class Node {
 
 class Fleet {
   readonly nodes: Node[];
-  ips: Dictionary<String>;
+  ips: Record<string, string>;
   directory: string;
 
   constructor(n: number) {

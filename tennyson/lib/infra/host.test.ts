@@ -1,6 +1,8 @@
+import { expect, test } from 'vitest'
+
 import { Host } from "./host";
 
-it("", () => {
+test("", () => {
   expect(Host.ofLocalName("test").fqdn()).toMatchInlineSnapshot(
     `"test.node.nyc1.consul.tennysontbardwell.com"`
   );
