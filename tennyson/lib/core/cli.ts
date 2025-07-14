@@ -1,34 +1,89 @@
 import * as yargs from "yargs";
+import { ArgumentsCamelCase, InferredOptionTypes } from "yargs";
 import * as common from "tennyson/lib/core/common";
 
-export type TransformYargs = (yargs: yargs.Argv) => yargs.Argv;
+type SimpleCommandHandler<O extends { [key: string]: yargs.Options; }> =
+  (args: ArgumentsCamelCase<InferredOptionTypes<O>>) =>
+    void | Promise<void>;
 
-// export type GeneralCommand = {
-//   kind: "generalCommand",
-//   fun: (yargs: yargs.Argv) => Promise<yargs.Argv>,
-// }
+export type Command = yargs.CommandModule<{}, {}>;
 
-export type SimpleCommand = {
-  kind: "simpleCommand",
+export function flagsCommand<O extends { [key: string]: yargs.Options }>(
   name: string,
-  command: () => Promise<void>,
-};
-
-export type CommandGroup = {
-  kind: "commandGroup"
-  name: string,
-  commands: Array<Command>,
-};
-
-export function command(name: string, command: () => Promise<void>): SimpleCommand {
-  return { kind: "simpleCommand", name, command }
+  options: O,
+  handler: SimpleCommandHandler<O>,
+  describe?: string,
+): yargs.CommandModule<{}, yargs.InferredOptionTypes<O>> {
+  return {
+    command: name,
+    describe: describe ?? "",
+    builder: options,
+    handler
+    // async (argv: O) => {
+    //   try {
+    //     common.log.info("running " + name);
+    //     await handler(argv);
+    //   } catch (error) {
+    //     common.log.fatal(error);
+    //   }
+    // },
+  };
 }
 
-export function group(name: string, commands: Array<Command>): CommandGroup {
-  return { kind: "commandGroup", name, commands };
+export function command(
+  name: string,
+  command: () => Promise<void>)
+  : Command {
+  return flagsCommand(name, {} as const, command);
 }
 
-export type Command = SimpleCommand | CommandGroup | yargs.CommandModule<{}, {}>;
+
+function getName(command: yargs.CommandModule) {
+  if (command.command === undefined)
+    return ''
+  if (typeof command.command === 'string')
+    return command.command
+  return command.command[0];
+}
+
+export function group(
+  name: string,
+  commands: yargs.CommandModule<{}, any>[],
+  describe?: string,
+) {
+  const sorted = commands.sort((a, b) =>
+    getName(a).localeCompare(getName(b)));
+  return <yargs.CommandModule>{
+    command: name,
+    describe: "",
+    builder: function (yargs) {
+      return sorted.reduce((accum, curr) => accum.command(curr), yargs);
+    },
+    handler: (args: any) => {
+      yargs.showHelp();
+    },
+  }
+};
+
+export function lazyGroup(
+  name: string,
+  commands: () => Promise<yargs.CommandModule<{}, any>[]>,
+  describe?: string,
+) {
+  return <yargs.CommandModule>{
+    command: name,
+    describe: "",
+    builder: async function (yargs) {
+      const resolvedCommands = await commands();
+      const sorted = resolvedCommands.sort((a, b) =>
+        getName(a).localeCompare(getName(b)));
+      return sorted.reduce((accum, curr) => accum.command(curr), yargs);
+    },
+    handler: (args: any) => {
+      yargs.showHelp();
+    },
+  }
+};
 
 function configuredYargs() {
   return yargs
@@ -38,52 +93,14 @@ function configuredYargs() {
     .wrap(null);
 }
 
-function simple(name: string, cmd: () => Promise<void>, options?: { [key: string]: yargs.Options }) {
-  return {
-    command: name,
-    describe: "",
-    builder: options,
-    handler: async (parsed: any) => {
-      try {
-        common.log.info("running " + name);
-        await cmd();
-      } catch (error) {
-        common.log.fatal(error);
-      }
-    },
-  };
-}
-
-function buildYargs(command: Command): yargs.CommandModule<{}, {}> {
-  if (!('kind' in command)) {
-    return command;
-  }
-  switch (command.kind) {
-    case "simpleCommand":
-      return simple(command.name, command.command);
-    case "commandGroup":
-      return {
-        command: command.name,
-        describe: "",
-        builder: function(yargs) {
-          const yargs_ = yargs;
-          command.commands.reduce(
-            (acc, curr) => acc.command(buildYargs(curr)),
-            yargs_
-          );
-          return yargs;
-        },
-        handler: (args: any) => {},
-      };
-  }
-}
-
 export async function execute(commands: Array<Command>) {
+  const yargs =
+    commands
+      .sort((a, b) => getName(a).localeCompare(getName(b)))
+      .reduce(
+        (acc, curr) => acc.command(curr),
+        configuredYargs());
   async function run() {
-    const yargs = commands.reduce(
-      (acc, curr) => acc.command(buildYargs(curr)),
-      configuredYargs()
-    );
     yargs.argv;
   }
   run().catch((error) =>

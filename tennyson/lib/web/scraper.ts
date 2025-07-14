@@ -12,14 +12,14 @@ export interface Cache {
   check(version: number, name: string, params: string[]):
     Promise<{ params: string, cached: Boolean }[]>
   getall(version: number, name: string, params: string[]):
-    Promise<{params: string, results: string | undefined}[]>
+    Promise<{ params: string, results: string | undefined }[]>
 }
 
 export class CacheLess implements Cache {
   async get(version: number, params: string, name: string) { return undefined; }
   async put(version: number, params: string, name: string, results: string) {}
   async check(version: number, name: string, params: string[]) {
-    return params.map(params => { return { params, cached: false}});
+    return params.map(params => { return { params, cached: false } });
   }
   async getall(version: number, name: string, params: string[]) {
     return params.map(params => { return { params, results: undefined } });
@@ -62,7 +62,7 @@ export class DBCache implements Cache {
     return new Promise((resolve, reject) => {
       this.db.run(sql, params, function (err) {
         if (err) {
-          common.log.error({sql, params, err});
+          common.log.error({ sql, params, err });
           reject(err)
         }
         else resolve()
@@ -146,14 +146,13 @@ export class DBCache implements Cache {
       })
       .flat()
       .gather();
-    }
+  }
 
   async getall(version: number, name: string, params: string[])
-  : Promise<{ params: string, results: string | undefined }[]>
-  {
-          await this.init();
+    : Promise<{ params: string, results: string | undefined }[]> {
+    await this.init();
 
-          if(params.length === 0) return [];
+    if (params.length === 0) return [];
 
     return await pipe.Pipe.ofArray(params)
       .batch(10_000)
@@ -195,8 +194,8 @@ export abstract class Node<P, R> {
   }
 
   abstract getUncached(params: P): Promise<R>;
-  serializeParams(params: P): string {return stableStringify(params)!; }
-  deserializeParams(params: string): P {return JSON.parse(params);}
+  serializeParams(params: P): string { return stableStringify(params)!; }
+  deserializeParams(params: string): P { return JSON.parse(params); }
   serializeResult(results: R): string { return stableStringify(results)!; }
   deserializeResult(results: string): R { return JSON.parse(results); }
 
@@ -261,7 +260,10 @@ export abstract class Node<P, R> {
   }
 }
 
-export class Get extends Node<{ url: string }, { content: string, status: number }> {
+export class Get extends Node<
+  { url: string },
+  { content: string, status: number }
+> {
   name = "get";
 
   async getUncached(params: { url: string; }) {

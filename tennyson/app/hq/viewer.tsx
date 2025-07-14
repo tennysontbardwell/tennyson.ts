@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
-import {fetchFileSystem} from './ItemDisplay';
+import { fetchFileSystem } from './ItemDisplay';
 import { Ranger, RangerItem } from './Ranger';
 
-export function RangerApp() {
+export function ViewerApp() {
   const [items, setItems] = useState<Array<RangerItem>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,14 +20,14 @@ export function RangerApp() {
   return <Ranger items={items} />;
 }
 
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  // Create a React root and render the App component
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-    <RangerApp />
-    </React.StrictMode>
-  );
-} else {
-  console.error('Failed to find the root element');
-}
+/* const rootElement = document.getElementById('root');
+* if (rootElement) {
+*   // Create a React root and render the App component
+*   ReactDOM.createRoot(rootElement).render(
+*     <React.StrictMode>
+*     <RangerApp />
+*     </React.StrictMode>
+*   );
+* } else {
+*   console.error('Failed to find the root element');
+* } */

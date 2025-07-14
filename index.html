@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Example</title>
+        <script src="tennyson/app/hq/routers.tsx" type="module"></script>
+        <style>
+         body {
+             margin: 0;
+         }
+         .tooltip {
+             position: absolute;
+             background-color: rgba(0, 0, 0, 0.8);
+             color: white;
+             padding: 8px 12px;
+             border-radius: 4px;
+             font-size: 12px;
+             font-family: Arial, sans-serif;
+             pointer-events: none; /* Prevents tooltip from interfering with mouse events */
+             opacity: 0;
+             /* transition: opacity 0.2s ease; */
+             z-index: 1000;
+             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+         }
+
+         .tooltip.visible {
+             opacity: 1;
+         }
+        </style>
+    </head>
+    <body>
+        <div id="root"></div>
+    </body>
+</html>

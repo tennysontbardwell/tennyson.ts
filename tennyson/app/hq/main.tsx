@@ -8,9 +8,6 @@ import {fetchFileSystem} from './ItemDisplay';
 import { Ranger, RangerItem } from './Ranger';
 import * as echarts from 'echarts';
 
-
-console.log("test test test");
-
 const tooltip = d3.select("body")
   .selectAll("#tooltip")
   .data([null])
