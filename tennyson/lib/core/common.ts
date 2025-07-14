@@ -237,7 +237,7 @@ export function splitMap<K extends string | number | symbol, A, B>(
 ): Record<K, B[]> {
   const res = {} as Record<K, B[]>;
   for (const item of array) {
-    let [key, newItem] = fn(item);
+    const [key, newItem] = fn(item);
     if (key in res) {
       res[key].push(newItem);
     } else {
@@ -257,7 +257,7 @@ export function splitArray<K extends string | number | symbol, V>(
 
 export function rndAlphNum(length: number) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let rnd = Array.from({ length }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+  const rnd = Array.from({ length }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
   return rnd.join("");
 }
 
@@ -285,7 +285,7 @@ export function groupByMulti<T>(lst: T[], keys: (elm: T) => string[]) {
 
 export function groupBy<T>(lst: T[], key: (elm: T) => string) {
   return lst.reduce((accum, item) => {
-    let key_ = key(item);
+    const key_ = key(item);
     if (!accum[key_])
       accum[key_] = [item];
     else
@@ -296,7 +296,7 @@ export function groupBy<T>(lst: T[], key: (elm: T) => string) {
 
 export function aListGroupBy<T>(lst: T[], key: (elm: T) => string)
   : [string, T[]][] {
-  let obj = groupBy(lst, key);
+  const obj = groupBy(lst, key);
   return Object.keys(obj)
     .map(key => [key, obj[key]] as [string, T[]])
     .sort(([a, _x], [b, _y]) => a.localeCompare(b));
@@ -304,7 +304,7 @@ export function aListGroupBy<T>(lst: T[], key: (elm: T) => string)
 
 export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
   : [string, T[]][] {
-  let obj = groupByMulti(lst, keys);
+  const obj = groupByMulti(lst, keys);
   return Object.keys(obj)
     .map(key => [key, obj[key]] as [string, T[]])
     .sort(([a, _x], [b, _y]) => a.localeCompare(b));

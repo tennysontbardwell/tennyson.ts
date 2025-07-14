@@ -22,7 +22,7 @@ import * as aicmd from "tennyson/lib/ai/cmd";
 import * as infra_cmd from "tennyson/lib/infra/cmd";
 
 async function askQuestion(query: string) {
-  let readline = await import("readline");
+  const readline = await import("readline");
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -83,29 +83,31 @@ async function quickdev() {
   //   maxToolCalls: 3,
   // }, "/tmp/aitrace.json")
   // common.log.info(resp);
-  let f = () => common.sleep(2000);
+  const f = () => common.sleep(2000);
   await common.runInLimitedConcurrency([f, f, f, f, f], 5);
   common.log.info("done 1");
   await common.runInLimitedConcurrency([f, f, f, f, f], 1);
   common.log.info("done 2");
 }
 
+// export const cmds
+
 async function main() {
   await cli.execute([
     aicmd.cmd,
     infra_cmd.Devbox.cmd,
     cli.command("hometty", async () => {
-      let hometty = await import("tennyson/app/scripts/hometty");
+      const hometty = await import("tennyson/app/scripts/hometty");
       await hometty.run();
     }),
     cli.command("api-run", async () => {
-      let api = await import("tennyson/app/api");
+      const api = await import("tennyson/app/api");
       await api.run();
     }),
     cli.command("quickdev", () => quickdev()),
     cli.command("electron", () => electron()),
     cli.command("fleet-member", async () => {
-      let fleet = await import("tennyson/lib/fleet");
+      const fleet = await import("tennyson/lib/fleet");
       await fleet.Comms.becomeFleetMember();
     }),
   ]);

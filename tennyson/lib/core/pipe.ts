@@ -33,7 +33,7 @@ export class Pipe<T> {
   // }
 
   mapSync<R>(f: (input: T) => R): Pipe<R> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const x of source)
         yield f(x)
@@ -42,7 +42,7 @@ export class Pipe<T> {
   }
 
   map<R>(f: (input: T) => Promise<R>): Pipe<R> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const x of source)
         yield await f(x)
@@ -54,10 +54,10 @@ export class Pipe<T> {
     this: Pipe<U[]>,
     f: (input: U) => Promise<R>
   ): Pipe<R[]> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const x of source) {
-        let accum = [];
+        const accum = [];
         for (const y of x)
           accum.push(await f(y));
         yield accum;
@@ -70,7 +70,7 @@ export class Pipe<T> {
     this: Pipe<U[]>,
     f: (input: U) => R
   ): Pipe<R[]> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const x of source)
         yield x.map(f);
@@ -81,7 +81,7 @@ export class Pipe<T> {
   batchFlat<U>(
     this: Pipe<U[][]>,
   ): Pipe<U[]> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const batch of source) {
         yield batch.flat();
@@ -93,7 +93,7 @@ export class Pipe<T> {
   flat<U>(
     this: Pipe<U[]>,
   ): Pipe<U> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       for await (const batch of source) {
         for (const item of batch) {
@@ -105,7 +105,7 @@ export class Pipe<T> {
   }
 
   batch(batchSize: number): Pipe<T[]> {
-    let source = this.source;
+    const source = this.source;
     async function* gen() {
       let batch: T[] = [];
       for await (const item of source) {

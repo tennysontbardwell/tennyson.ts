@@ -66,7 +66,7 @@ function buildYargs(command: Command): yargs.CommandModule<{}, {}> {
         command: command.name,
         describe: "",
         builder: function(yargs) {
-          let yargs_ = yargs;
+          const yargs_ = yargs;
           command.commands.reduce(
             (acc, curr) => acc.command(buildYargs(curr)),
             yargs_
@@ -80,7 +80,7 @@ function buildYargs(command: Command): yargs.CommandModule<{}, {}> {
 
 export async function execute(commands: Array<Command>) {
   async function run() {
-    let yargs = commands.reduce(
+    const yargs = commands.reduce(
       (acc, curr) => acc.command(buildYargs(curr)),
       configuredYargs()
     );

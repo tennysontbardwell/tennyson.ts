@@ -20,7 +20,7 @@ export const cmd: yargs.CommandModule<{}, {}> = {
     }
   },
   handler: async (args: any) => {
-    let aichat = await import("tennyson/lib/ai/aichat");
+    const aichat = await import("tennyson/lib/ai/aichat");
 
     const attachments = [];
 

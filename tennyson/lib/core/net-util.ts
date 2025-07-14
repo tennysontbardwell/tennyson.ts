@@ -19,7 +19,7 @@ export function getRandomFreePort(min: number = 3000, max: number = 65535)
 
 export async function checkResponseExn(response: Response) {
   if (!response.ok) {
-    let text = await response.text();
+    const text = await response.text();
     try {
       common.log.error(JSON.parse(text));
     } catch {

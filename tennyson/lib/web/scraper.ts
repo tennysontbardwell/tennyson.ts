@@ -201,11 +201,11 @@ export abstract class Node<P, R> {
   deserializeResult(results: string): R { return JSON.parse(results); }
 
   async get(params: P): Promise<R> {
-    let params_ = this.serializeParams(params);
-    let cachedResults = await this.cache.get(this.version, params_, this.name);
+    const params_ = this.serializeParams(params);
+    const cachedResults = await this.cache.get(this.version, params_, this.name);
     if (cachedResults === undefined) {
-      // let results = await this.semaphore.with(() => this.getUncached(params));
-      let results = await this.getUncached(params);
+      // const results = await this.semaphore.with(() => this.getUncached(params));
+      const results = await this.getUncached(params);
       this.cache.put(
         this.version, params_, this.name, this.serializeResult(results));
       return results;
@@ -215,14 +215,14 @@ export abstract class Node<P, R> {
   }
 
   async cacheall(params: P[]): Promise<void> {
-    let serializedParams = params.map(this.serializeParams);
-    let checkResults =
+    const serializedParams = params.map(this.serializeParams);
+    const checkResults =
       await this.cache.check(this.version, this.name, serializedParams);
-    let uncached: P[] = checkResults
+    const uncached: P[] = checkResults
       .filter(x => !x.cached)
       .map(x => this.deserializeParams(x.params));
-    let topNum = checkResults.length - uncached.length;
-    let botNum = checkResults.length;
+    const topNum = checkResults.length - uncached.length;
+    const botNum = checkResults.length;
     common.log.info(
       `Node ${this.name} has cached ` +
       `${topNum}/${botNum} (${(100 * topNum / botNum).toFixed(3)}%)`);
@@ -234,13 +234,13 @@ export abstract class Node<P, R> {
   }
 
   async getall(params: P[]): Promise<{ params: P, results: R }[]> {
-    let serializedParams = params.map(this.serializeParams);
-    let cachedResults =
+    const serializedParams = params.map(this.serializeParams);
+    const cachedResults =
       await this.cache.getall(this.version, this.name, serializedParams);
-    let res: { params: P, results: R }[] = [];
-    let tofetch: P[] = [];
+    const res: { params: P, results: R }[] = [];
+    const tofetch: P[] = [];
     for (const elm of cachedResults) {
-      let { params, results } = elm;
+      const { params, results } = elm;
       if (results === undefined)
         tofetch.push(this.deserializeParams(elm.params));
       else
@@ -265,11 +265,11 @@ export class Get extends Node<{ url: string }, { content: string, status: number
   name = "get";
 
   async getUncached(params: { url: string; }) {
-    let response = await fetch(params.url);
+    const response = await fetch(params.url);
     if (![404].includes(response.status)) {
       await net_util.checkResponseExn(response);
     }
-    let content = await response.text();
+    const content = await response.text();
     return { content, status: response.status };
   }
 }
@@ -278,7 +278,7 @@ export class Get extends Node<{ url: string }, { content: string, status: number
 //   name = "get-json";
 
 //   async getUncached(params: { url: string; }) {
-//     let response = await fetch(params.url);
+//     const response = await fetch(params.url);
 //     return responseJsonExn(response);
 //   }
 // }

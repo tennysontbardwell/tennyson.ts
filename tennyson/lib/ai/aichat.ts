@@ -85,7 +85,7 @@ async function generatePrompt(query_: {
   outputSchema?: string;
 }): Promise<string> {
   let prompt = "";
-  let sep = '==================================';
+  const sep = '==================================';
 
   function addSection(title: string, contents: string) {
     prompt += sep;
@@ -125,7 +125,7 @@ interface TraceEntry {
 }
 
 export async function query(queryInput: Query, traceFile?: string): Promise<string> {
-  let query_ = {
+  const query_ = {
     tools: [],
     attachments: [],
     maxToolCalls: 10,
@@ -283,7 +283,7 @@ export async function webpage(url: string): Promise<Attachment> {
   const title = titleMatch ? titleMatch[1].trim() : url;
 
   // Strip scripts, styles, comments, then tags
-  let text = html
+  const text = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')

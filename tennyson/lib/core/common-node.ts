@@ -151,7 +151,7 @@ export async function fsCacheResult<T extends NonNullable<any>>(
   if (await fsExists(path)) {
     return parseBigJson(path);
   } else {
-    let res = await f();
+    const res = await f();
     const writeStream = fsSync.createWriteStream(path);
     await recursivelyWriteObjectToStream(res, writeStream);
     return res;
@@ -179,7 +179,7 @@ export async function withTempDir(f: (dir: string) => Promise<void>) {
 
 async function dataExamineCommand(cmd: string, data: any) {
   await withTempDir(async (dir: string) => {
-    let file = path.join(dir, 'data.json');
+    const file = path.join(dir, 'data.json');
     await writeBigJson(file, data);
     await passthru(cmd, [file]);
   })

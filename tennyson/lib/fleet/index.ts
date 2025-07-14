@@ -21,15 +21,15 @@ export class Member {
   }
 
   static async create(fleetname?: string, memberName?: string) {
-    let memberName_ = (memberName === undefined)
+    const memberName_ = (memberName === undefined)
       ? common.rndAlphNum(5) : memberName;
-    let name = [
+    const name = [
       "tmp-fleet",
       fleetname,
       "box",
       memberName_
     ].filter(x => x !== null).join("-");
-    let host = await ec2.createNewSmall(name, { terminateOnShutdown: true });
+    const host = await ec2.createNewSmall(name, { terminateOnShutdown: true });
     return new Member(name, host);
   }
 
@@ -44,8 +44,8 @@ export class Member {
         path.join("/home/admin/", repo)
       );
     }
-    let su = exec.ExecHelpers.su(this.host.exec.bind(this.host), "root", false)
-    let apt = new host.Apt(su);
+    const su = exec.ExecHelpers.su(this.host.exec.bind(this.host), "root", false)
+    const apt = new host.Apt(su);
     await apt.upgrade();
     await apt.install(["npm"]);
     await su("npm", ["install", "--global", "node", "yarn"]);
@@ -72,7 +72,7 @@ export class Member {
   static async with(
     fn: (member: Member) => Promise<void>, fleetname?: string
   ) {
-    let member = await Member.create(fleetname);
+    const member = await Member.create(fleetname);
     try {
       await fn(member);
     } finally {
@@ -222,7 +222,7 @@ export class Fleet {
 
   async destroy() {
     common.log.info("Initially fleet destruction");
-    let destroying = this.members.map(member => member.destroy());
+    const destroying = this.members.map(member => member.destroy());
     await Promise.all(destroying);
   }
 
