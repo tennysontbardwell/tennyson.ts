@@ -174,7 +174,7 @@ export namespace Comms {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             error: 'Invalid JSON or some other issue',
-            errorObj: e,
+            errorObj,
           }));
         }
       });
