@@ -2,7 +2,7 @@ import * as common from "tennyson/lib/core/common";
 import * as openai from "tennyson/lib/ai/openai";
 import { Type, Static, TSchema } from '@sinclair/typebox'
 
-interface Attachment {
+export interface Attachment {
   title: string,
   contents: string,
 }
@@ -21,6 +21,7 @@ interface Query {
   maxToolCalls?: number,
   attachments?: Attachment[],
   outputSchema?: string,
+  model?: string,
 }
 
 interface ToolCall {
@@ -83,8 +84,10 @@ async function generatePrompt(query_: {
   maxToolCalls: number;
   attachments: Attachment[];
   outputSchema?: string;
+  model?: string
 }): Promise<string> {
   let prompt = "";
+  const model = query_.model ?? "gpt-4.1-mini";
   const sep = '==================================';
 
   function addSection(title: string, contents: string) {
@@ -115,7 +118,7 @@ async function generatePrompt(query_: {
     );
   });
 
-  return await openai.openai.generate(prompt);
+  return await openai.openai.generateWithModel(model, prompt);
 }
 
 interface TraceEntry {
@@ -268,40 +271,53 @@ async function writeTraceFile(traceFile: string, trace: TraceEntry[]): Promise<v
   }
 }
 
-// https://kagi.com/assistant/f6131177-2407-42d0-9b63-3f7e3bf2e48f
-export async function webpage(url: string): Promise<Attachment> {
+async function makeWebpageAttachment(
+  url: string,
+  process: (text: string) => string
+) {
   const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-  }
+  if (!response.ok)
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`);
 
   const html = await response.text();
 
-  // Grab <title> if present
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim() : url;
 
-  // Strip scripts, styles, comments, then tags
-  const text = html
+  const text = process(html);
+
+  const MAX_CHARS = 400_000;
+  if (text.length > MAX_CHARS)
+    throw new Error(
+      `text length exceeds MAX_CHARS of ${MAX_CHARS}, is ${text.length}`);
+
+  return {title, contents: text};
+}
+
+export async function webpageRaw(url: string): Promise<Attachment> {
+  const process = (html: string) => html;
+  return await makeWebpageAttachment(url, process);
+}
+
+export async function webpageRawish(url: string): Promise<Attachment> {
+  const process = (html: string) => html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .trim();
+  return await makeWebpageAttachment(url, process);
+}
+
+export async function webpage(url: string): Promise<Attachment> {
+  const process = (html: string) => html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
-  // Cap length to keep prompt size manageable
-  const MAX_CHARS = 400_000;
-  if (text.length > MAX_CHARS) {
-    throw new Error(`text length exceeds MAX_CHARS of ${MAX_CHARS}, is ${text.length}`);
-    // text = text.slice(0, MAX_CHARS) + ' …';
-  }
-
-  return {
-    title,
-    contents: text,
-  };
+  return await makeWebpageAttachment(url, process);
 }
 
 export async function file(path: string, fullPathInTitle = false)

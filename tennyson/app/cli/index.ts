@@ -2,6 +2,7 @@ import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
 import * as aicmd from "tennyson/lib/ai/cmd";
 import * as infra_cmd from "tennyson/lib/infra/cmd";
+import { jless, vdJson } from "tennyson/lib/core/common-node";
 
 async function electron() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
@@ -18,26 +19,11 @@ async function electron() {
 }
 
 async function quickdev() {
-  // let aichat = await import("tennyson/lib/ai/aichat");
-  // let exec = import("tennyson/lib/core/exec");
-  // let host = import("tennyson/lib/infra/host");
-  // let page = await aichat.webpage("https://www.rottentomatoes.com/")
-  // let resp = await aichat.query({
-  //   userText: "Read the TODO comment in /Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai/aichat.ts and execute it. Write the results back to the file.",
-  //   attachments: [],
-  //   tools: [
-  //     aichat.urlFetchTool,
-  //     aichat.readFilesTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai"),
-  //     aichat.modifyFileTool("/Users/tennyson/repos/tennysontbardwell/tennyson.ts/tennyson/lib/ai")
-  //   ],
-  //   maxToolCalls: 3,
-  // }, "/tmp/aitrace.json")
-  // common.log.info(resp);
-  const f = () => common.sleep(2000);
-  await common.runInLimitedConcurrency([f, f, f, f, f], 5);
-  common.log.info("done 1");
-  await common.runInLimitedConcurrency([f, f, f, f, f], 1);
-  common.log.info("done 2");
+  const wb = await import('tennyson/lib/web/waybackmachine');
+  // const r = await wb.getWaybackCaches("https://gasprices.aaa.com/");
+  const r = await wb.getWaybackCaches("https://gasprices.aaa.com/?state=WA");
+  // const r = await wb.getWaybackCaches("https://www.nytimes.com/live/2025/07/14/us/trump-news");
+  await vdJson(r);
 }
 
 export const cmds: cli.Command[] = [
@@ -56,5 +42,9 @@ export const cmds: cli.Command[] = [
   cli.command("fleet-member", async () => {
     const fleet = await import("tennyson/lib/fleet");
     await fleet.Comms.becomeFleetMember();
+  }),
+  cli.lazyGroup("wayback", async () => {
+    const wb = await import("tennyson/lib/web/waybackmachine");
+    return wb.cmds;
   }),
 ];

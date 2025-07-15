@@ -149,7 +149,8 @@ export namespace Comms {
         common.log.error({
           message: "Error while processing request",
           worker: this,
-          request, error });
+          request, error
+        });
         throw error;
       }
     }
@@ -167,7 +168,10 @@ export namespace Comms {
           res.end(JSON.stringify(reply));
         } catch (e) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Invalid JSON or some other issue' }));
+          res.end(JSON.stringify({
+            error: 'Invalid JSON or some other issue',
+            errorObj: e,
+          }));
         }
       });
     });
@@ -239,5 +243,29 @@ export class Fleet {
       }
       throw error
     }
+  }
+
+  mkFetcher(single_retry_delay_ms?: number) {
+    const fleet = this;
+    function error(res: { status: number }) {
+      common.log.error({ mes: "worker response is bad", res })
+      throw Error("worker response is bad")
+    }
+    async function fetcher(input: string) {
+      const worker = fleet.randomWorker();
+      let res = await worker.process({ kind: "getCommand", url: input });
+      if (res.status !== 200) {
+        if (single_retry_delay_ms === undefined)
+          error(res);
+        else {
+          await common.sleep(single_retry_delay_ms);
+          res = await worker.process({ kind: "getCommand", url: input });
+          if (res.status !== 200)
+            error(res);
+        }
+      }
+      return { content: res.text, status: res.status };
+    }
+    return fetcher;
   }
 }

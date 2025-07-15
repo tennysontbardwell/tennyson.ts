@@ -1,61 +1,81 @@
 import * as yargs from "yargs";
 
+import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
+import type { Attachment } from 'tennyson/lib/ai/aichat'
 
-export const cmd: yargs.CommandModule<{}, {}> = {
-  command: "ai <prompt>",
-  describe: "Query AI with a prompt and optional file/webpage attachments",
-  builder: {
+export const cmd = cli.flagsCommand(
+  "ai <prompt>",
+  {
     "file": {
       alias: "f",
       describe: "Attach a file to the query",
-      type: "array",
-      default: []
+      type: "string",
+      array: true,
+      default: [],
+    },
+    "cleanedWebpage": {
+      alias: "c",
+      describe: "Attach a webpage to the query. This will remove scripts, styles, and tags.",
+      type: "string",
+      array: true,
+      default: [],
     },
     "webpage": {
       alias: "w",
-      describe: "Attach a webpage to the query",
-      type: "array", 
-      default: []
-    }
+      describe: "Attach a webpage to the query. This will remove scripts and style tags.",
+      type: "string",
+      array: true,
+      default: [],
+    },
+    "webpageRaw": {
+      alias: "r",
+      describe: "Attach a webpage to the query, as is.",
+      type: "string",
+      array: true,
+      default: [],
+    },
+    "model": {
+      alias: "m",
+      describe: "",
+      type: "string",
+      default: "gpt-4.1-mini",
+      choices: ["gpt-4.1-mini", "gpt-4.1"],
+    },
   },
-  handler: async (args: any) => {
+  async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
 
-    const attachments = [];
+    const attachments: Attachment[] = [];
 
-    // Process file attachments
-    if (args.file && args.file.length > 0) {
-      for (const filePath of args.file) {
+    async function attach(
+      lst: string[],
+      f: (input: string) => Promise<Attachment>
+    ) {
+      for (const elm of lst) {
         try {
-          const attachment = await aichat.file(filePath);
-          attachments.push(attachment);
+          attachments.push(await f(elm));
         } catch (error) {
-          common.log.error(`Failed to read file ${filePath}:`, error);
+          common.log.error(`Failed to handle attachment ${elm}:`, error);
         }
       }
     }
 
-    // Process webpage attachments  
-    if (args.webpage && args.webpage.length > 0) {
-      for (const url of args.webpage) {
-        try {
-          const attachment = await aichat.webpage(url);
-          attachments.push(attachment);
-        } catch (error) {
-          common.log.error(`Failed to fetch webpage ${url}:`, error);
-        }
-      }
-    }
+    await attach(args.file, aichat.file);
+    await attach(args.webpageRaw, aichat.webpageRaw);
+    await attach(args.webpage, aichat.webpageRawish);
+    await attach(args.cleanedWebpage, aichat.webpage);
 
     try {
       const response = await aichat.query({
-        userText: args.prompt,
-        attachments: attachments
+        userText: <string>args.prompt,
+        attachments: attachments,
+        model: args.model,
       });
       console.log(response);
     } catch (error) {
       common.log.error("AI query failed:", error);
     }
-  }
-};
+  },
+  "Query AI with a prompt and optional file/webpage attachments"
+);

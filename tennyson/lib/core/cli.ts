@@ -6,7 +6,7 @@ type SimpleCommandHandler<O extends { [key: string]: yargs.Options; }> =
   (args: ArgumentsCamelCase<InferredOptionTypes<O>>) =>
     void | Promise<void>;
 
-export type Command = yargs.CommandModule<{}, {}>;
+export type Command = yargs.CommandModule<{}, any>;
 
 export function flagsCommand<O extends { [key: string]: yargs.Options }>(
   name: string,

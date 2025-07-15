@@ -23,9 +23,10 @@ export async function checkResponseExn(response: Response) {
     try {
       common.log.error(JSON.parse(text));
     } catch {
-      common.log.error(text.substring(0,10_000));
+      common.log.error(text.substring(0, 10_000));
     }
-    throw new Error(`HTTP error! status: ${response.status} | url: ${response.url}`);
+    throw new Error(
+      `HTTP error! status: ${response.status} | url: ${response.url}`);
   }
   return response;
 }
@@ -33,4 +34,20 @@ export async function checkResponseExn(response: Response) {
 export async function responseJsonExn<T>(response: Response) {
   await checkResponseExn(response);
   return <T>response.json();
+}
+
+export function queryOfUrlAndParams(
+  url: string,
+  params: Record<string, string | number | boolean | undefined>
+): string {
+  let params_ = Object.fromEntries(
+    Object.entries(params)
+      .filter(([_, value]) =>
+      value !== undefined && value !== null)
+      .map(([key, value]) => [key, value!.toString()])
+  );
+
+  const queryStr = new URLSearchParams(params_).toString();
+  const res = (queryStr.length == 0) ? url : `${url}?${queryStr}`;
+  return res;
 }

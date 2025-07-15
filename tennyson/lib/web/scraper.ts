@@ -265,14 +265,21 @@ export class Get extends Node<
   { content: string, status: number }
 > {
   name = "get";
+  customFetcher
+  : null | ((url: string) => Promise<{ content: string, status: number }>)
+    = null;
 
   async getUncached(params: { url: string; }) {
-    const response = await fetch(params.url);
-    if (![404].includes(response.status)) {
-      await net_util.checkResponseExn(response);
+    if (this.customFetcher == null) {
+      const response = await fetch(params.url);
+      if (![404].includes(response.status)) {
+        await net_util.checkResponseExn(response);
+      }
+      const content = await response.text();
+      return { content, status: response.status };
+    } else {
+      return await this.customFetcher(params.url);
     }
-    const content = await response.text();
-    return { content, status: response.status };
   }
 }
 
