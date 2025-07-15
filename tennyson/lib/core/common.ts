@@ -309,3 +309,11 @@ export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
     .map(key => [key, obj[key]] as [string, T[]])
     .sort(([a, _x], [b, _y]) => a.localeCompare(b));
 }
+
+export function errorToObject(error: any) {
+  const errorObj: Record<string, any> = {};
+  Object.getOwnPropertyNames(error).forEach(key => {
+    errorObj[key] = error[key];
+  });
+  return errorObj;
+}

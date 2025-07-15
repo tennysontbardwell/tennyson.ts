@@ -103,7 +103,8 @@ async function scrape(
   else {
       const fleetlib = await import("tennyson/lib/fleet");
       await fleetlib.Fleet.withFleet(fleetSize, async (fleet) => {
-        getNode.customFetcher = fleet.mkFetcher(900_000);
+        getNode.customFetcher = fleet.mkFetcher({
+          single_retry_delay_ms: 900_000 });
         await getNode.cacheall(urls);
       })
     await getNode.cacheall(urls);

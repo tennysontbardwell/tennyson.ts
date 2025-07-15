@@ -103,25 +103,51 @@ export namespace Comms {
 
   export type WorkerCommand = GetCommand
 
-  interface GetReply {
+  export interface GetReplySuccess {
     kind: "getReply",
     url: string,
-    status: number,
-    text: string
-  }
+    results: {
+      status: number,
+      text: string,
+    }
+  };
+
+  export interface GetReplyError {
+    kind: "getReply",
+    url: string,
+    results: {
+      error: string,
+      details: any,
+    }
+  };
+
+  export type GetReply = GetReplySuccess | GetReplyError;
 
   export type ReplyMessage = GetReply
 
   // function processMessage(msg: GetCommand): Promise<GetReply>;
 
   async function processMessage(msg: GetCommand): Promise<GetReply> {
-    const response = await fetch(msg.url);
-    const text = await response.text();
-    return {
-      kind: "getReply",
-      url: msg.url,
-      status: response.status,
-      text
+    try {
+      const response = await fetch(msg.url);
+      const text = await response.text();
+      return {
+        kind: "getReply",
+        url: msg.url,
+        results: {
+          status: response.status,
+          text,
+        },
+      }
+    } catch (e: any) {
+      return {
+        kind: "getReply",
+        url: msg.url,
+        results: {
+          error: "exception occurred on worker",
+          details: common.errorToObject(e),
+        },
+      }
     }
   }
 
@@ -142,7 +168,6 @@ export namespace Comms {
           body: JSON.stringify(request)
         };
         const url = `http://localhost:${this.localPort}`;
-        // common.log.info({ url, msg });
         const response = await fetch(url, msg);
         return await net_util.responseJsonExn(response);
       } catch (error) {
@@ -167,14 +192,10 @@ export namespace Comms {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(reply));
         } catch (e: any) {
-          const errorObj: Record<string, any> = {};
-          Object.getOwnPropertyNames(e).forEach(key => {
-            errorObj[key] = e[key];
-          });
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             error: 'Invalid JSON or some other issue',
-            errorObj,
+            errorObj: common.errorToObject(e),
           }));
         }
       });
@@ -249,26 +270,37 @@ export class Fleet {
     }
   }
 
-  mkFetcher(single_retry_delay_ms?: number) {
+  mkFetcher(options: { single_retry_delay_ms?: number }) {
     const fleet = this;
-    function error(res: { status: number }) {
+    function error(res: Comms.GetReply): never {
       common.log.error({ mes: "worker response is bad", res })
       throw Error("worker response is bad")
     }
     async function fetcher(input: string) {
       const worker = fleet.randomWorker();
-      let res = await worker.process({ kind: "getCommand", url: input });
-      if (res.status !== 200) {
-        if (single_retry_delay_ms === undefined)
-          error(res);
-        else {
-          await common.sleep(single_retry_delay_ms);
-          res = await worker.process({ kind: "getCommand", url: input });
-          if (res.status !== 200)
-            error(res);
-        }
+
+      function isGood(res: Comms.GetReply): res is Comms.GetReplySuccess {
+        return 'status' in res.results && res.results.status === 200;
       }
-      return { content: res.text, status: res.status };
+
+      const process = async () =>
+        await worker.process({ kind: "getCommand", url: input });
+
+      function format(res: Comms.GetReplySuccess) {
+        return { status: res.results.status, content: res.results.text };
+      }
+
+      let res = await process();
+      if (isGood(res))
+        return format(res);
+      if (options.single_retry_delay_ms === undefined)
+        error(res);
+      await common.sleep(options.single_retry_delay_ms);
+      res = await process();
+      if (!isGood(res)) {
+        error(res)
+      }
+      return format(res);
     }
     return fetcher;
   }
