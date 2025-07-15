@@ -166,7 +166,11 @@ export namespace Comms {
           const reply = await processMessage(msg);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(reply));
-        } catch (e) {
+        } catch (e: any) {
+          const errorObj: Record<string, any> = {};
+          Object.getOwnPropertyNames(e).forEach(key => {
+            errorObj[key] = e[key];
+          });
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             error: 'Invalid JSON or some other issue',
