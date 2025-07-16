@@ -270,14 +270,18 @@ export class Fleet {
     }
   }
 
-  mkFetcher(options: { single_retry_delay_ms?: number }) {
+  mkFetcher(
+    options: { single_retry_delay_ms?: number, cyclerWorkers?: boolean }
+  ) {
+    const options_ = { cycleWorkers: true, ...options };
     const fleet = this;
     function error(res: Comms.GetReply): never {
       common.log.error({ mes: "worker response is bad", res })
       throw Error("worker response is bad")
     }
+    const stableWorker = fleet.randomWorker();
     async function fetcher(input: string) {
-      const worker = fleet.randomWorker();
+      const worker = options_.cycleWorkers ? fleet.randomWorker() : stableWorker;
 
       function isGood(res: Comms.GetReply): res is Comms.GetReplySuccess {
         return 'status' in res.results && res.results.status === 200;
@@ -293,14 +297,25 @@ export class Fleet {
       let res = await process();
       if (isGood(res))
         return format(res);
-      if (options.single_retry_delay_ms === undefined)
+      if (options_.single_retry_delay_ms === undefined)
         error(res);
-      await common.sleep(options.single_retry_delay_ms);
+      await common.sleep(options_.single_retry_delay_ms);
       res = await process();
       if (!isGood(res)) {
         error(res)
       }
       return format(res);
+    }
+    return fetcher;
+  }
+
+  mkJsonFetcher(
+    options: { single_retry_delay_ms?: number, cyclerWorkers?: boolean }
+  ) {
+    const textFetcher = this.mkFetcher(options);
+    async function fetcher(input: string) {
+      const res = await textFetcher(input);
+      return JSON.parse(res.content);
     }
     return fetcher;
   }
