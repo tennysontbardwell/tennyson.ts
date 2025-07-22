@@ -2,7 +2,7 @@
   "name": "tennyson",
   "license": "UNLICENSED",
   "main": "build/tennyson/index.js",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "files": [
     "build/**/*",
     "README.md",
@@ -10,11 +10,18 @@
   ],
   "exports": {
     ".": "./build/tennyson/index.js",
-    "./*": {
-      "import": "./build/tennyson/*.mjs",
-      "require": "./build/tennyson/*.js",
-      "types": "./build/tennyson/*.d.ts"
-    }
+    "./*": [
+      {
+        "import": "./build/tennyson/*/index.js",
+        "require": "./build/tennyson/*/index.js",
+        "types": "./build/tennyson/*/index.d.ts"
+      },
+      {
+        "import": "./build/tennyson/*.js",
+        "require": "./build/tennyson/*.js",
+        "types": "./build/tennyson/*.d.ts"
+      }
+    ]
   },
   "scripts": {
     "run": "export NODE_PATH=./build && node --enable-source-maps build/tennyson/index.js",
