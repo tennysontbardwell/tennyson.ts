@@ -5,7 +5,8 @@ import {useRef} from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import {fetchFileSystem} from './ItemDisplay';
-import { Ranger, RangerItem } from './Ranger';
+import type { RangerItem } from './Ranger';
+import { Ranger } from './Ranger';
 import * as echarts from 'echarts';
 
 const tooltip = d3.select("body")

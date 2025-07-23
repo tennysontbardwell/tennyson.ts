@@ -1,5 +1,6 @@
 import * as common from "tennyson/lib/core/common";
 import * as secrets from "tennyson/secrets/secrets";
+import * as net_util from "tennyson/lib/core/net-util";
 
 // openai-api.ts
 // https://kagi.com/assistant/f87f6e6e-167d-4a0a-a054-72fd4832f2e5
@@ -20,6 +21,12 @@ export interface TextContent {
   annotations: any[];
 }
 
+export interface ReasoningMessage {
+  id: string;
+  type: 'reasoning';
+  status: string;
+}
+
 export interface ResponseMessage {
   id: string;
   type: 'message';
@@ -34,7 +41,7 @@ export interface OpenAIRequestOptions {
 }
 
 export interface OpenAIResponse {
-  output: ResponseMessage[];
+  output: Array<ReasoningMessage | ResponseMessage>;
 }
 
 // Configuration
@@ -115,11 +122,7 @@ export class OpenAIClient {
         body: JSON.stringify(options)
       });
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
+      const data = await net_util.responseJsonExn(response);
       return data as OpenAIResponse;
     } catch (error) {
       if (error instanceof Error) {
@@ -136,6 +139,8 @@ export class OpenAIClient {
     const textOutputs: string[] = [];
 
     for (const message of response.output) {
+      if (message.type !== "message")
+        continue
       for (const content of message.content) {
         if (content.type === 'output_text') {
           textOutputs.push(content.text);

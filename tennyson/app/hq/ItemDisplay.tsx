@@ -1,6 +1,6 @@
 import React from 'react';
-import { JSX } from 'react';
-import { RangerItem } from './Ranger';
+import type { JSX } from 'react';
+import type { RangerItem } from './Ranger';
 
 async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
   try {

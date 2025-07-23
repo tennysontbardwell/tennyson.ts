@@ -6,10 +6,10 @@ import { promises as fs } from 'fs';
 import * as fsSync from 'fs';
 import * as uuid from 'uuid';
 
-import { Writable } from 'stream';
-import chain from 'stream-chain';
-import { parser } from 'stream-json'; // JSON parser factory
-import Assembler from 'stream-json/Assembler'; // Class to assemble the JS object
+import * as stream from 'stream';
+import * as stream_chain from 'stream-chain';
+import * as stream_json from 'stream-json';
+import Assembler from 'stream-json/Assembler.js';
 
 export function resolveHome(path: string) {
   const filepath = path.split('/');
@@ -57,9 +57,9 @@ export async function fsExists(path: string) {
 // https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
 export async function parseBigJson(filePath: string): Promise<any> {
     return new Promise((resolve, reject) => {
-        const pipeline = chain([
+        const pipeline = stream_chain.chain([
             fsSync.createReadStream(filePath, { encoding: 'utf8' }),
-            parser(),
+            stream_json.parser(),
         ]);
 
         const asm = Assembler.connectTo(pipeline);
@@ -67,7 +67,7 @@ export async function parseBigJson(filePath: string): Promise<any> {
     });
 }
 
-async function writeChunk(stream: Writable, chunk: string): Promise<void> {
+async function writeChunk(stream: stream.Writable, chunk: string): Promise<void> {
   // Attempt to write the chunk. If stream.write() returns false, the internal buffer is full.
   if (!stream.write(chunk, 'utf8')) {
     // Wait for the 'drain' event before resolving the promise, allowing more data to be written.
@@ -79,7 +79,7 @@ async function writeChunk(stream: Writable, chunk: string): Promise<void> {
 // https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
 export async function recursivelyWriteObjectToStream(
     data: any,
-    stream: Writable
+    stream: stream.Writable
 ): Promise<void> {
     if (data === undefined) {
         // For standalone 'undefined' or if 'undefined' is explicitly passed.

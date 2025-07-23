@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import React, { useState, useEffect, ReactNode, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as echarts from 'echarts';
 
 export function EChart(props: {option: echarts.EChartsOption}) {

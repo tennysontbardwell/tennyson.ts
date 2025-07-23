@@ -1,5 +1,6 @@
 // Ranger.tsx
-import React, { useRef, useState, useEffect, useCallback, JSX } from "react";
+import type { JSX } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 
 export interface RangerItem {
   name: string;

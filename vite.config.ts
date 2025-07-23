@@ -9,10 +9,10 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    tanstackRouter({
-      target: 'react',
-      autoCodeSplitting: true,
-    }),
+    // tanstackRouter({
+    //   target: 'react',
+    //   autoCodeSplitting: true,
+    // }),
     react(),
     tsconfigPaths(),
   ],

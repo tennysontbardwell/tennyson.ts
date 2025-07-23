@@ -1,5 +1,5 @@
 import * as host from "tennyson/lib/infra/host";
-import { ExecLike } from "tennyson/lib/core/exec";
+import type { ExecLike } from "tennyson/lib/core/exec";
 
 export async function setup(exec: ExecLike) {
   await (new host.Apt(exec)).install(['snapd']);

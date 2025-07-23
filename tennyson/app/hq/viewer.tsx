@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { fetchFileSystem } from './ItemDisplay';
-import { Ranger, RangerItem } from './Ranger';
+import type { RangerItem } from './Ranger';
+import { Ranger } from './Ranger';
 
 export function ViewerApp() {
   const [items, setItems] = useState<Array<RangerItem>>([]);

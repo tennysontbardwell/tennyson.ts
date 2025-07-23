@@ -2,7 +2,8 @@ import { Host, Apt } from "tennyson/lib/infra/host";
 import * as memory from "tennyson/lib/core/memory";
 import * as consul from "tennyson/lib/infra/consul";
 import * as common from "tennyson/lib/core/common";
-import { ExecHelpers, ExecLike } from "tennyson/lib/core/exec";
+import type { ExecLike } from "tennyson/lib/core/exec";
+import { ExecHelpers } from "tennyson/lib/core/exec";
 import * as secrets from "tennyson/secrets/secrets";
 import * as yaml from "yaml";
 

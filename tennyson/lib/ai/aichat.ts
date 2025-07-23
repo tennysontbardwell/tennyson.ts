@@ -1,6 +1,7 @@
 import * as common from "tennyson/lib/core/common";
 import * as openai from "tennyson/lib/ai/openai";
-import { Type, Static, TSchema } from '@sinclair/typebox'
+import type { Static, TSchema } from '@sinclair/typebox'
+import { Type } from '@sinclair/typebox'
 
 export interface Attachment {
   title: string,

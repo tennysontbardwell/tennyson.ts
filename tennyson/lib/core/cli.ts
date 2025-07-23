@@ -1,5 +1,5 @@
 import * as yargs from "yargs";
-import { ArgumentsCamelCase, InferredOptionTypes } from "yargs";
+import type { ArgumentsCamelCase, InferredOptionTypes } from "yargs";
 import * as common from "tennyson/lib/core/common";
 
 type SimpleCommandHandler<O extends { [key: string]: yargs.Options; }> =
@@ -60,7 +60,7 @@ export function group(
       return sorted.reduce((accum, curr) => accum.command(curr), yargs);
     },
     handler: (args: any) => {
-      yargs.showHelp();
+      yargs.default().showHelp();
     },
   }
 };
@@ -80,13 +80,13 @@ export function lazyGroup(
       return sorted.reduce((accum, curr) => accum.command(curr), yargs);
     },
     handler: (args: any) => {
-      yargs.showHelp();
+      yargs.default().showHelp();
     },
   }
 };
 
 function configuredYargs() {
-  return yargs
+  return yargs.default()
     .demandCommand(1)
     .help("help")
     .strict()

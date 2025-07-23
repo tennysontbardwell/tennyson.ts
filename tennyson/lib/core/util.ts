@@ -1,7 +1,7 @@
-import { Readable } from "stream";
+import * as stream from "stream";
 import * as readline from "readline";
 
-export function concatStream(stream: Readable) {
+export function concatStream(stream: stream.Readable) {
   var content = "";
   stream.on("data", function (buf) {
     content += buf.toString();

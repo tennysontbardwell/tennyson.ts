@@ -40,7 +40,14 @@ export const cmd = cli.flagsCommand(
       describe: "",
       type: "string",
       default: "gpt-4.1-mini",
-      choices: ["gpt-4.1-mini", "gpt-4.1"],
+      choices: [
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "o3",
+        "o3-nano",
+        "o4-mini",
+      ],
     },
   },
   async (args) => {

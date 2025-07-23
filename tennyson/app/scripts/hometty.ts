@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import * as path from "path";
 import shellescape from "shell-escape";
 import * as fs from "fs/promises";
