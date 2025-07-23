@@ -1,4 +1,4 @@
-import * as yargs from "yargs";
+import type * as yargs from "yargs";
 
 export namespace Devbox {
   const choices = [

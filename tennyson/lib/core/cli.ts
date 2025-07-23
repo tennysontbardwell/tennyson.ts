@@ -1,4 +1,5 @@
-import * as yargs from "yargs";
+import type * as yargs from "yargs";
+import Yargs from "yargs";
 import type { ArgumentsCamelCase, InferredOptionTypes } from "yargs";
 import * as common from "tennyson/lib/core/common";
 
@@ -60,7 +61,7 @@ export function group(
       return sorted.reduce((accum, curr) => accum.command(curr), yargs);
     },
     handler: (args: any) => {
-      yargs.default().showHelp();
+      configuredYargs().showHelp();
     },
   }
 };
@@ -80,13 +81,14 @@ export function lazyGroup(
       return sorted.reduce((accum, curr) => accum.command(curr), yargs);
     },
     handler: (args: any) => {
-      yargs.default().showHelp();
+      configuredYargs().showHelp();
+      // yargs.showHelp();
     },
   }
 };
 
 function configuredYargs() {
-  return yargs.default()
+  return Yargs(process.argv.slice(2))
     .demandCommand(1)
     .help("help")
     .strict()
@@ -100,10 +102,10 @@ export async function execute(commands: Array<Command>) {
       .reduce(
         (acc, curr) => acc.command(curr),
         configuredYargs());
-  async function run() {
-    yargs.argv;
+  try {
+    await yargs.parse();
+  } catch (error) {
+    common.log.error("Error in command parsing/execution", error);
+    process.exit(1);
   }
-  run().catch((error) =>
-    common.log.error("error in comand parsing function", error)
-  );
 }

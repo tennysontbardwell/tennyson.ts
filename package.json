@@ -5,33 +5,18 @@
   "version": "0.0.9",
   "type": "module",
   "files": [
-    "dist/**/*",
+    "build/**/*",
     "README.md",
     "package.json"
   ],
-  "exports": {
-    ".": "./dist/index.js",
-    "./*": [
-      {
-        "types": "./dist/*/index.d.ts",
-        "import": "./dist/*/index.js",
-        "require": "./dist/*/index.cjs"
-      },
-      {
-        "types": "./dist/*.d.ts",
-        "import": "./dist/*.js",
-        "require": "./dist/*.cjs"
-      }
-    ]
-  },
   "scripts": {
     "run": "export NODE_PATH=./build && node --enable-source-maps build/tennyson/index.js",
-    "build": "npm-run-all clean build:types build:build build:test",
-    "build:types": "tsc --build --emitDeclarationOnly",
+    "build": "npm-run-all clean build:build build:test",
+    "build:check": "tsc --build --noEmit",
     "build:build": "tsup",
     "build:test": "vitest --run",
     "watch": "npm-run-all --parallel watch:check watch:build watch:test",
-    "watch:check": "tsc --watch --noEmit --preserveWatchOutput",
+    "watch:check": "tsc --watch --preserveWatchOutput",
     "watch:build": "tsup --watch",
     "watch:test": "vitest",
     "hq": "vite -c vite.config.ts --open",

@@ -1,5 +1,3 @@
-import * as yargs from "yargs";
-
 import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
 import type { Attachment } from 'tennyson/lib/ai/aichat'
