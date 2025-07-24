@@ -71,19 +71,18 @@ export function lazyGroup(
   commands: () => Promise<yargs.CommandModule<{}, any>[]>,
   describe?: string,
 ) {
+  const builder = async (yargs: yargs.Argv<{}>) => {
+    const resolvedCommands = await commands();
+    const sorted = resolvedCommands.sort((a, b) =>
+      getName(a).localeCompare(getName(b)));
+    return sorted.reduce((accum, curr) => accum.command(curr), yargs)
+      .demandCommand(1);
+  }
   return <yargs.CommandModule>{
     command: name,
-    describe: "",
-    builder: async function (yargs) {
-      const resolvedCommands = await commands();
-      const sorted = resolvedCommands.sort((a, b) =>
-        getName(a).localeCompare(getName(b)));
-      return sorted.reduce((accum, curr) => accum.command(curr), yargs);
-    },
-    handler: (args: any) => {
-      configuredYargs().showHelp();
-      // yargs.showHelp();
-    },
+    describe: describe || "",
+    builder,
+    handler: (args: any) => {},
   }
 };
 
@@ -101,7 +100,8 @@ export async function execute(commands: Array<Command>) {
       .sort((a, b) => getName(a).localeCompare(getName(b)))
       .reduce(
         (acc, curr) => acc.command(curr),
-        configuredYargs());
+        configuredYargs())
+      .completion();
   try {
     await yargs.parse();
   } catch (error) {

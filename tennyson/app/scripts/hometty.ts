@@ -155,14 +155,14 @@ export async function run() {
     }),
     py_docs("python-docs"),
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),
+    fzf.command("ranger-fs", async () => {
+      const ranger = await import("tennyson/app/ranger/index");
+      new ranger.Ranger(ranger.lsFiles);
+    }),
     fzf.subtree("commands", [
       fzf.command("node prompt", async () =>
         common_node.passthru("node", ["--enable-source-maps"])
       ),
     ]),
   ]);
-}
-
-if (require.main === module) {
-  run();
 }

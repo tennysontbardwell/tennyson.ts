@@ -2,6 +2,7 @@ import * as common from "tennyson/lib/core/common";
 import * as openai from "tennyson/lib/ai/openai";
 import type { Static, TSchema } from '@sinclair/typebox'
 import { Type } from '@sinclair/typebox'
+import { openAIConfig } from "./const";
 
 export interface Attachment {
   title: string,
@@ -119,7 +120,7 @@ async function generatePrompt(query_: {
     );
   });
 
-  return await openai.openai.generateWithModel(model, prompt);
+  return await openai.openai.generateWithModel(model, openAIConfig, prompt);
 }
 
 interface TraceEntry {

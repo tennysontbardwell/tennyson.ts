@@ -1,6 +1,7 @@
 import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
 import type { Attachment } from 'tennyson/lib/ai/aichat'
+import { models } from './const';
 
 export const cmd = cli.flagsCommand(
   "ai <prompt>",
@@ -38,14 +39,7 @@ export const cmd = cli.flagsCommand(
       describe: "",
       type: "string",
       default: "gpt-4.1-mini",
-      choices: [
-        "gpt-4.1",
-        "gpt-4.1-mini",
-        "gpt-4.1-nano",
-        "o3",
-        "o3-nano",
-        "o4-mini",
-      ],
+      choices: Object.keys(models),
     },
   },
   async (args) => {

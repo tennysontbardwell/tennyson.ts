@@ -72,9 +72,10 @@ export namespace GithubRepo {
             rl.question("Enter URL: ", resolve);
           });
           rl.close();
-          // https://github.com/nodejs/node/issues/45213 only affects zsh widgets
+          // https://github.com/nodejs/node/issues/45213
+          // only affects zsh widgets
           if (answer.startsWith('~') && answer.endsWith('~')) {
-            answer = answer.slice(1,-1);
+            answer = answer.slice(1, -1);
           }
           const t = ofURL(answer);
           const useSSH = (t.user == process.env["GITHUB_USERNAME"]);

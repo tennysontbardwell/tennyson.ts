@@ -20,15 +20,3 @@ export function ViewerApp() {
 
   return <Ranger items={items} />;
 }
-
-/* const rootElement = document.getElementById('root');
-* if (rootElement) {
-*   // Create a React root and render the App component
-*   ReactDOM.createRoot(rootElement).render(
-*     <React.StrictMode>
-*     <RangerApp />
-*     </React.StrictMode>
-*   );
-* } else {
-*   console.error('Failed to find the root element');
-* } */

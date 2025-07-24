@@ -1,6 +1,7 @@
 import * as common from "tennyson/lib/core/common";
-import * as secrets from "tennyson/secrets/secrets";
 import * as net_util from "tennyson/lib/core/net-util";
+import type { OpenAIConfig } from "./const"
+import { openAIConfig } from "./const";
 
 // openai-api.ts
 // https://kagi.com/assistant/f87f6e6e-167d-4a0a-a054-72fd4832f2e5
@@ -44,18 +45,14 @@ export interface OpenAIResponse {
   output: Array<ReasoningMessage | ResponseMessage>;
 }
 
-// Configuration
-export class OpenAIConfig {
-  static apiKey: string = secrets.openAIKey!;
-  static baseUrl: string = 'https://api.openai.com/v1/responses';
-}
-
 // Main API client class
 export class OpenAIClient {
   private model: string;
+  private config: OpenAIConfig;
 
-  constructor(model: string = 'gpt-4.1-mini') {
+  constructor(model: string, config: OpenAIConfig) {
     this.model = model;
+    this.config = config;
   }
 
   /**
@@ -113,11 +110,11 @@ export class OpenAIClient {
    */
   private async makeRequest(options: OpenAIRequestOptions): Promise<OpenAIResponse> {
     try {
-      const response = await fetch(OpenAIConfig.baseUrl, {
+      const response = await fetch(this.config.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OpenAIConfig.apiKey}`
+          'Authorization': `Bearer ${this.config.apiKey}`
         },
         body: JSON.stringify(options)
       });
@@ -157,8 +154,11 @@ export const openai = {
   /**
    * Quick text generation with default model
    */
-  async generate(prompt: string, instructions?: string): Promise<string> {
-    const client = new OpenAIClient();
+  async generate(
+    prompt: string,
+    instructions?: string,
+  ): Promise<string> {
+    const client = new OpenAIClient('gpt-4.1-mini', openAIConfig);
     return client.generateText(prompt, instructions);
   },
 
@@ -167,17 +167,21 @@ export const openai = {
    */
   async generateWithModel(
     model: string,
+    config: OpenAIConfig,
     prompt: string,
     instructions?: string
   ): Promise<string> {
-    const client = new OpenAIClient(model);
+    const client = new OpenAIClient(model, config);
     return client.generateText(prompt, instructions);
   },
 
   /**
    * Create a configured client instance
    */
-  createClient(model: string = 'gpt-4.1'): OpenAIClient {
-    return new OpenAIClient(model);
+  createClient(
+    model: string = 'gpt-4.1-mini',
+    config: OpenAIConfig = openAIConfig,
+  ): OpenAIClient {
+    return new OpenAIClient(model, config);
   }
 };

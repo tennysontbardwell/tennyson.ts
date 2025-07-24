@@ -1,6 +1,7 @@
 import * as blessed from "blessed";
 import { Widgets } from "blessed";
 import * as fs from "fs";
+import * as fsSync from 'fs';
 import * as xml from "fast-xml-parser";
 import * as common from "tennyson/lib/core/common";
 
@@ -271,6 +272,19 @@ function objLs(path: string[]) {
     return [String(obj)];
   }
 }
+
+export function lsFiles(path: string[]) {
+  const path_ = "/" + path.join("/");
+  const stats = fsSync.lstatSync(path_);
+  if (stats.isFile()) {
+    return fsSync.readFileSync(path_, { encoding: "utf-8" });
+  } else if (stats.isDirectory()) {
+    return fsSync.readdirSync(path_);
+  } else {
+    return [];
+  }
+}
+
 
 // const ranger = new Ranger(lsFiles);
 // const ranger = new Ranger(objLs);

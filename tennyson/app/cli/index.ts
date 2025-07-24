@@ -19,11 +19,6 @@ async function electron() {
 }
 
 async function quickdev() {
-  const wb = await import('tennyson/lib/web/waybackmachine');
-  // const r = await wb.getWaybackCaches("https://gasprices.aaa.com/");
-  const r = await wb.getWaybackCaches("https://gasprices.aaa.com/?state=WA");
-  // const r = await wb.getWaybackCaches("https://www.nytimes.com/live/2025/07/14/us/trump-news");
-  await vdJson(r);
 }
 
 export const cmds: cli.Command[] = [
@@ -42,6 +37,19 @@ export const cmds: cli.Command[] = [
   cli.command("fleet-member", async () => {
     const fleet = await import("tennyson/lib/fleet");
     await fleet.Comms.becomeFleetMember();
+  }),
+  cli.command("fleet-test", async () => {
+    const fleetlib = await import("tennyson/lib/fleet");
+    await fleetlib.Fleet.withFleet(2, async fleet => {
+      common.log.info(await fleet.process({
+        kind: "getCommand",
+        url: "https://ipecho.net/plain"
+      }));
+    });
+  }),
+  cli.command("ranger-fs", async () => {
+    const ranger = await import("tennyson/app/ranger/index");
+    new ranger.Ranger(ranger.lsFiles);
   }),
   cli.lazyGroup("wayback", async () => {
     const wb = await import("tennyson/lib/web/waybackmachine");

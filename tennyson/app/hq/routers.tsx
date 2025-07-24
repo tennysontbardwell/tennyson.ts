@@ -13,8 +13,8 @@ import { ViewerApp } from 'tennyson/app/hq/viewer';
 
 const rootRoute = createRootRoute({
   component: () => (
-    <>
-      <div style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: "100vh" }}>
+      <div style={{ flex: 0, display: 'flex', gap: '0.5rem', padding: '0.5rem' }}>
         <Link to="/" activeProps={{ style: { fontWeight: 'bold' } }}>
           Home
         </Link>
@@ -25,11 +25,10 @@ const rootRoute = createRootRoute({
           ImageViewer
         </Link>
       </div>
-      <hr />
-      <div style={{ padding: '0.5rem' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: '0.5rem' }}>
         <Outlet />
       </div>
-    </>
+    </div>
   ),
 })
 

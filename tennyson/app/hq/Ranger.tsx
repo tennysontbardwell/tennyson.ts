@@ -213,7 +213,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
   }, [cols, curCol.idx]);
 
   return (
-    <div>
+    <div style={{ height: "100%" }}>
       {searchMode && (
         <div style={{
           position: "fixed",
@@ -239,7 +239,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
         id="ranger-root"
         tabIndex={0}
         onKeyDown={onKey}
-        style={{ display: "flex", outline: "none", height: "100%", maxHeight: "100vh" }}
+        style={{ display: "flex", outline: "none", height: "100%" }}
       >
         {cols.slice(-3).map((col, i) => (
           <div

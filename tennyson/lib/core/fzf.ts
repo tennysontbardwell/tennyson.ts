@@ -87,9 +87,14 @@ export async function richFzf(choices: Array<FzfItem>) {
       return "exception";
     }
   };
-  const action = (choice: string) => {
+  const action = async (choice: string) => {
     const action = choices_.get(choice)?.action || (async () => null);
-    return action();
+    try {
+      return await action();
+    } catch (e: any) {
+      common.log.fatal(e);
+      throw e;
+    }
   };
   await fzf([...choices_.keys()], preview, action);
 }

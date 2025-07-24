@@ -8,4 +8,5 @@ export const gitlabPass = process.env['GITLAB_PASS'];
 export const gitlabToken = process.env['GITLAB_TOKEN'];
 export const hashedJupyterPass = process.env["HASHED_JUPYTER_PASS"];
 export const openAIKey = process.env['OPENAI_API_KEY'];
+export const togetherAIKey = process.env['TOGETHER_AI_API_KEY'];
 export const sambaPassword = process.env['SAMBA_PASSWORD'];

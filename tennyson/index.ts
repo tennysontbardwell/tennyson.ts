@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Fix module resolution for Electron
 if (process.versions.electron) {
   console.log("ELECTRON SETUP");
@@ -20,3 +22,4 @@ import * as common from "tennyson/lib/core/common";
 import { cmds } from 'tennyson/app/cli';
 
 cli.execute(cmds);
+
