@@ -1,6 +1,9 @@
 import { useRef } from 'react';
 import type { ReactNode } from 'react';
 import React, { useState, useEffect, useMemo } from 'react';
+
+import * as rx from 'rxjs';
+
 import * as echarts from 'echarts';
 import { useReactTable, createColumnHelper, getCoreRowModel, flexRender }
   from '@tanstack/react-table';
@@ -75,6 +78,22 @@ export function PromiseResolver<T>(
   else
     return <div>Loading...</div>;
 }
+
+export function useObservable<T>(source$: rx.Observable<T>, initialValue: T): T {
+  const [value, setValue] = useState<T>(initialValue);
+
+  useEffect(() => {
+    const subscription = source$.subscribe({
+      next: setValue,
+      error: (error) => console.error('Observable error:', error)
+    });
+
+    return () => subscription.unsubscribe();
+  }, [source$]);
+
+  return value;
+}
+
 
 export function BasicTable<T>(
   props: { data: T[], columns: readonly (keyof T & string)[] }

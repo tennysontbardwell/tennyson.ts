@@ -10,7 +10,7 @@ export interface RangerItem {
 
 interface Column {
   items: RangerItem[];
-  idx: number;   // selected row
+  idx: number;
 }
 
 export function Ranger({ items }: { items: RangerItem[] }) {
@@ -124,8 +124,8 @@ export function Ranger({ items }: { items: RangerItem[] }) {
         let prefix = '';
 
         if (e.ctrlKey) prefix += 'C-';
-        if (e.metaKey) prefix += 'D-';  // Command key
-        if (e.altKey) prefix += 'M-';   // Alt/Meta key  
+        if (e.metaKey) prefix += 'D-'; // Command key
+        if (e.altKey) prefix += 'M-'; // Alt/Meta key
 
         return prefix + key;
       })();
