@@ -61,6 +61,7 @@ class RangerScreen {
 
 interface Dir {
   state: "dir";
+  items: string[];
   node: Widgets.ListElement;
 }
 interface Leaf {
@@ -97,7 +98,7 @@ class RangerNode<T extends Dir | Leaf> {
       },
       items: items,
     });
-    return new RangerNode({ state: "dir", node: node });
+    return new RangerNode({ state: "dir", node: node, items });
   }
 
   static auto(arg: string | string[]) {
@@ -110,7 +111,7 @@ class RangerNode<T extends Dir | Leaf> {
 
   selected() {
     if (this.node.state == "dir") {
-      return this.node.node.getItem(this.node.node.getScroll()).getText();
+      return this.node.items[this.node.node.getScroll()];
     } else {
       return null;
     }
@@ -126,16 +127,22 @@ class RangerNode<T extends Dir | Leaf> {
   }
 }
 
+type ChildFunc =
+  (path: string[]) => string[] | string | Promise<string[] | string>;
+
 export class Ranger {
   readonly rangerScreen = new RangerScreen();
   readonly allNodes: StringArrayMap<RangerNode<Dir | Leaf>> =
     new StringArrayMap();
-  readonly getChildrenFunc: (path: string[]) => string[] | string;
+  readonly getChildrenFunc: ChildFunc;
   activePath: string[] = [];
 
-  constructor(getChildrenFunc: (path: string[]) => string[] | string) {
+  constructor(getChildrenFunc: ChildFunc) {
     this.getChildrenFunc = getChildrenFunc;
-    this.allNodes.set([], RangerNode.auto(this.getChildren([])));
+  }
+
+  async run() {
+    this.allNodes.set([], RangerNode.auto(await this.getChildren([])));
     const screen = this.rangerScreen.screen;
     screen.key(["escape", "q", "C-c"], function (ch, key) {
       screen.destroy();
@@ -143,26 +150,26 @@ export class Ranger {
     const this_ = this;
     function onKeyGeneral(
       key: string | string[],
-      fun: () => void,
+      fun: () => (void | Promise<void>),
       onDirFun: (active: Widgets.ListElement) => void
     ) {
-      screen.key(key, function (ch, key) {
-        fun();
-        const active = this_.getActiveNode();
+      screen.key(key, async function (ch, key) {
+        await fun();
+        const active = await this_.getActiveNode();
         const activeNode = active.node;
         if (activeNode.state == "dir") {
           onDirFun(activeNode.node);
           activeNode.node.select(activeNode.node.getScroll());
         }
-        this_.redraw();
+        await this_.redraw();
         this_.rangerScreen.header.setContent(
           "/" + this_.activePath.join("/") + active.selected()
         );
         screen.render();
       });
     }
-    const nop = () => null;
-    function onKey(key: string | string[], fun: () => void) {
+    const nop = () => {};
+    function onKey(key: string | string[], fun: () => void | Promise<void>) {
       onKeyGeneral(key, fun, nop);
     }
     function onDirKey(
@@ -185,21 +192,22 @@ export class Ranger {
       active.up(Math.ceil(Number(active.height) / 2))
     );
 
+    await this_.redraw();
     screen.render();
   }
 
-  getChildren(path: string[]) {
+  async getChildren(path: string[]) {
     try {
-      return this.getChildrenFunc(path);
+      return await this.getChildrenFunc(path);
     } catch {
       return [];
     }
   }
 
-  getNode(path: string[]) {
+  async getNode(path: string[]) {
     const node = this.allNodes.get(path);
     if (node === undefined && path.length > 0) {
-      const subcontents = this.getChildren(path);
+      const subcontents = await this.getChildren(path);
       if (typeof subcontents === "string" || subcontents.length > 0) {
         const newNode = RangerNode.auto(subcontents);
         this.allNodes.set(path, newNode);
@@ -210,8 +218,8 @@ export class Ranger {
     }
   }
 
-  getActiveNode() {
-    const node = this.getNode(this.activePath);
+  async getActiveNode() {
+    const node = await this.getNode(this.activePath);
     if (node === null || node === undefined) {
       throw "active node should always exist";
     } else if (node.node.state == "leaf") {
@@ -221,14 +229,14 @@ export class Ranger {
     }
   }
 
-  redraw() {
+  async redraw() {
     const prev =
       this.activePath.length > 0
-        ? this.getNode(this.activePath.slice(0, -1))
+        ? await this.getNode(this.activePath.slice(0, -1))
         : null;
-    const curr = this.getActiveNode();
-    const nextPath = this.activePath.concat(this.getActiveNode().selectedExn());
-    const next = this.getNode(nextPath);
+    const curr = await this.getActiveNode();
+    const nextPath = this.activePath.concat(curr.selectedExn());
+    const next = await this.getNode(nextPath);
     this.rangerScreen.detachAll();
     this.rangerScreen.col2.append(curr.node.node);
     if (next !== undefined) {
@@ -239,13 +247,13 @@ export class Ranger {
     }
   }
 
-  dive() {
-    const selected = this.getActiveNode().selected();
+  async dive() {
+    const selected = (await this.getActiveNode()).selected();
     if (selected === null) {
       return;
     }
     const newPath = this.activePath.concat(selected);
-    const subcontents = this.getChildren(newPath);
+    const subcontents = await this.getChildren(newPath);
     if (typeof subcontents !== "string" && subcontents.length > 0) {
       this.activePath = newPath;
       this.allNodes.set(this.activePath, RangerNode.auto(subcontents));
@@ -253,9 +261,9 @@ export class Ranger {
     this.redraw();
   }
 
-  popUnlessRoot() {
+  async popUnlessRoot() {
     this.activePath = this.activePath.slice(0, -1);
-    this.redraw();
+    await this.redraw();
   }
 }
 

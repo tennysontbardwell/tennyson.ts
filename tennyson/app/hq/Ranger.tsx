@@ -5,7 +5,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 export interface RangerItem {
   name: string;
   subitems: () => Promise<RangerItem[]>;
-  display: () => JSX.Element;
+  display?: () => JSX.Element;
 }
 
 interface Column {
@@ -266,7 +266,9 @@ export function Ranger({ items }: { items: RangerItem[] }) {
             ))}
           </div>
         ))}
-        <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1 }}>{curItem?.display()}</div>
+        <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1 }}>
+          { (curItem?.display ?? (() => <div/>))() }
+        </div>
       </div>
     </div>
   );

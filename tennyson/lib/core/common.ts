@@ -1,5 +1,6 @@
 import * as tslog from "tslog";
 import { tqdm } from "./tqdm";
+import stableStringify from "json-stable-stringify"
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -19,20 +20,20 @@ export function datestamp() {
   );
 }
 
-type logLevel = "debug" | "info" | "error";
-function compare(a: logLevel, b: logLevel) {
-  function toInt(level: logLevel): number {
-    switch (level) {
-      case "debug":
-        return 0;
-      case "info":
-        return 1;
-      case "error":
-        return 2;
-    }
-  }
-  return toInt(a) - toInt(b);
-}
+// type logLevel = "debug" | "info" | "error";
+// function compare(a: logLevel, b: logLevel) {
+//   function toInt(level: logLevel): number {
+//     switch (level) {
+//       case "debug":
+//         return 0;
+//       case "info":
+//         return 1;
+//       case "error":
+//         return 2;
+//     }
+//   }
+//   return toInt(a) - toInt(b);
+// }
 
 export const inNode =
   typeof process !== 'undefined'
@@ -47,39 +48,95 @@ const debugOn =
     process.env["DEBUG"] != ""
     : false;
 
-var logLevel = "info";
+// var logLevel = "info";
 
-export class Log {
-  static stdout(str: string) {
-    process.stdout.write(str + "\n");
-  }
+// export class Log {
+//   static stdout(str: string) {
+//     process.stdout.write(str + "\n");
+//   }
 
-  static log(data: any, logLevel: logLevel) {
-    const pretty = (obj: any) => JSON.stringify(obj, null, 2);
-    const msg = {
-      logLevel,
-      time: Date(),
-      data,
-    };
-    this.stdout(pretty(msg));
-  }
+//   static log(data: any, logLevel: logLevel) {
+//     const pretty = (obj: any) => JSON.stringify(obj, null, 2);
+//     const msg = {
+//       logLevel,
+//       time: Date(),
+//       data,
+//     };
+//     this.stdout(pretty(msg));
+//   }
 
-  static debug(data: any) {
-    if (debugOn) {
-      this.log(data, "debug");
+//   static debug(data: any) {
+//     if (debugOn) {
+//       this.log(data, "debug");
+//     }
+//   }
+
+//   static info(data: any) {
+//     this.log(data, "info");
+//   }
+
+//   static error(data: any) {
+//     this.log(data, "error");
+//   }
+// }
+
+const minLevel = debugOn ? 3 : 2;
+export const prettyLog = new tslog.Logger({
+  type: "pretty",
+  minLevel
+});
+
+export const jsonStdErrlog = new tslog.Logger({
+  type: "json",
+  overwrite: {
+    transportJSON: (logObj) => {
+      console.error(JSON.stringify(logObj));
     }
   }
+});
 
-  static info(data: any) {
-    this.log(data, "info");
-  }
+const webLog = {
+  info: console.info,
+  debug: console.debug,
+  warn: console.warn,
+  error: console.error,
+  fatal: console.error,
+}
 
-  static error(data: any) {
-    this.log(data, "error");
+export var log = inNode ? prettyLog : webLog;
+
+export class LazyMap<K, V> {
+  private cache = new Map<K, V>();
+
+  constructor(private generator: (key: K) => V) {}
+
+  get(key: K): V {
+    if (!this.cache.has(key)) {
+      const value = this.generator(key);
+      this.cache.set(key, value);
+    }
+    return this.cache.get(key)!;
   }
 }
 
-export const log = new tslog.Logger({ minLevel: 3 });
+export function lazyGet<K, V>(map: Map<K, V>, key: K, get: () => V) {
+  if (!map.has(key)) {
+    const value = get();
+    map.set(key, value);
+  }
+  return map.get(key)!;
+}
+
+export function memo<T, R>(fn: (arg: T) => R): (arg: T) => R {
+  const cache = new Map<string, R>();
+  return (arg: T): R => lazyGet(cache, stableStringify(arg), () => fn(arg));
+}
+
+export const id = (x: any) => x;
+
+export function clone<T>(x: T): T {
+  return JSON.parse(JSON.stringify(x));
+}
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -280,7 +337,7 @@ export function objOfKeys<T, K extends string | number | symbol, D>(
     accum[key(item)] = data(item);
     return accum;
   },
-  {} as Record<K, D>);
+    {} as Record<K, D>);
 }
 
 export function groupByMulti<T>(lst: T[], keys: (elm: T) => string[]) {

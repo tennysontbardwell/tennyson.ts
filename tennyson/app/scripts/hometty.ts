@@ -157,7 +157,8 @@ export async function run() {
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),
     fzf.command("ranger-fs", async () => {
       const ranger = await import("tennyson/app/ranger/index");
-      new ranger.Ranger(ranger.lsFiles);
+      const r = new ranger.Ranger(ranger.lsFiles);
+      await r.run();
     }),
     fzf.subtree("commands", [
       fzf.command("node prompt", async () =>
