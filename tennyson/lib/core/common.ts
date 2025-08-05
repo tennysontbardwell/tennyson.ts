@@ -42,10 +42,12 @@ export const inNode =
 
 const debugOn =
   inNode
-    ? process.env["DEBUG"] !== undefined &&
-    process.env["DEBUG"] !== null &&
-    process.env["DEBUG"] != "0" &&
-    process.env["DEBUG"] != ""
+    ? (
+      process.env["DEBUG"] !== undefined &&
+      process.env["DEBUG"] !== null &&
+      process.env["DEBUG"] !== "0" &&
+      process.env["DEBUG"] !== ""
+    )
     : false;
 
 // var logLevel = "info";
@@ -80,14 +82,15 @@ const debugOn =
 //   }
 // }
 
-const minLevel = debugOn ? 3 : 2;
+const minLevel = debugOn ? 2 : 3;
 export const prettyLog = new tslog.Logger({
   type: "pretty",
-  minLevel
+  minLevel,
 });
 
 export const jsonStdErrlog = new tslog.Logger({
   type: "json",
+  minLevel,
   overwrite: {
     transportJSON: (logObj) => {
       console.error(JSON.stringify(logObj));
@@ -412,4 +415,8 @@ export function getWeekNumber(date: Date): number {
   // The weeknumber is the number of weeks between the first Thursday of the year
   // and the Thursday in the target week
   return 1 + Math.ceil((firstThursday - tempDate.valueOf()) / 604800000); // 604800000 = number of milliseconds in a week
+}
+
+export function boundInt(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

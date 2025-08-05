@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 
 export interface RangerItem {
   name: string;
-  subitems: () => Promise<RangerItem[]>;
+  subitems?: () => Promise<RangerItem[]>;
   display?: () => JSX.Element;
 }
 
@@ -79,9 +79,11 @@ export function Ranger({ items }: { items: RangerItem[] }) {
     },
     {
       triggers: [["ArrowRight"], ["l"], ["Enter"]],
-      action: () => curItem
-        .subitems()
-        .then((sub) => sub.length && setCols((xs) => [...xs, { items: sub, idx: 0 }]))
+      action: async () => {
+        const subItemsPromise = curItem.subitems ? curItem.subitems() : [];
+        const items = await subItemsPromise;
+        return items.length && setCols((xs) => [...xs, { items, idx: 0 }])
+      }
     },
     {
       triggers: [["g", "g"]],
@@ -267,7 +269,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
           </div>
         ))}
         <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1 }}>
-          { (curItem?.display ?? (() => <div/>))() }
+          {(curItem?.display ?? (() => <div />))()}
         </div>
       </div>
     </div>

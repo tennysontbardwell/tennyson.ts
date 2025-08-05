@@ -19,6 +19,29 @@ async function electron() {
 }
 
 async function quickdev() {
+  common.log.info('test14')
+  // const readline = await import('readline');
+  // const rl = readline.createInterface({
+  //   input: process.stdin,
+  //   output: process.stdout,
+  //   terminal: false
+  // });
+
+  // let urlTemplate: string;
+
+  // rl.on('line', (line: string) => {
+  //   if (urlTemplate === undefined) {
+  //     urlTemplate = line;
+  //     return
+  //   }
+  //   const encodedQuery = encodeURIComponent(line);
+  //   const resultUrl = urlTemplate.replace('{query}', encodedQuery);
+  //   console.log(resultUrl);
+  // });
+
+  // rl.on('close', () => {
+  //   process.exit(0);
+  // });
 }
 
 export const cmds: cli.Command[] = [

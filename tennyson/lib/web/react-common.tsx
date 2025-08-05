@@ -94,6 +94,19 @@ export function useObservable<T>(source$: rx.Observable<T>, initialValue: T): T 
   return value;
 }
 
+/* export function useConstWithCleanup<T>(
+*   create: () => T,
+*   cleanup: (obj: T) => void,
+* ) {
+*   const ref = useRef<T>(null);
+* 
+*   useEffect(() => {
+*     ref.current = create();
+*     return () => cleanup(ref.current as T);
+*   }, []);
+* 
+*   return ref.current as T;
+* } */
 
 export function BasicTable<T>(
   props: { data: T[], columns: readonly (keyof T & string)[] }

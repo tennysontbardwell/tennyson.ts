@@ -2,28 +2,55 @@ import * as common from "tennyson/lib/core/common";
 import * as rx from 'rxjs';
 import type * as ws from 'ws';
 import type { IncomingMessage } from "http";
+import type { EventEmitter } from "stream";
 
 
 export namespace BiComm {
   export interface T<C, M> {
-    commander: rx.Observer<C>,
+    commander$: rx.Subject<C>,
     messages$: rx.Observable<M>,
   }
 
   export function ofWS<C, M>(ws: WebSocket | ws.WebSocket): T<C, M> {
-    const isOpen = (async () => {
-      const open$ = rx.fromEvent<any, boolean>(ws, "open", () => true);
-      await rx.firstValueFrom(open$);
-      return null;
-    })();
+    let queue = [] as string[] | 'toClose';
 
-    const close =
-      rx.firstValueFrom(rx.fromEvent<any, CloseEvent>(
-        ws, "close", (closeEvent: CloseEvent) => closeEvent));
+    rx.fromEvent<any, null>(ws, 'open', (x: any) => null)
+      .pipe(rx.first())
+      .forEach(() => {
+        if (queue === 'toClose')
+          ws.close()
+        else {
+          queue.forEach(s => ws.send(s))
+          queue = [];
+        }
+      });
+
+    const close$ =
+      ws.readyState === ws.CLOSED
+        ? rx.of(null)
+        : rx.fromEvent<any, null>(
+          ws, "close", (_: CloseEvent) => null);
+
+    function handleClose() {
+      switch (ws.readyState) {
+        case ws.CONNECTING:
+          queue = 'toClose'
+          break;
+        case ws.OPEN:
+          ws.close()
+        default:
+      }
+    }
+    close$.forEach(() => common.log.info("ws closed"));
 
     const errors$ =
-      rx.fromEvent<any, never>(ws, "error", (x: ErrorEvent) => {
-        common.log.error(x);
+      rx.fromEvent<any, never>(ws, "error", (error: ErrorEvent) => {
+        common.log.error({
+          message: "error from WS connection",
+          errorMessage: error.message,
+          error,
+          errorerror: error.error,
+        });
         throw new Error("error in WS")
       });
 
@@ -31,22 +58,31 @@ export namespace BiComm {
       rx.fromEvent<any, M>(ws, "message", (x: MessageEvent) =>
         <M>JSON.parse(<string>x.data));
 
-    const messages$ = rx.merge(messagesRaw$, errors$)
-      .pipe(
-        rx.takeUntil(close),
+    const messages$ =
+      rx.merge(messagesRaw$, errors$).pipe(
+        rx.takeUntil(close$),
         rx.share(),
       );
 
-    const commander: rx.Observer<C> = {
-      next: (command: C) => isOpen.then(() =>
-        ws.send(JSON.stringify(command))),
-      error: () => ws.close(),
-      complete: () => ws.close(),
-    }
+    const commander$ = new rx.Subject<C>();
+    commander$.subscribe({
+      next: (command: C) => {
+        const s = JSON.stringify(command);
+        if (ws.readyState === ws.OPEN)
+          ws.send(s);
+        else if (ws.readyState === ws.CONNECTING && queue !== 'toClose')
+          queue.push(s);
+      },
+      error: handleClose,
+      complete: handleClose,
+    });
+
+    close$.subscribe({ next: () => commander$.complete() });
+    errors$.subscribe({ next: error => commander$.error(error) });
 
     return {
       messages$,
-      commander,
+      commander$,
     }
   }
 
@@ -59,6 +95,133 @@ export namespace BiComm {
         (clientws: ws.WebSocket, request: IncomingMessage) =>
           ofWS<C, M>(clientws));
     return connections$;
+  }
+}
+
+// export namespace BiCommTopicMux {
+//   export interface ConfigEntry<C, R> {
+//     parseCommand: (str: string) => C,
+//     encodeCommand: (command: C) => string,
+//     parseReply: (str: string) => R,
+//     encodeReply: (reply: R) => string,
+//     singleItem: boolean,
+//   }
+
+//   type Config = Record<string, ConfigEntry<any, any>>;
+
+//   interface CommanderState {
+//     nextTopicId: number,
+//     openTopics: {
+//       id: number,
+//       observable: rx.Observable<any>,
+//     }[]
+//   }
+
+//   interface ReplierState {
+//     nextTopicId: number,
+//     openTopics: {
+//       id: number,
+//       observer: rx.Observer<any>,
+//     }[]
+//   }
+
+//   export function responderOfBiComm<U extends Config>(
+//     config: U,
+//     handler: { [K in keyof U]: BiComm.T<U[K], U[K]> }
+//   ) {
+
+//   }
+//   export function commanderOfBiComm<U extends Config>(
+//     config: Config,
+//   ) {
+
+//   }
+// }
+
+export namespace PingPongConfig {
+  interface T {
+    pingFreqMs: number,
+    pongToleranceMs: number,
+  }
+
+  export function setupPingPong(t: T, w: ws.WebSocket) {
+    const open$ = (() => {
+      switch (w.readyState) {
+        case w.CONNECTING:
+          return rx.fromEvent(w, 'open', () => "open");
+        case w.OPEN:
+          return rx.of("open")
+        default:
+          return rx.EMPTY
+      }
+    })();
+    open$.pipe(rx.first()).forEach(() => {
+      const pongTimer$ = rx.interval(t.pingFreqMs);
+      const pong$ = rx.fromEventPattern(
+        handler => w.on("pong", handler),
+        handler => w.off("pong", handler)
+      )
+
+      const failures$ = pongTimer$.pipe(
+        rx.map(() => {
+          w.ping();
+          return rx.interval(t.pongToleranceMs).pipe(
+            rx.takeUntil(pong$)
+          );
+        }),
+        rx.mergeAll(),
+        rx.first(),
+      );
+
+      failures$.subscribe(() => {
+        common.log.warn('ws closed after failing to respond to ping');
+        w.close()
+      });
+    })
+
+    // if (w.readyState === w.CONNECTING) {
+    //   w.on('open', () => setupPingPong(t, w));
+    //   return
+    // }
+    // if (w.readyState !== w.OPEN)
+    //   return
+    // common.log.info("We are in the ready state");
+    // var state: 'init' | 'pingOutstanding' | 'sleeping' | 'closed' = 'init';
+    // function handle(event: 'timeout' | 'pong') {
+    //   const startState = state;
+    //   let interval = null as NodeJS.Timeout | null;
+    //   function alarm(ms: number) {
+    //     interval?.close();
+    //     interval = setInterval(() => { handle('timeout') }, ms);
+    //   }
+    //   switch (state) {
+    //     case 'init':
+    //       w.ping();
+    //       state = 'pingOutstanding';
+    //       alarm(t.pongToleranceMs);
+    //       break;
+    //     case 'pingOutstanding':
+    //       if (event === 'timeout') {
+    //         common.log.warn('ws closed after failing to respond to ping');
+    //         w.close();
+    //         state = 'closed';
+    //       } else {
+    //         state = 'sleeping';
+    //         alarm(t.pingFreqMs);
+    //       }
+    //       break;
+    //     case 'sleeping':
+    //       if (event === 'timeout') {
+    //         state = 'pingOutstanding';
+    //         w.ping();
+    //         alarm(t.pongToleranceMs)
+    //       } else {}
+    //       break;
+    //   }
+    //   common.log.info(`${startState} === ${event} ===> ${state}`);
+    // }
+    // handle('timeout');
+    // w.on("pong", () => handle("pong"));
   }
 }
 
