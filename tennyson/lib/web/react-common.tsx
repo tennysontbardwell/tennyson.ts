@@ -9,7 +9,7 @@ import { useReactTable, createColumnHelper, getCoreRowModel, flexRender }
   from '@tanstack/react-table';
 
 
-export function EChart(props: {option: echarts.EChartsOption}) {
+export function EChart(props: { option: echarts.EChartsOption }) {
   const { option } = props;
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
@@ -109,9 +109,10 @@ export function useObservable<T>(source$: rx.Observable<T>, initialValue: T): T 
 * } */
 
 export function BasicTable<T>(
-  props: { data: T[], columns: readonly (keyof T & string)[] }
+  { data, columns, maxRows }:
+    { data: T[], columns: readonly (keyof T & string)[], maxRows?: number }
 ) {
-  const { data, columns } = props;
+  maxRows = maxRows ?? 2000;
 
   const columnHelper = createColumnHelper<T>()
   const columns_ = columns.map(x => columnHelper.accessor(x as any, {}))
@@ -124,9 +125,9 @@ export function BasicTable<T>(
 
   return (
     <div className="p-2">
-      {table.getRowModel().rows.length > 2000 && (
+      {table.getRowModel().rows.length > maxRows && (
         <div className="mb-2 text-sm text-gray-600">
-          Displaying 2000 of {table.getRowModel().rows.length} rows
+          Displaying {maxRows} of {table.getRowModel().rows.length} rows
         </div>
       )}
       <table className="trade-table">
@@ -147,7 +148,7 @@ export function BasicTable<T>(
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.slice(0, 2000).map(row => (
+          {table.getRowModel().rows.slice(0, maxRows).map(row => (
             <tr key={row.id}>
               {row.getVisibleCells().map(cell => (
                 <td key={cell.id}>

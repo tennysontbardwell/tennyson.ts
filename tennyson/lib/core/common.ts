@@ -20,6 +20,15 @@ export function datestamp() {
   );
 }
 
+export class ErrorWithData extends Error {
+  readonly data;
+
+  constructor(message: string, data?: any) {
+    super(message);
+    this.data = data;
+  }
+}
+
 // type logLevel = "debug" | "info" | "error";
 // function compare(a: logLevel, b: logLevel) {
 //   function toInt(level: logLevel): number {

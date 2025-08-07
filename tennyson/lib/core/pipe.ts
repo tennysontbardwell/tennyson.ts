@@ -2,8 +2,6 @@ import * as common from "tennyson/lib/core/common";
 import * as rx from 'rxjs';
 import type * as ws from 'ws';
 import type { IncomingMessage } from "http";
-import type { EventEmitter } from "stream";
-
 
 export namespace BiComm {
   export interface T<C, M> {
@@ -12,60 +10,69 @@ export namespace BiComm {
   }
 
   export function ofWS<C, M>(ws: WebSocket | ws.WebSocket): T<C, M> {
+    if (ws.readyState !== ws.CONNECTING)
+      throw new Error(
+        "This websocket is already open, messages might have been lost");
+
+    const isClosed$ = new rx.BehaviorSubject(false);
+    const closed$ = isClosed$.pipe(
+      rx.filter(x => x),
+      rx.take(1));
+
     let queue = [] as string[] | 'toClose';
 
-    rx.fromEvent<any, null>(ws, 'open', (x: any) => null)
-      .pipe(rx.first())
-      .forEach(() => {
-        if (queue === 'toClose')
-          ws.close()
-        else {
-          queue.forEach(s => ws.send(s))
-          queue = [];
-        }
-      });
-
-    const close$ =
-      ws.readyState === ws.CLOSED
-        ? rx.of(null)
-        : rx.fromEvent<any, null>(
-          ws, "close", (_: CloseEvent) => null);
-
-    function handleClose() {
-      switch (ws.readyState) {
-        case ws.CONNECTING:
-          queue = 'toClose'
-          break;
-        case ws.OPEN:
-          ws.close()
-        default:
-      }
+    function singleEvent<E extends keyof WebSocketEventMap, O>(
+      target: E, handler: (event: WebSocketEventMap[E]) => O
+    ) {
+      return rx.fromEvent<any, O>(ws, target, handler)
+        .pipe(
+          rx.take(1),
+          rx.takeUntil(closed$),
+          rx.tap({ error: err => common.log.error(err) }),
+          rx.catchError(_err => rx.of(true)),
+        );
     }
-    close$.forEach(() => common.log.info("ws closed"));
 
-    const errors$ =
-      rx.fromEvent<any, never>(ws, "error", (error: ErrorEvent) => {
-        common.log.error({
-          message: "error from WS connection",
-          errorMessage: error.message,
-          error,
-          errorerror: error.error,
-        });
-        throw new Error("error in WS")
-      });
+    singleEvent('open', () => null).forEach(() => {
+      if (queue === 'toClose')
+        ws.close()
+      else {
+        queue.forEach(s => ws.send(s))
+        queue = [];
+      }
+    });
 
-    const messagesRaw$ =
-      rx.fromEvent<any, M>(ws, "message", (x: MessageEvent) =>
-        <M>JSON.parse(<string>x.data));
+    // Needed in case `closed$` cancels `singleEvent('open'`
+    rx.fromEvent<any, null>(ws, 'open', () => null).pipe(
+      rx.take(1),
+      rx.catchError(_err => rx.of(null)),
+    )
+
+    singleEvent('close', (_) => true).subscribe(isClosed$);
+    singleEvent('error', (errorEvent) => {
+      common.log.error({ message: "Error in ws", errorEvent });
+      return true;
+    }).subscribe(isClosed$);
+
+    function closeWS() {
+      if (ws.readyState == ws.CONNECTING)
+        queue = 'toClose'
+      if (ws.readyState == ws.OPEN)
+        ws.close()
+    }
+    closed$.forEach(closeWS)
 
     const messages$ =
-      rx.merge(messagesRaw$, errors$).pipe(
-        rx.takeUntil(close$),
-        rx.share(),
-      );
+      rx.fromEvent<any, M>(ws, "message", (x: MessageEvent) =>
+        <M>JSON.parse(<string>x.data)).pipe(
+          rx.takeUntil(closed$),
+          rx.share({ resetOnError: false, resetOnComplete: false }),
+        );
 
     const commander$ = new rx.Subject<C>();
-    commander$.subscribe({
+    commander$
+      .pipe(rx.takeUntil(closed$))
+      .subscribe({
       next: (command: C) => {
         const s = JSON.stringify(command);
         if (ws.readyState === ws.OPEN)
@@ -73,12 +80,9 @@ export namespace BiComm {
         else if (ws.readyState === ws.CONNECTING && queue !== 'toClose')
           queue.push(s);
       },
-      error: handleClose,
-      complete: handleClose,
+      error: () => isClosed$.next(true),
+      complete: () => isClosed$.next(true),
     });
-
-    close$.subscribe({ next: () => commander$.complete() });
-    errors$.subscribe({ next: error => commander$.error(error) });
 
     return {
       messages$,
@@ -92,7 +96,7 @@ export namespace BiComm {
     const connections$ =
       rx.fromEvent(
         wss, 'connection',
-        (clientws: ws.WebSocket, request: IncomingMessage) =>
+        (clientws: ws.WebSocket, _request: IncomingMessage) =>
           ofWS<C, M>(clientws));
     return connections$;
   }
@@ -170,7 +174,7 @@ export namespace PingPongConfig {
           );
         }),
         rx.mergeAll(),
-        rx.first(),
+        rx.take(1),
       );
 
       failures$.subscribe(() => {
@@ -460,6 +464,22 @@ export async function* runBatchProcessing<A, B>(
 }
 
 export async function drain(source: AsyncGenerator<any>) {
-  for await (const batch of source) {}
+  for await (const _batch of source) {}
 }
 
+export function tap(meta: { [key: string]: any }, enableNext = true) {
+  let count = 0;
+  const info =
+    (event: string, count: number, other: { [key: string]: any } = {}) =>
+      common.log.info({ ...meta, ...other, event, count });
+  const next = enableNext
+    ? (item: any) => info('Observable next', count, { item })
+    : undefined;
+  return rx.tap({
+    next,
+    subscribe: () => info('Observable subscribed', ++count),
+    unsubscribe: () => info('Observable unsubscribed', --count),
+    error: (error) => info('Observable error', count, { error }),
+    finalize: () => info('Observable finalized', count)
+  });
+}
