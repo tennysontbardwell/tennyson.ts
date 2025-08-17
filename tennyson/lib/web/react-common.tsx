@@ -1,6 +1,7 @@
 import { useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { JSX, ReactNode } from 'react';
 import React, { useState, useEffect, useMemo } from 'react';
+import * as c from "tennyson/lib/core/common";
 
 import * as rx from 'rxjs';
 
@@ -46,7 +47,8 @@ export function EChart(props: { option: echarts.EChartsOption }) {
 }
 
 export function PromiseResolver<T>(
-  props: { promise: Promise<T>, children: (data: T) => ReactNode }) {
+  props: { promise: Promise<T>, children: (data: T) => ReactNode }
+) {
   const { promise, children } = props;
   const [{ data, error }, setState] =
     useState({
@@ -84,7 +86,9 @@ export function useObservable<T>(source$: rx.Observable<T>, initialValue: T): T 
 
   useEffect(() => {
     const subscription = source$.subscribe({
-      next: setValue,
+      next: x => {
+        setValue(x)
+      },
       error: (error) => console.error('Observable error:', error)
     });
 

@@ -1,6 +1,7 @@
 import * as tslog from "tslog";
 import { tqdm } from "./tqdm";
 import stableStringify from "json-stable-stringify"
+import type { NotFunction } from "effect/Types";
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
@@ -117,6 +118,29 @@ const webLog = {
 
 export var log = inNode ? prettyLog : webLog;
 
+// export const debug = log.debug.bind(log);
+export const info = log.info.bind(log);
+// export const warn = log.warn.bind(log);
+// export const error = log.error.bind(log);
+// export const fatal = log.fatal.bind(log);
+
+export function assert(condition: false, data?: NotFunction<any>): never;
+export function assert(condition: boolean, data?: NotFunction<any>): void;
+export function assert(condition: boolean, data?: NotFunction<any>) {
+  if (!condition) {
+    log.error({ message: "Assertion Failed", data })
+    throw new ErrorWithData("Assertion Failed", data)
+  }
+}
+
+export function lazyAssert(condition: boolean, data?: () => any) {
+  const data_ = data === undefined ? undefined : data();
+  if (!condition) {
+    log.error({ message: "Assertion Failed", data: data_ })
+    throw new ErrorWithData("Assertion Failed", data_)
+  }
+}
+
 export class LazyMap<K, V> {
   private cache = new Map<K, V>();
 
@@ -137,6 +161,13 @@ export function lazyGet<K, V>(map: Map<K, V>, key: K, get: () => V) {
     map.set(key, value);
   }
   return map.get(key)!;
+}
+
+export function lazyGetObj<O extends Object, K extends keyof O>
+  (obj: Partial<O>, key: K, get: () => O[K]): O[K] {
+  if (!(key in obj))
+    obj[key] = get()
+  return obj[key]!;
 }
 
 export function memo<T, R>(fn: (arg: T) => R): (arg: T) => R {
@@ -218,8 +249,15 @@ export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
   }
 }
 
+export const range = (a: number, b?: number) => {
+  if (b === undefined)
+    return Array.from({ length: a }, (_value, key) => key)
+  return Array.from({ length: b - a }, (_value, key) => key + a)
+}
 
-export const range = (n: number) => Array.from({ length: n }, (value, key) => key)
+export function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n))
+}
 
 export class Semaphore {
   private current: number;
@@ -428,4 +466,14 @@ export function getWeekNumber(date: Date): number {
 
 export function boundInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+export function unreachable(x: never): never {
+  throw new Error(`Unreachable: ${x}`);
+}
+
+export namespace AlphaNumeric {
+  export const alphabetLowercase =
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
+      'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'] as const
 }

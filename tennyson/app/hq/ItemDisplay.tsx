@@ -22,11 +22,9 @@ async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
       const name = href.replace(/@$/, '').replace(/\/+/g, '/');
       const itemUrl = `${url}/${name}`;
 
-      console.log({ itemUrl });
       items.push({
         name,
         subitems: async () => {
-          console.log({ msg: "sub", itemUrl });
           try {
             const subResponse = await fetch(itemUrl);
             const contentType = subResponse.headers.get('content-type') || '';

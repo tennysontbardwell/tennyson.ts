@@ -1,7 +1,10 @@
 import * as common from "tennyson/lib/core/common";
+
+import type { IncomingMessage } from "http";
+
 import * as rx from 'rxjs';
 import type * as ws from 'ws';
-import type { IncomingMessage } from "http";
+import { Data, Equal, HashMap, Option, Tuple } from "effect";
 
 export namespace BiComm {
   export interface T<C, M> {
@@ -73,16 +76,16 @@ export namespace BiComm {
     commander$
       .pipe(rx.takeUntil(closed$))
       .subscribe({
-      next: (command: C) => {
-        const s = JSON.stringify(command);
-        if (ws.readyState === ws.OPEN)
-          ws.send(s);
-        else if (ws.readyState === ws.CONNECTING && queue !== 'toClose')
-          queue.push(s);
-      },
-      error: () => isClosed$.next(true),
-      complete: () => isClosed$.next(true),
-    });
+        next: (command: C) => {
+          const s = JSON.stringify(command);
+          if (ws.readyState === ws.OPEN)
+            ws.send(s);
+          else if (ws.readyState === ws.CONNECTING && queue !== 'toClose')
+            queue.push(s);
+        },
+        error: () => isClosed$.next(true),
+        complete: () => isClosed$.next(true),
+      });
 
     return {
       messages$,
@@ -467,19 +470,142 @@ export async function drain(source: AsyncGenerator<any>) {
   for await (const _batch of source) {}
 }
 
-export function tap(meta: { [key: string]: any }, enableNext = true) {
+export function tapDebug<T>(meta: { [key: string]: any }, enableNext = true) {
+  const notes = { ...meta, message: "tapDebug event" }
   let count = 0;
-  const info =
-    (event: string, count: number, other: { [key: string]: any } = {}) =>
-      common.log.info({ ...meta, ...other, event, count });
+  const log = (x: any) => common.log.debug({ ...notes, ...x, count });
   const next = enableNext
-    ? (item: any) => info('Observable next', count, { item })
+    ? (item: any) => log({ event: "next", item })
     : undefined;
-  return rx.tap({
+  return rx.tap<T>({
     next,
-    subscribe: () => info('Observable subscribed', ++count),
-    unsubscribe: () => info('Observable unsubscribed', --count),
-    error: (error) => info('Observable error', count, { error }),
-    finalize: () => info('Observable finalized', count)
+    subscribe: () => { count++; log({ event: "subscribe" }) },
+    unsubscribe: () => { count--; log({ event: "subscribe" }) },
+    complete: () => log({ event: "complete" }),
+    error: (error) => log({ event: "error", error }),
+    finalize: () => log({ event: "finalize" }),
   });
+}
+
+export function tapFinalize<T>(meta: { [key: string]: any }, warn = false) {
+  const notes = { message: "Observable closed", ...meta };
+  const log = warn
+    ? (x: any) => common.log.warn(x)
+    : (x: any) => common.log.error(x)
+  return rx.tap<T>({
+    error: (error: any) => log({ ...notes, results: "error", error }),
+    complete: () => log({ ...notes, results: "complete" }),
+  });
+}
+export function tapError<T>(meta: { [key: string]: any }, warn = false) {
+  const notes = { message: "error in observable", ...meta };
+  const error = warn
+    ? (error: any) => common.log.warn({ ...notes, error })
+    : (error: any) => common.log.error({ ...notes, error });
+  return rx.tap<T>({ error });
+}
+
+export function rxfilterMap<A, B>(f: (arg: A) => Option.Option<B>) {
+  return (src$: rx.Observable<A>) => src$.pipe(
+    rx.map(f),
+    rx.filter(Option.isSome),
+    rx.map(x => x.value),
+  )
+}
+
+export class ReplayOnceSubject<T> extends rx.Subject<T> {
+  private _buffer: T[] | 'drained' = [];
+
+  next(value: T): void {
+    if (!this.closed && this.isStopped && this._buffer !== 'drained')
+      this._buffer.push(value);
+    return super.next(value);
+  }
+
+  error(err: any) {
+    this._buffer = 'drained'
+    return super.error(err)
+  }
+
+  complete() {
+    this._buffer = 'drained'
+    return super.complete()
+  }
+
+  /** @internal */
+  protected _subscribe(subscriber: rx.Subscriber<T>): rx.Subscription {
+    (this as any)._throwIfClosed();
+
+    const subscription: rx.Subscription
+      = (this as any)._innerSubscribe(subscriber);
+
+    if (this._buffer != 'drained') {
+      const buffer = this._buffer;
+      this._buffer = 'drained';
+      for (let i = 0; i < buffer.length && !subscriber.closed; i++)
+        subscriber.next(buffer[i]);
+    }
+
+    (this as any)._checkFinalizedStatuses(subscriber);
+
+    return subscription;
+  }
+}
+
+export function sharePlus<T>(
+  config: {
+    resetOnError?: boolean | ((error: any) => rx.ObservableInput<any>),
+    resetOnComplete?: boolean | (() => rx.ObservableInput<any>),
+    resetOnRefCountZero?: boolean | (() => rx.ObservableInput<any>),
+    replayOne?: boolean
+  }
+) {
+  const { resetOnError, resetOnComplete, resetOnRefCountZero, replayOne } =
+    { replayOne: false, ...config }
+
+  let storedVal = Option.none<T>()
+
+  return function (src$: rx.Observable<T>): rx.Observable<T> {
+    if (replayOne) {
+      return rx.concat(
+        rx.defer(() => rx.of(storedVal)),
+        src$.pipe(
+          rx.tap({ next: (val) => { storedVal = Option.some(val) } }),
+          rx.finalize(() => { storedVal = Option.none() }),
+          rx.share({ resetOnError, resetOnComplete, resetOnRefCountZero }),
+          rx.map(Option.some),
+        )
+      ).pipe(
+        rx.filter(Option.isSome),
+        rx.map(x => x.value),
+      )
+    }
+    else
+      return src$.pipe(
+        rx.share({ resetOnError, resetOnComplete, resetOnRefCountZero }),
+      )
+  }
+}
+
+// export function scanMap<V, A, O>(
+//   f: (accum: A, value: V, index: number) => [A, Option.Option<O>],
+//   seed: A,
+// ): (a: rx.Observable<V>) => rx.Observable<O>;
+// export function scanMap<V, A, O, S>(
+//   f: (accum: A | S, value: V, index: number) => [A, Option.Option<O>],
+//   seed: S,
+// ): (a: rx.Observable<V>) => rx.Observable<O>;
+export function scanMap<V, A, O, S>(
+  f: (accum: A | S, value: V, index: number) => [A, Option.Option<O>],
+  seed: S,
+): (a: rx.Observable<V>) => rx.Observable<O> {
+  return (src$) =>
+    src$.pipe(
+      rx.scan<V, [A, Option.Option<O>], [S, Option.Option<O>]>(
+        ([accum, _output], input, index) => f(accum, input, index),
+        Tuple.make(seed, Option.none())),
+      rx.map(Tuple.getSecond),
+      rx.filter(Option.isSome),
+      rx.map(x => x.value),
+    )
 }

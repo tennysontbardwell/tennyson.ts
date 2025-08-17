@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { fetchFileSystem } from './ItemDisplay';
 import type { RangerItem } from './Ranger';
-import { Ranger } from './Ranger';
+import { Ranger, Ranger3 } from './Ranger';
 
 export function ViewerApp() {
   const [items, setItems] = useState<Array<RangerItem>>([]);
@@ -18,5 +18,6 @@ export function ViewerApp() {
     return <div>Loading file system...</div>;
   }
 
-  return <Ranger items={items} />;
+  /* return <Ranger items={items} />; */
+  return <Ranger3 items={items} initPath={[]} />;
 }
