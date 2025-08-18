@@ -178,7 +178,7 @@ async function createNewFromParams(name: string, params: Params) {
     if (name) {
       const host_ = new host.Host(name, "admin");
       await common.retryExn(3000, 10, () =>
-        common.didRaise(() => common.ignore(host_.learnHostKey()))
+        common.didRaise(() => common.ignoreAsync(host_.learnHostKey()))
       );
       return host_;
     }

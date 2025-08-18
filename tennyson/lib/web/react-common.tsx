@@ -8,6 +8,7 @@ import * as rx from 'rxjs';
 import * as echarts from 'echarts';
 import { useReactTable, createColumnHelper, getCoreRowModel, flexRender }
   from '@tanstack/react-table';
+import { Either, Option } from 'effect';
 
 
 export function EChart(props: { option: echarts.EChartsOption }) {
@@ -44,6 +45,20 @@ export function EChart(props: { option: echarts.EChartsOption }) {
   return (
     <div style={{ height: "100%", width: "100%" }} ref={chartRef} />
   );
+}
+
+export function usePromise<T>(
+  promise: Promise<T>
+): Option.Option<Either.Either<T, any>> {
+  const [state, setState] = useState(Option.none() as
+    Option.Option<Either.Either<T, any>>)
+  useEffect(() => {
+    promise
+      .then(val => setState(Option.some(Either.right(val))))
+      .catch(err => setState(Option.some(Either.left(err))))
+  }, [promise])
+
+  return state
 }
 
 export function PromiseResolver<T>(

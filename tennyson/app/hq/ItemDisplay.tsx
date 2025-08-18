@@ -63,7 +63,7 @@ function ItemDisplay({ url }: { url: string }) {
           setContent(<img src={url} alt="Preview" style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
         }
         else if (contentType.startsWith("video/")) {
-          setContent(<video controls autoPlay src={url} style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
+          setContent(<video controls loop autoPlay src={url} style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
         }
         else {
           setContent(<div></div>);

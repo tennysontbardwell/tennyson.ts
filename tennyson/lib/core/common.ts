@@ -120,6 +120,7 @@ export var log = inNode ? prettyLog : webLog;
 
 // export const debug = log.debug.bind(log);
 export const info = log.info.bind(log);
+export const infoTap = <T>(a: T): T => { log.info(a); return a };
 // export const warn = log.warn.bind(log);
 // export const error = log.error.bind(log);
 // export const fatal = log.fatal.bind(log);
@@ -175,7 +176,7 @@ export function memo<T, R>(fn: (arg: T) => R): (arg: T) => R {
   return (arg: T): R => lazyGet(cache, stableStringify(arg), () => fn(arg));
 }
 
-export const id = (x: any) => x;
+export const id: <T>(a: T) => T = (x: any) => x;
 
 export function clone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x));
@@ -194,7 +195,9 @@ export async function didRaise(fun: () => Promise<void>) {
   return true;
 }
 
-export async function ignore(x: Promise<any>) {
+export function ignore(x: any) {}
+
+export async function ignoreAsync(x: any) {
   await x;
 }
 
@@ -473,7 +476,9 @@ export function unreachable(x: never): never {
 }
 
 export namespace AlphaNumeric {
-  export const alphabetLowercase =
+  export const alphaLower =
     ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
       'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'] as const
+
+  export type AlphaLower = (typeof alphaLower)[number]
 }

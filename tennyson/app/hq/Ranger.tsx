@@ -1,12 +1,18 @@
 // Ranger.tsx
-import { Tuple, Either, Option, MutableHashMap } from "effect";
-import type { JSX, ReactNode } from "react";
-import React, { useRef, useState, useEffect, useContext, createContext, Fragment }
-  from "react";
+import {
+  Tuple, Either, Option, MutableHashMap, pipe, HashMap, Pretty, Schema,
+  Ref, Data, Effect, Array, Cache, Duration, Cause
+} from "effect";
+import type { JSX } from "react";
+import React, {
+  useRef, useState, useEffect, useContext, createContext, Fragment,
+  useDeferredValue
+} from "react";
 import * as rx from 'rxjs';
-import * as pipe from 'tennyson/lib/core/pipe';
+import * as tpipe from 'tennyson/lib/core/pipe';
 import * as rc from "tennyson/lib/web/react-common";
 import * as c from 'tennyson/lib/core/common';
+import { equals } from "effect/Equal";
 
 export interface RangerItem {
   name: string;
@@ -22,19 +28,21 @@ interface Column {
 
 interface Controller {
   jumpTo: (a: string[]) => void;
-  jumpToNew: (a: string[], b: JSX.Element) => void;
+  focus: (a: string[], b: string) => void;
   /* textInputPopup: () => any; */
   toggleMaximize: () => void;
-  setMark: (a: typeof c.AlphaNumeric.alphabetLowercase) => void;
+  setMark: (a: c.AlphaNumeric.AlphaLower) => void;
+  gotoMark: (a: c.AlphaNumeric.AlphaLower) => void;
 }
 
 const dummyController: Controller = (() => {
-  const error = () => { c.log.error("Dummpy controller") }
+  const error = (..._args: any[]) => { c.log.error("Dummpy controller") }
   return {
-    jumpTo: (_a: string[]) => error(),
-    jumpToNew: (_a: string[], _b: JSX.Element) => error(),
-    toggleMaximize: () => error(),
-    setMark: (_a: typeof c.AlphaNumeric.alphabetLowercase) => error(),
+    jumpTo: error,
+    focus: error,
+    toggleMaximize: error,
+    setMark: error,
+    gotoMark: error,
   }
 })();
 
@@ -57,7 +65,7 @@ namespace KeyStack {
     e$: rx.Observable<React.KeyboardEvent>
   ): rx.Observable<Either.Either<C, string[]>> {
     return e$.pipe(
-      pipe.scanMap((keystack: string[], e) => {
+      tpipe.scanMap((keystack: string[], e) => {
         keystack = keystack.concat(keystrokeToString(e))
 
         const exactMatch = commands.find(cmd =>
@@ -84,10 +92,12 @@ namespace KeyStack {
   }
 
   export function command(
-    triggers: string | string[] | string[][], action: () => void
+    triggers: string | string[] | string[][], action: () =>
+      void
   ) {
-    function isNested(x: string[] | string[][]): x is string[][] {
-      return triggers.length > 0 && typeof triggers[0] !== 'string'
+    function isNested(x: readonly string[] | readonly string[][]
+    ): x is string[][] {
+      return x.length > 0 && typeof x[0] !== 'string'
     }
     if (typeof triggers === 'string')
       return { triggers: [[triggers]], action }
@@ -99,69 +109,99 @@ namespace KeyStack {
 }
 
 function RangerCol(
-  { path, items }: {
+  { path, items, maximized, selected, focus, leaf: _ }: {
     path: string[],
-    items: RangerItem[]
+    items: Promise<Option.Option<RangerItem[]>>,
+    maximized: boolean,
+    focus?: boolean,
+    selected?: string,
+    leaf?: boolean,
   }
 ): JSX.Element {
   const cmd = KeyStack.command;
+  const ref_ = useRef(null as HTMLDivElement | null)
 
+  useEffect(() => {
+    if (focus && ref_.current !== null)
+      ref_.current.focus()
+  }, [focus])
+
+  const itemsRes = rc.usePromise(items)
+  const items_ =
+    pipe(itemsRes,
+      Option.flatMap(Either.getRight),
+      Option.flatten,
+      Option.getOrNull)
   const controller = useContext(RangerContext)
 
-  const [idx, setIdxInternal] = useState(0)
-  const setIdx = (n: number) => {
-    setIdxInternal(c.clamp(n, 0, items.length))
-    controller.jumpTo(path)
-  }
-  const curItem = items[idx];
+  const idx = items_ === null || selected === undefined
+    ? 0
+    : items_.findIndex(x => x.name === selected) ?? 0
 
-  let commands = (() => {
-    return [
-      cmd([["ArrowUp"], ["k"]], () => setIdx(idx - 1)),
-      cmd([["ArrowDown"], ["j"]], () => setIdx(idx + 1)),
-      cmd([["ArrowLeft"], ["h"]], () =>
-        controller.jumpTo(path.splice(0, Math.max(0, path.length - 1)))),
-      cmd([["ArrowRight"], ["l"], ["Enter"]], () => {
-        const path_ = path.concat(curItem.name)
-        if (curItem.subitems === undefined)
-          return
-        controller.jumpToNew(path_,
-          <rc.PromiseResolver promise={curItem.subitems()}>
-            {(items) =>
-              <RangerCol path={path_} items={items} />
-            }
-          </rc.PromiseResolver>)
-      }),
-      cmd(["g", "g"], () => setIdx(0)),
-      cmd("G", () => setIdx(items.length - 1)),
-      cmd("C-d", () => setIdx(idx + 15)),
-      cmd("C-u", () => setIdx(idx - 15)),
-    ];
-  })();
+  const setIdx = (n: number) => {
+    if (items_ === null)
+      return
+    const nextIdx = c.clamp(n, 0, items_.length - 1)
+    controller.focus(path, items_[nextIdx].name)
+  }
 
   const [key$] = useState(() => new rx.Subject<React.KeyboardEvent>());
   const onKey = (e: React.KeyboardEvent) => key$.next(e);
 
   useEffect(() => {
+    const commands = (() => {
+      const setMarks = c.AlphaNumeric.alphaLower.map(
+        l => cmd(["m", l], () => controller.setMark(l)))
+      const gotoMarks = c.AlphaNumeric.alphaLower.map(
+        l => cmd(["'", l], () => controller.gotoMark(l)))
+      const itemCommands = items_ === null
+        ? []
+        : [
+          cmd([["ArrowUp"], ["k"]], () => setIdx(idx - 1)),
+          cmd([["ArrowDown"], ["j"]], () => setIdx(idx + 1)),
+          cmd("G", () => setIdx(items_.length - 1)),
+          cmd([["ArrowRight"], ["l"], ["Enter"]], () => {
+            const curItem = items_[idx];
+            const path_ = path.concat(curItem.name)
+            if (curItem.subitems === undefined)
+              return
+            controller.jumpTo(path_)
+          }),
+        ]
+      return [
+        cmd([["ArrowLeft"], ["h"]], () =>
+          controller.jumpTo(path.splice(0, Math.max(0, path.length - 1)))),
+        cmd(["g", "g"], () => setIdx(0)),
+        cmd(["t", "m"], () => controller.toggleMaximize()),
+        cmd("C-d", () => setIdx(idx + 15)),
+        cmd("C-u", () => setIdx(idx - 15)),
+      ].concat(
+        setMarks,
+        gotoMarks,
+        itemCommands,
+      );
+    })();
+
     const command$ = KeyStack.commandsOfStrokes(commands, key$).pipe(
-      pipe.rxfilterMap(Either.getRight),
+      tpipe.rxfilterMap(Either.getRight),
     )
     const sub = command$.subscribe(command => command.action())
     return () => sub.unsubscribe()
-  }, [key$, idx])
+  }, [key$, idx, items_, maximized, controller])
 
   return (
     <div
       onKeyDown={onKey}
+      ref={ref_}
       tabIndex={0}
       style={{
-        width: 300,
+        width: maximized ? "100%" : 300,
         overflow: "scroll",
         borderRight: "1px solid #ccc",
         padding: 4,
         height: "100%",
       }} >
-      {items.map((it, j) => (
+      {items_ === null ? <Fragment /> : items_.map((it, j) => (
         <div
           key={j}
           onClick={() => setIdx(j)}
@@ -182,33 +222,91 @@ function RangerCol(
   )
 }
 
+interface DriverOptions {
+  maximized?: boolean;
+  selected?: string;
+  leaf?: boolean;
+  focus?: boolean;
+}
+
 export function Ranger2(
   { driver, initPath }
-    : { driver: (path: string[]) => JSX.Element, initPath: string[] }
+    : {
+      driver: (path: string[], options?: DriverOptions) => JSX.Element,
+      initPath: string[]
+    }
 ) {
   const [path, setPath] = useState(initPath)
   const [maximized, setMaximized] = useState(false)
+  const marks =
+    useRef(MutableHashMap.empty<c.AlphaNumeric.AlphaLower, string[]>())
 
-  const [startIdx, endIdx] = [Math.max(0, path.length - 3), path.length]
-  const colPaths_ = c.range(startIdx, endIdx).map(i => path.slice(0, i + 1))
-  const colPaths = colPaths_.length <= 2
-    ? [[] as string[]].concat(colPaths_)
-    : colPaths_
-  c.info(colPaths)
+  const allPaths =
+    [[] as string[]].concat(path.map((_val, i) => path.slice(0, i + 1)))
+  const colPaths = maximized
+    ? allPaths.slice(-1)
+    : allPaths.slice(-3)
+
+  const [focusedItems, setFocusedItems] =
+    useState(HashMap.empty<string, string>())
+
+  const focusPath = pipe(focusedItems,
+    HashMap.get(JSON.stringify(path)),
+    Option.map(x => path.concat([x])),
+  )
+  const colPathsAndFocus = Option.match(focusPath, {
+    onSome: (val) => colPaths.concat([val]),
+    onNone: () => colPaths,
+  })
+
+  const updateFocus =
+    (path: string[]) =>
+      (focusedItems: HashMap.HashMap<string, string>) =>
+        c.range(path.length).reduce((accum, i) => {
+          return HashMap.set(accum, JSON.stringify(path.slice(0, i)), path[i])
+        }, focusedItems)
+
+  const focus = (path: string[], name: string) => {
+    setPath(path)
+    pipe(focusedItems,
+      updateFocus(path),
+      HashMap.set(JSON.stringify(path), name),
+      setFocusedItems)
+  }
+
+  function jumpTo(path: string[]) {
+    setPath(path)
+    pipe(focusedItems,
+      updateFocus(path),
+      setFocusedItems)
+  }
 
   const controller: Controller = {
-    jumpTo: (a: string[]) => setPath(a),
-    jumpToNew: (a: string[], b: JSX.Element) => { c.info(a); setPath(a) },
+    jumpTo,
+    focus,
     toggleMaximize: () => setMaximized(!maximized),
-    setMark: (a: typeof c.AlphaNumeric.alphabetLowercase) => {},
+    setMark: (a: c.AlphaNumeric.AlphaLower) =>
+      MutableHashMap.set(marks.current, a, path),
+    gotoMark: (a: c.AlphaNumeric.AlphaLower) =>
+      Option.match(MutableHashMap.get(marks.current, a), {
+        onNone: () => { c.log.warn(`Mark ${a} not set`) },
+        onSome: jumpTo
+      })
   }
 
   return (
     <RangerContext value={controller}>
-      <div style={{ height: "100%", display: "flex" }}>
-        {colPaths.map(path => (
+      <div style={{ height: "100%", display: "flex" }} >
+        {colPathsAndFocus.map((path, i) => (
           <Fragment key={JSON.stringify(path)}>
-            {driver(path)}
+            {driver(path, {
+              maximized,
+              leaf: (i === colPaths.length),
+              focus: (i === colPaths.length - 1),
+              selected: pipe(focusedItems,
+                HashMap.get(JSON.stringify(path)),
+                Option.getOrUndefined)
+            })}
           </Fragment>
         ))}
       </div>
@@ -217,53 +315,85 @@ export function Ranger2(
 }
 
 export function Ranger3(
-  { items, initPath }: { items: RangerItem[], initPath: string[] }
+  { items, initPath }:
+    { items: readonly RangerItem[], initPath: readonly string[] }
 ) {
+  /* const cache = useRef(MutableHashMap.make([
+*   [] as string[], Promise.resolve(Option.some(items))
+* ])) */
+  const cacheRef = useRef(null as
+    null | Effect.Effect<Cache.Cache<
+      readonly string[],
+      Option.Option<readonly RangerItem[]>>>)
 
-  async function driverAsync(path: string[], props?: { maximized?: boolean }) {
-    let items_ = items;
-    for (const name of path) {
-      const next = items_.find(x => x.name === name)
-      c.info({ next, path, name })
-      if (next === undefined || next.subitems === undefined)
-        return <p>not found</p>
-      items_ = await next.subitems()
-    }
-    return <RangerCol items={items_} path={path} />
+  const lookup = (path: readonly string[]) =>
+    (path.length == 0)
+      ? Effect.succeed(Option.some(items))
+      : cacheRef.current!
+        .pipe(
+          Effect.flatMap(cache => cache.get(path.slice(0, -1))),
+          Effect.map(Option.flatMap(Array.findFirst(x =>
+            equals(Option.some(x.name), Array.last(path)))
+          )),
+          Effect.map(Option.flatMapNullable(x => x.subitems)),
+          Effect.flatMap(Option.match({
+            onSome: getSubitems =>
+              Effect.tryPromise({
+                try: getSubitems,
+                catch: c.id
+              }).pipe(
+                Effect.map(Data.array),
+                Effect.map(Option.some),
+                Effect.catchAll(() => Effect.succeedNone),
+              ),
+            onNone: () => Effect.succeedNone
+          })),
+        )
+
+  if (cacheRef.current === null) {
+    cacheRef.current = Cache.make({
+      capacity: Infinity,
+      timeToLive: Duration.infinity,
+      lookup,
+    })
   }
 
-  const cache = useRef(MutableHashMap.empty<string, JSX.Element>())
+  const getItem = (path: readonly string[]) => Effect.gen(function* () {
+    const cache = yield* cacheRef.current!
+    if 
+    const items =
+  })
 
-  function driver(path: string[]) {
+  function driver(path: string[], options?: DriverOptions) {
+    const { maximized, selected, leaf, focus } = {
+      maximized: false,
+      leaf: false,
+      ...options,
+    }
     const key = JSON.stringify(path)
-    const mk = () => (
-      <rc.PromiseResolver promise={driverAsync(path)}>
-        {col => col}
-      </rc.PromiseResolver>
-    )
-    return Option.match(MutableHashMap.get(cache.current, key), {
+    const items = Option.match(MutableHashMap.get(cache.current, key), {
       onSome: x => x,
       onNone: () => {
-        const res = mk()
+        const res = itemGetter(path)
         MutableHashMap.set(cache.current, key, res)
         return res
       },
-    }
+    })
+    return (
+      <RangerCol
+        items={items} path={path} maximized={maximized} focus={focus}
+        selected={selected} leaf={leaf} />
     )
   }
 
   return <Ranger2 driver={driver} initPath={initPath} />
 }
 
+
+
+
 export function Ranger({ items }: { items: RangerItem[] }) {
   const [cols, setCols] = useState<Column[]>([{ items, idx: 0 }]);
-
-  const controller: Controller = {
-    jumpTo: (a: string[]) => {},
-    jumpToNew: (a: string[], b: JSX.Element) => {},
-    toggleMaximize: () => {},
-    setMark: (a: typeof c.AlphaNumeric.alphabetLowercase) => {},
-  }
 
   const curCol = cols[cols.length - 1];
 
@@ -360,10 +490,10 @@ export function Ranger({ items }: { items: RangerItem[] }) {
 
   useEffect(() => {
     const command$ = KeyStack.commandsOfStrokes(commands, key$).pipe(
-      pipe.tapDebug({ name: "key$" }),
-      pipe.rxfilterMap(Either.getRight)
+      tpipe.tapDebug({ name: "key$" }),
+      tpipe.rxfilterMap(Either.getRight)
     ).pipe(
-      pipe.tapDebug({ name: "command$" }),
+      tpipe.tapDebug({ name: "command$" }),
     )
     const sub = command$.subscribe(command => command.action())
     return () => sub.unsubscribe()
@@ -384,7 +514,8 @@ export function Ranger({ items }: { items: RangerItem[] }) {
     const scrollTop = container.scrollTop;
     const selectedPos = curCol.idx * itemHeight;
     const visibleTop = scrollTop;
-    const visibleBottom = scrollTop + containerHeight;
+    const _visibleBottom = scrollTop + containerHeight;
+    c.ignore(_visibleBottom)
 
     const p20 = visibleTop + containerHeight * 0.2;
     const p80 = visibleTop + containerHeight * 0.8;
