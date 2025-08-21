@@ -409,7 +409,8 @@ ${fileYaml}
     "s|bullseye/updates|bullseye-security|",
     "/etc/apt/sources.list",
   ]);
-  await host_.exec("chsh", ['-s', '/usr/bin/bash', 'admin']);
+  // await host_.exec("chsh", ['-s', '/usr/bin/bash', 'admin']);
+  await host_.exec("chsh", ['-s', '/usr/bin/env', '-S', 'bash', 'admin']);
   return host_;
 }
 

@@ -111,7 +111,10 @@ export class Host {
   exec(command: string, args: string[], options: execlib.ExecOptions = {}) {
     const remoteCommand = shellescape([command].concat(args));
     const target = this.sshTarget();
-    const sshArgs = [target, "/bin/bash", "-c", shellescape([remoteCommand])];
+    // const sshArgs = [target, "/bin/bash", "-c", shellescape([remoteCommand])];
+    const sshArgs = [
+      target, "/usr/bin/env", "-S", "bash", "-c", shellescape([remoteCommand])
+    ];
     return execlib.exec("ssh", sshArgs, options);
   }
 
@@ -180,7 +183,7 @@ export class Host {
     );
   }
 
-  async scpTo(localPath: string, remotePath: string){
+  async scpTo(localPath: string, remotePath: string) {
     await execlib.exec("scp", [
       localPath,
       `${this.user}@${this.fqdn()}:${remotePath}`])

@@ -163,7 +163,8 @@ class Fleet {
       });
 
     const bg_cmd = (node: Node, cmd: string) =>
-      node.box!.exec("/bin/bash", ["-c", `nohup ${cmd} &`]);
+      // node.box!.exec("/bin/bash", ["-c", `nohup ${cmd} &`]);
+      node.box!.exec("/usr/bin/env", ["-S", "bash", "-c", `nohup ${cmd} &`]);
 
     async function setupNode(node: Node) {
       // const apt = box!.apt();

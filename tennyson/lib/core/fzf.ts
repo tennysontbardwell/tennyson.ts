@@ -45,7 +45,9 @@ export async function fzf(
       const choicesStr = choices.map((x) => x.replace("\n", "\\n")).join("\n");
       await fs.writeFile(in_, choicesStr)
       const preview = `--preview 'curl --silent ${host}:${port} --data-raw {}'`;
-      await common_node.passthru("/bin/bash", [
+      await common_node.passthru("/usr/bin/env", [
+        "-S",
+        "bash",
         "-c",
         `${location} ${preview} < ${in_} > ${out}`,
       ]);
