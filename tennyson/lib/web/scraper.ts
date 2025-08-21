@@ -5,6 +5,7 @@ import * as net_util from "tennyson/lib/core/net-util";
 import * as common from "tennyson/lib/core/common";
 import { tqdm } from "../core/tqdm";
 import * as pipe from "tennyson/lib/core/pipe";
+import * as cheerio from 'cheerio';
 
 export interface Cache {
   get(version: number, params: string, name: string): Promise<string | undefined>;
@@ -266,7 +267,7 @@ export class Get extends Node<
 > {
   name = "get";
   customFetcher
-  : null | ((url: string) => Promise<{ content: string, status: number }>)
+    : null | ((url: string) => Promise<{ content: string, status: number }>)
     = null;
 
   async getUncached(params: { url: string; }) {
@@ -282,6 +283,28 @@ export class Get extends Node<
     }
   }
 }
+
+// export async function domFragmentOfUrl(url: string) {
+//   const res = await net_util.checkResponseExn(await fetch(url))
+//   cheerio.
+//   return JSDOM.fragment(await res.text())
+// }
+
+// export async function queryAllUrl(url: string, selectors: string) {
+//   const frag = await domFragmentOfUrl(url)
+//   return frag.querySelectorAll(selectors)
+// }
+
+// export async function xpathOfHTML(html: string, xpath: string) {
+//   const dom = new JSDOM(html)
+//   return dom.window.document.evaluate(xpath, dom.window.document, null, 2)
+// }
+
+// export async function fetchXpath(url: string, xpath: string) {
+//   const res = await net_util.checkResponseExn(await fetch(url))
+//   return xpathOfHTML(await res.text(), xpath)
+// }
+
 
 // class GetJson extends Node<{ url: string }, any> {
 //   name = "get-json";

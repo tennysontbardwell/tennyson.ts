@@ -16,7 +16,7 @@ import { equals } from "effect/Equal";
 
 export interface RangerItem {
   name: string;
-  subitems?: () => Promise<RangerItem[]>;
+  subitems?: () => (Promise<RangerItem[]> | RangerItem[]);
   display?: () => JSX.Element;
   view?: () => JSX.Element;
 }
@@ -109,30 +109,30 @@ namespace KeyStack {
 }
 
 function RangerCol(
-  { path, items, maximized, selected, focus, leaf: _ }: {
+  { path, items, maximized, selected, focus, preview: _ }: {
     path: string[],
-    items: Promise<Option.Option<RangerItem[]>>,
+    items: Effect.Effect<Option.Option<readonly RangerItem[]>>,
     maximized: boolean,
     focus?: boolean,
     selected?: string,
-    leaf?: boolean,
+    preview?: boolean,
   }
 ): JSX.Element {
   const cmd = KeyStack.command;
   const ref_ = useRef(null as HTMLDivElement | null)
+  const controller = useContext(RangerContext)
 
   useEffect(() => {
     if (focus && ref_.current !== null)
       ref_.current.focus()
   }, [focus])
 
-  const itemsRes = rc.usePromise(items)
-  const items_ =
-    pipe(itemsRes,
-      Option.flatMap(Either.getRight),
-      Option.flatten,
-      Option.getOrNull)
-  const controller = useContext(RangerContext)
+  const items_ = rc.useEffectTS(items).pipe(
+    Option.map(Either.getRight),
+    Option.flatten,
+    Option.flatten,
+    Option.getOrNull,
+  )
 
   const idx = items_ === null || selected === undefined
     ? 0
@@ -154,7 +154,7 @@ function RangerCol(
         l => cmd(["m", l], () => controller.setMark(l)))
       const gotoMarks = c.AlphaNumeric.alphaLower.map(
         l => cmd(["'", l], () => controller.gotoMark(l)))
-      const itemCommands = items_ === null
+      const itemCommands = (items_ === null || items_.length === 0)
         ? []
         : [
           cmd([["ArrowUp"], ["k"]], () => setIdx(idx - 1)),
@@ -222,18 +222,46 @@ function RangerCol(
   )
 }
 
+function RangerColOrPreview(
+  { item, items, preview, ...args }: {
+    path: string[],
+    item: Effect.Effect<Option.Option<RangerItem>>,
+    items: Effect.Effect<Option.Option<readonly RangerItem[]>>,
+    maximized: boolean,
+    focus?: boolean,
+    selected?: string,
+    preview?: boolean,
+  }
+): JSX.Element {
+  const item_ = rc.useEffectTS(item)
+  const empty = () => <RangerCol items={Effect.succeedNone} {...args} />
+  const col = () => <RangerCol items={items} {...args} />
+  if (!preview)
+    return col()
+  return Option.match(item_, {
+    onNone: empty,
+    onSome: x => pipe(x,
+      Either.getRight,
+      Option.flatten,
+      Option.flatMapNullable(x => x.display),
+      Option.map(x => x()),
+      Option.getOrElse(col),
+    )
+  })
+}
+
 interface DriverOptions {
   maximized?: boolean;
   selected?: string;
-  leaf?: boolean;
+  preview?: boolean;
   focus?: boolean;
 }
 
-export function Ranger2(
+export function RangerOfDriver(
   { driver, initPath }
     : {
       driver: (path: string[], options?: DriverOptions) => JSX.Element,
-      initPath: string[]
+      initPath: readonly string[]
     }
 ) {
   const [path, setPath] = useState(initPath)
@@ -301,7 +329,7 @@ export function Ranger2(
           <Fragment key={JSON.stringify(path)}>
             {driver(path, {
               maximized,
-              leaf: (i === colPaths.length),
+              preview: (i === colPaths.length),
               focus: (i === colPaths.length - 1),
               selected: pipe(focusedItems,
                 HashMap.get(JSON.stringify(path)),
@@ -314,79 +342,75 @@ export function Ranger2(
   )
 }
 
-export function Ranger3(
+export function RangerOfItems(
   { items, initPath }:
     { items: readonly RangerItem[], initPath: readonly string[] }
 ) {
-  /* const cache = useRef(MutableHashMap.make([
-*   [] as string[], Promise.resolve(Option.some(items))
-* ])) */
   const cacheRef = useRef(null as
-    null | Effect.Effect<Cache.Cache<
+    null | Cache.Cache<
       readonly string[],
-      Option.Option<readonly RangerItem[]>>>)
+      Option.Option<readonly RangerItem[]>>)
+
+  const getItems = (path: readonly string[]) => Effect.gen(function* () {
+    const cache = cacheRef.current!;
+    return yield* cache.get(Data.array(path));
+  })
+
+  const getItem = (path: readonly string[]) => Effect.gen(function* () {
+    if (path.length === 0)
+      return Option.none()
+    const siblings = yield* getItems(path.slice(0, -1));
+    return siblings.pipe(
+      Option.flatMap(
+        Array.findFirst(x =>
+          equals(Option.some(x.name), Array.last(path)))
+      ))
+  })
 
   const lookup = (path: readonly string[]) =>
-    (path.length == 0)
-      ? Effect.succeed(Option.some(items))
-      : cacheRef.current!
-        .pipe(
-          Effect.flatMap(cache => cache.get(path.slice(0, -1))),
-          Effect.map(Option.flatMap(Array.findFirst(x =>
-            equals(Option.some(x.name), Array.last(path)))
-          )),
-          Effect.map(Option.flatMapNullable(x => x.subitems)),
-          Effect.flatMap(Option.match({
-            onSome: getSubitems =>
-              Effect.tryPromise({
-                try: getSubitems,
-                catch: c.id
-              }).pipe(
-                Effect.map(Data.array),
-                Effect.map(Option.some),
-                Effect.catchAll(() => Effect.succeedNone),
-              ),
-            onNone: () => Effect.succeedNone
-          })),
-        )
+    Effect.gen(function* () {
+      if (path.length === 0)
+        return Option.some(items)
+      const parent = yield* getItem(path);
+      const getSubitems = Option.flatMapNullable(parent, x => x.subitems)
+      const subitems: Option.Option<readonly RangerItem[]> =
+        yield* Option.match(getSubitems, {
+          onNone: () => Effect.succeedNone,
+          onSome: get => Effect.tryPromise({
+            try: () => Promise.resolve(get()),
+            catch: c.id
+          }).pipe(
+            Effect.map(Data.array),
+            Effect.option
+          )
+        })
+      return subitems
+    })
 
   if (cacheRef.current === null) {
     cacheRef.current = Cache.make({
       capacity: Infinity,
       timeToLive: Duration.infinity,
       lookup,
-    })
+    }).pipe(Effect.runSync)
   }
 
-  const getItem = (path: readonly string[]) => Effect.gen(function* () {
-    const cache = yield* cacheRef.current!
-    if 
-    const items =
-  })
-
   function driver(path: string[], options?: DriverOptions) {
-    const { maximized, selected, leaf, focus } = {
+    const { maximized, selected, preview, focus } = {
       maximized: false,
-      leaf: false,
+      preview: false,
       ...options,
     }
-    const key = JSON.stringify(path)
-    const items = Option.match(MutableHashMap.get(cache.current, key), {
-      onSome: x => x,
-      onNone: () => {
-        const res = itemGetter(path)
-        MutableHashMap.set(cache.current, key, res)
-        return res
-      },
-    })
+    const item = getItem(path)
+    const items = getItems(path)
     return (
-      <RangerCol
-        items={items} path={path} maximized={maximized} focus={focus}
-        selected={selected} leaf={leaf} />
+      <RangerColOrPreview
+        item={item} items={items} path={path} maximized={maximized}
+        focus={focus} selected={selected} preview={preview} />
     )
   }
 
-  return <Ranger2 driver={driver} initPath={initPath} />
+  return <RangerOfDriver driver={driver} initPath={initPath} />
 }
 
 

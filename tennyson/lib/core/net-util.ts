@@ -51,3 +51,4 @@ export function queryOfUrlAndParams(
   const res = (queryStr.length == 0) ? url : `${url}?${queryStr}`;
   return res;
 }
+

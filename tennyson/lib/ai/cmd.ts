@@ -2,9 +2,10 @@ import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
 import type { Attachment } from 'tennyson/lib/ai/aichat'
 import { models } from './const';
+import { writeBigJson } from "../core/common-node";
 
 export const cmd = cli.flagsCommand(
-  "ai <prompt>",
+  "ai",
   {
     "file": {
       alias: "f",
@@ -41,6 +42,12 @@ export const cmd = cli.flagsCommand(
       default: "gpt-4.1-mini",
       choices: Object.keys(models),
     },
+    "prompt": {
+      alias: "p",
+      describe: "",
+      type: "string",
+      default: "",
+    },
   },
   async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
@@ -65,6 +72,7 @@ export const cmd = cli.flagsCommand(
     await attach(args.webpage, aichat.webpageRawish);
     await attach(args.cleanedWebpage, aichat.webpage);
 
+    await writeBigJson("/tmp/aiattach.json", attachments)
     try {
       const response = await aichat.query({
         userText: <string>args.prompt,

@@ -8,7 +8,7 @@ import * as rx from 'rxjs';
 import * as echarts from 'echarts';
 import { useReactTable, createColumnHelper, getCoreRowModel, flexRender }
   from '@tanstack/react-table';
-import { Either, Option } from 'effect';
+import { Effect, Either, Option } from 'effect';
 
 
 export function EChart(props: { option: echarts.EChartsOption }) {
@@ -60,6 +60,25 @@ export function usePromise<T>(
 
   return state
 }
+
+export function useSafePromise<T>(
+  promise: Promise<T>
+): Option.Option<T> {
+  const res = usePromise(promise)
+  return Option.map(res, Either.getOrThrow)
+}
+
+export function useEffectTS<A, B>(
+  effect: Effect.Effect<A, B>
+): Option.Option<Either.Either<A, B>> {
+  const promise = useMemo(() => effect.pipe(
+    Effect.either,
+    Effect.runPromise
+  ), [effect])
+
+  return useSafePromise(promise)
+}
+
 
 export function PromiseResolver<T>(
   props: { promise: Promise<T>, children: (data: T) => ReactNode }

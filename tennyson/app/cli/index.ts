@@ -4,6 +4,8 @@ import * as aicmd from "tennyson/lib/ai/cmd";
 import * as infra_cmd from "tennyson/lib/infra/cmd";
 import { jless, vdJson } from "tennyson/lib/core/common-node";
 
+const c = common;
+
 async function electron() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
   const { app, BrowserWindow } = await import('electron');
@@ -73,6 +75,37 @@ export const cmds: cli.Command[] = [
   cli.command("ranger-fs", async () => {
     const ranger = await import("tennyson/app/ranger/index");
     new ranger.Ranger(ranger.lsFiles);
+  }),
+  cli.lazyGroup("scrape", async () => {
+    const scraper = await import("tennyson/lib/web/scraper");
+    return [
+      cli.flagsCommand(
+        "cssFetch",
+        {
+          url: { alias: 'u', type: 'string', required: true },
+          cssSelector: { alias: 'q', type: 'string', required: true },
+        },
+        async (args) => {
+          const cheerio = await import('cheerio')
+          const doc = await cheerio.fromURL(args.url)
+          c.info(doc.extract({
+            results: [{
+              selector: args.cssSelector,
+              value: "outerHTML"
+            }]
+          }))
+          // c.info(doc(args.cssSelector)[0])
+          // c.info(doc(args.cssSelector).map(x => x.toString()))
+          // await jless(doc(args.cssSelector).map(x => x.toString()))
+          // const res1 = doc(args.cssSelector)
+          // c.info(res1.toString())
+          // const res = doc(args.cssSelector).find('li')
+          // c.info(res.html())
+          // c.info(doc(args.cssSelector).length)
+          // // c.info(doc(args.cssSelector))
+        }
+      )
+    ]
   }),
   cli.lazyGroup("wayback", async () => {
     const wb = await import("tennyson/lib/web/waybackmachine");

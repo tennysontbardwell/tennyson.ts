@@ -37,9 +37,9 @@ async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
             return [];
           }
         },
-        display: () => {
-          return <ItemDisplay url={itemUrl} />;
-        }
+        display: name.endsWith("/")
+          ? undefined
+          : () => <ItemDisplay url={itemUrl} />
       });
     }
 
@@ -58,12 +58,22 @@ function ItemDisplay({ url }: { url: string }) {
     fetch(url)
       .then(async response => {
         const contentType = response.headers.get('content-type') || '';
-
-        if (contentType.startsWith('image/')) {
+        if (contentType.startsWith('application/pdf')) {
+          setContent(<iframe src={url} style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
+        } else if (contentType.startsWith('image/')) {
           setContent(<img src={url} alt="Preview" style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
         }
         else if (contentType.startsWith("video/")) {
           setContent(<video controls loop autoPlay src={url} style={{ objectFit: 'contain', height: "100%", width: "100%", display: "block" }} />);
+        }
+        else if (contentType.startsWith("audio/")) {
+          setContent(
+            <div style={{ display: "table", width: "100%" }}>
+              <div style={{ display: "table-cell", verticalAlign: "middle" }}>
+                <audio controls loop autoPlay src={url} style={{ objectFit: 'contain', width: "100%" }} />
+              </div>
+            </div>
+          );
         }
         else {
           setContent(<div></div>);
