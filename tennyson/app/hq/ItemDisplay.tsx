@@ -2,6 +2,8 @@ import React from 'react';
 import type { JSX } from 'react';
 import type { RangerItem } from './Ranger';
 
+import * as c from "tennyson/lib/core/common";
+
 async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
   try {
     const response = await fetch(url);
@@ -22,7 +24,7 @@ async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
       const name = href.replace(/@$/, '').replace(/\/+/g, '/');
       const itemUrl = `${url}/${name}`;
 
-      items.push({
+      items.push(c.stripUndefined({
         name,
         subitems: async () => {
           try {
@@ -40,7 +42,7 @@ async function fetchDirectoryListing(url: string): Promise<Array<RangerItem>> {
         display: name.endsWith("/")
           ? undefined
           : () => <ItemDisplay url={itemUrl} />
-      });
+      }));
     }
 
     return items;

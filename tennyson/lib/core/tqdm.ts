@@ -142,6 +142,22 @@ class Writer {
  * Note that unlike in Python, here we need to manually specify the total size
  * of the iterable.
  */
+
+// from Tennyson
+type NonUndefined<T> = {
+  [K in keyof T]: Exclude<T[K], undefined>;
+};
+
+type StripUndefined<T> = {
+  [K in keyof T as undefined extends T[K] ? never : K]: T[K];
+};
+
+function stripUndefined<T extends Record<string, any>>(obj: T): NonUndefined<StripUndefined<T>> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as NonUndefined<StripUndefined<T>>;
+}
+
 export async function* tqdm<T>(
   iter: Array<T> | IterableIterator<T> | AsyncIterableIterator<T>,
   { label, size, width = 16 }: TqdmOptions = {},
@@ -161,7 +177,7 @@ export async function* tqdm<T>(
     yield it;
     const elapsed = (Date.now() - start) / 1000;
     await writer.write(
-      renderBar({ i, label, size, width, elapsed }) + "\x1b[1G",
+      renderBar(stripUndefined({ i, label, size, width, elapsed })) + "\x1b[1G",
     );
     i++;
   }

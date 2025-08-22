@@ -6,6 +6,8 @@ import * as rx from 'rxjs';
 import type * as ws from 'ws';
 import { Data, Equal, HashMap, Option, Tuple } from "effect";
 
+const c = common
+
 export namespace BiComm {
   export interface T<C, M> {
     commander$: rx.Subject<C>,
@@ -13,6 +15,9 @@ export namespace BiComm {
   }
 
   export function ofWS<C, M>(ws: WebSocket | ws.WebSocket): T<C, M> {
+    function isNodeWS(ws: WebSocket | ws.WebSocket): ws is WebSocket {
+      return 'dispatchEvent' in ws
+    }
     if (ws.readyState !== ws.CONNECTING)
       throw new Error(
         "This websocket is already open, messages might have been lost");
@@ -24,11 +29,21 @@ export namespace BiComm {
 
     let queue = [] as string[] | 'toClose';
 
+    function fromEvent<T>(
+      ws: WebSocket | ws.WebSocket,
+      target: string,
+    ): rx.Observable<T> {
+      return isNodeWS(ws)
+        ? rx.fromEvent<T, T>(ws, target, c.id)
+        : rx.fromEvent<T, T>(ws, target, c.id)
+    }
+
     function singleEvent<E extends keyof WebSocketEventMap, O>(
       target: E, handler: (event: WebSocketEventMap[E]) => O
     ) {
-      return rx.fromEvent<any, O>(ws, target, handler)
+      return fromEvent<WebSocketEventMap[E]>(ws, target)
         .pipe(
+          rx.map(handler),
           rx.take(1),
           rx.takeUntil(closed$),
           rx.tap({ error: err => common.log.error(err) }),
@@ -46,7 +61,9 @@ export namespace BiComm {
     });
 
     // Needed in case `closed$` cancels `singleEvent('open'`
-    rx.fromEvent<any, null>(ws, 'open', () => null).pipe(
+
+    fromEvent<void>(ws, 'open',).pipe(
+      rx.map(() => null),
       rx.take(1),
       rx.catchError(_err => rx.of(null)),
     )
@@ -66,11 +83,12 @@ export namespace BiComm {
     closed$.forEach(closeWS)
 
     const messages$ =
-      rx.fromEvent<any, M>(ws, "message", (x: MessageEvent) =>
-        <M>JSON.parse(<string>x.data)).pipe(
-          rx.takeUntil(closed$),
-          rx.share({ resetOnError: false, resetOnComplete: false }),
-        );
+      fromEvent<MessageEvent>(ws, "message").pipe(
+        rx.map((x: MessageEvent) =>
+          <M>JSON.parse(<string>x.data)),
+        rx.takeUntil(closed$),
+        rx.share({ resetOnError: false, resetOnComplete: false }),
+      );
 
     const commander$ = new rx.Subject<C>();
     commander$
@@ -477,14 +495,14 @@ export function tapDebug<T>(meta: { [key: string]: any }, enableNext = true) {
   const next = enableNext
     ? (item: any) => log({ event: "next", item })
     : undefined;
-  return rx.tap<T>({
+  return rx.tap<T>(c.stripUndefined({
     next,
     subscribe: () => { count++; log({ event: "subscribe" }) },
     unsubscribe: () => { count--; log({ event: "subscribe" }) },
     complete: () => log({ event: "complete" }),
-    error: (error) => log({ event: "error", error }),
+    error: (error: any) => log({ event: "error", error }),
     finalize: () => log({ event: "finalize" }),
-  });
+  }));
 }
 
 export function tapFinalize<T>(meta: { [key: string]: any }, warn = false) {
@@ -572,7 +590,8 @@ export function sharePlus<T>(
         src$.pipe(
           rx.tap({ next: (val) => { storedVal = Option.some(val) } }),
           rx.finalize(() => { storedVal = Option.none() }),
-          rx.share({ resetOnError, resetOnComplete, resetOnRefCountZero }),
+          rx.share(c.stripUndefined(
+            { resetOnError, resetOnComplete, resetOnRefCountZero })),
           rx.map(Option.some),
         )
       ).pipe(
@@ -582,7 +601,8 @@ export function sharePlus<T>(
     }
     else
       return src$.pipe(
-        rx.share({ resetOnError, resetOnComplete, resetOnRefCountZero }),
+        rx.share(c.stripUndefined(
+          { resetOnError, resetOnComplete, resetOnRefCountZero })),
       )
   }
 }

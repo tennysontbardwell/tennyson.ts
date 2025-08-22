@@ -482,3 +482,18 @@ export namespace AlphaNumeric {
 
   export type AlphaLower = (typeof alphaLower)[number]
 }
+
+type NonUndefined<T> = {
+  [K in keyof T]: Exclude<T[K], undefined>;
+};
+
+type StripUndefined<T> = {
+  [K in keyof T as undefined extends T[K] ? never : K]: T[K];
+};
+
+export function stripUndefined<T extends Record<string, any>>(obj: T)
+: NonUndefined<StripUndefined<T>> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, value]) => value !== undefined)
+  ) as NonUndefined<StripUndefined<T>>;
+}

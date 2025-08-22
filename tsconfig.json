@@ -14,6 +14,7 @@
     "moduleResolution": "bundler",
     "target": "esnext",
     "strict": true,
+    "exactOptionalPropertyTypes": true,
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,

@@ -1,6 +1,6 @@
 import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
-import type { Attachment } from 'tennyson/lib/ai/aichat'
+import type { Attachment, Tool } from './tools'
 import { models } from './const';
 import { writeBigJson } from "../core/common-node";
 
@@ -23,7 +23,8 @@ export const cmd = cli.flagsCommand(
     },
     "webpage": {
       alias: "w",
-      describe: "Attach a webpage to the query. This will remove scripts and style tags.",
+      describe:
+        "Attach a webpage to the query. This will remove scripts and style tags.",
       type: "string",
       array: true,
       default: [],
@@ -48,11 +49,28 @@ export const cmd = cli.flagsCommand(
       type: "string",
       default: "",
     },
+    "webpageTool": {
+      alias: "W",
+      describe: "allows model to make tool calls",
+      boolean: true,
+      default: false,
+    },
+    "maxToolIteration": {
+      alias: "n",
+      describe:
+        "maximum number of tool call iterations allowed, if tools are present",
+      type: "number",
+      default: 5,
+    },
+    "traceFile": {
+      type: "string"
+    },
   },
   async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
 
     const attachments: Attachment[] = [];
+    const tools: Tool[] = [];
 
     async function attach(
       lst: string[],
@@ -67,18 +85,26 @@ export const cmd = cli.flagsCommand(
       }
     }
 
-    await attach(args.file, aichat.file);
-    await attach(args.webpageRaw, aichat.webpageRaw);
-    await attach(args.webpage, aichat.webpageRawish);
-    await attach(args.cleanedWebpage, aichat.webpage);
+    await Promise.all([
+      attach(args.file, aichat.file),
+      attach(args.webpageRaw, aichat.webpageRaw),
+      attach(args.webpage, aichat.webpageRawish),
+      attach(args.cleanedWebpage, aichat.webpage),
+    ])
 
-    await writeBigJson("/tmp/aiattach.json", attachments)
+    if (args.webpageTool) {
+      tools.push(aichat.urlFetchTool)
+    }
+    // await writeBigJson("/tmp/aiattach.json", attachments)
+
     try {
       const response = await aichat.query({
         userText: <string>args.prompt,
         attachments: attachments,
         model: args.model,
-      });
+        tools,
+        maxToolCalls: args.maxToolIteration,
+      }, args.traceFile);
       console.log(response);
     } catch (error) {
       common.log.error("AI query failed:", error);

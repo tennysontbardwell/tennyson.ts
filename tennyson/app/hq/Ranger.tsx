@@ -327,14 +327,14 @@ export function RangerOfDriver(
       <div style={{ height: "100%", display: "flex" }} >
         {colPathsAndFocus.map((path, i) => (
           <Fragment key={JSON.stringify(path)}>
-            {driver(path, {
+            {driver(path, c.stripUndefined({
               maximized,
               preview: (i === colPaths.length),
               focus: (i === colPaths.length - 1),
               selected: pipe(focusedItems,
                 HashMap.get(JSON.stringify(path)),
                 Option.getOrUndefined)
-            })}
+            }))}
           </Fragment>
         ))}
       </div>
@@ -403,10 +403,17 @@ export function RangerOfItems(
     }
     const item = getItem(path)
     const items = getItems(path)
+    const props = c.stripUndefined({
+      item,
+      items,
+      path,
+      maximized,
+      focus,
+      selected,
+      preview,
+    })
     return (
-      <RangerColOrPreview
-        item={item} items={items} path={path} maximized={maximized}
-        focus={focus} selected={selected} preview={preview} />
+      <RangerColOrPreview {...props}/>
     )
   }
 

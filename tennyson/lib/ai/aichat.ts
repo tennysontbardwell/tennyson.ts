@@ -1,20 +1,17 @@
 import * as common from "tennyson/lib/core/common";
+import * as cNode from "tennyson/lib/core/common-node";
 import * as openai from "tennyson/lib/ai/openai";
-import type { Static, TSchema } from '@sinclair/typebox'
+import { Schema } from 'effect'
 import { Type } from '@sinclair/typebox'
 import { openAIConfig } from "./const";
+import type { Attachment, Tool } from './tools';
 
-export interface Attachment {
-  title: string,
-  contents: string,
-}
-
-interface Tool {
+export interface Tool2<A,B> {
   name: string;
-  inputSchema: TSchema;
-  outSchema: TSchema;
+  inputSchema: Schema.Schema<A>;
+  outSchema: Schema.Schema<B>;
   description: string;
-  callback: (request: string) => Promise<Attachment>;
+  callback: (request: A) => Promise<Attachment>;
 }
 
 interface Query {
@@ -101,17 +98,18 @@ async function generatePrompt(query_: {
   }
 
   const toolCallsRemaining = Math.max(0, query_.maxToolCalls);
-  addSection("frontmatter", `This prompt will involve instructions from a user, ${query_.tools.length} tools, ${query_.attachments.length} attachments. You may either attempt to complete the task, you may call one or more of the tools. If you choose to call tools, then output the text TOOL_CALL followed by a newline, and a json array of the tool calls that you wish to invoke in the format { name: <name>, input: <input data> }. The <name> field must match the \"name\" key in the list of tools that follow. If the information gained by calling the tools would improve the ability of a future agent to answer the user's prompt, then that is the best choice. You have ${toolCallsRemaining} tool calls remaining.`);
+  // addSection("frontmatter", `This prompt will involve instructions from a user, ${query_.tools.length} tools, ${query_.attachments.length} attachments. You may either attempt to complete the task, you may call one or more of the tools. If you choose to call tools, then output the text TOOL_CALL followed by a newline, and a json array of the tool calls that you wish to invoke in the format { name: <name>, input: <input data> }. The <name> field must match the \"name\" key in the list of tools that follow. If the information gained by calling the tools would improve the ability of a future agent to answer the user's prompt, then that is the best choice. You have ${toolCallsRemaining} tool calls remaining.`);
+  addSection("frontmatter", `This prompt will involve instructions from a user, ${query_.tools.length} tools, ${query_.attachments.length} attachments. You may either attempt to complete the task, you may call one of the tools that will provide more information to complete the task. If you choose to call a tool, then output the text TOOL_CALL followed by a newline, and the tool call input json wrapped in a json array, as such: [{ name: <name>, input: <input data> }]. The <name> field must match the \"name\" key in the list of tools that follow. If you call a tool, output only the tool call and NO other information. If the information gained by calling the tools would improve the ability of a future agent to answer the user's prompt, then that is the best choice. You have ${toolCallsRemaining} tool calls remaining.`);
 
   addSection("Instructions From User", query_.userText);
 
   query_.attachments.forEach((attachment: Attachment, i: number) => {
-    addSection(`Attachment ${i+1} of ${query_.attachments.length}; Title: ${attachment.title}`, attachment.contents);
+    addSection(`Attachment ${i + 1} of ${query_.attachments.length}; Title: ${attachment.title}`, attachment.contents);
   });
 
   query_.tools.forEach((tool: Tool, i: number) => {
     addSection(
-      `Tool Number ${i+1} of ${query_.tools.length}; Tool Name: \"${tool.name}\"`,
+      `Tool Number ${i + 1} of ${query_.tools.length}; Tool Name: \"${tool.name}\"`,
       JSON.stringify({
         name: tool.name,
         inputSchema: tool.inputSchema,
@@ -133,7 +131,7 @@ export async function query(queryInput: Query, traceFile?: string): Promise<stri
   const query_ = {
     tools: [],
     attachments: [],
-    maxToolCalls: 10,
+    maxToolCalls: 5,
     ...queryInput
   }
 
@@ -144,7 +142,8 @@ export async function query(queryInput: Query, traceFile?: string): Promise<stri
 
   // Write trace file after completion
   if (traceFile && trace.length > 0) {
-    await writeTraceFile(traceFile, trace);
+    await cNode.writeBigJson(traceFile, trace)
+    // await writeTraceFile(traceFile, trace);
   }
 
   return result;
@@ -227,7 +226,9 @@ async function queryWithTrace(query_: {
       results: toolResults.map(result => ({
         title: result.title,
         contentLength: result.contents.length,
-        contentPreview: result.contents.substring(0, 200) + (result.contents.length > 200 ? '...' : '')
+        contentPreview:
+          result.contents.substring(0, 200)
+          + (result.contents.length > 200 ? '...' : '')
       }))
     }
   });
@@ -240,37 +241,6 @@ async function queryWithTrace(query_: {
   };
 
   return await queryWithTrace(updatedQuery, trace);
-}
-
-async function writeTraceFile(traceFile: string, trace: TraceEntry[]): Promise<void> {
-  const fs = await import('fs/promises');
-  const path = await import('path');
-
-  try {
-    // Ensure directory exists
-    const dir = path.dirname(traceFile);
-    await fs.mkdir(dir, { recursive: true });
-
-    // Write trace file
-    const traceData = {
-      timestamp: new Date().toISOString(),
-      totalEntries: trace.length,
-      entries: trace
-    };
-
-    await fs.writeFile(traceFile, JSON.stringify(traceData, null, 2), 'utf-8');
-    console.log(`Trace file written to: ${traceFile}`);
-  } catch (error) {
-    console.error(`Failed to write trace file ${traceFile}:`, error);
-    // Also try to write to current directory as fallback
-    try {
-      const fallbackPath = path.basename(traceFile);
-      await fs.writeFile(fallbackPath, JSON.stringify({ timestamp: new Date().toISOString(), totalEntries: trace.length, entries: trace }, null, 2), 'utf-8');
-      console.log(`Trace file written to fallback location: ${fallbackPath}`);
-    } catch (fallbackError) {
-      console.error(`Failed to write trace file to fallback location:`, fallbackError);
-    }
-  }
 }
 
 async function makeWebpageAttachment(
@@ -294,7 +264,7 @@ async function makeWebpageAttachment(
     throw new Error(
       `text length exceeds MAX_CHARS of ${MAX_CHARS}, is ${text.length}`);
 
-  return {title, contents: text};
+  return { title, contents: text };
 }
 
 export async function webpageRaw(url: string): Promise<Attachment> {
@@ -323,7 +293,7 @@ export async function webpage(url: string): Promise<Attachment> {
 }
 
 export async function file(path: string, fullPathInTitle = false)
-: Promise<Attachment> {
+  : Promise<Attachment> {
   const fs = await import('fs/promises');
   const pathModule = await import('path');
 
@@ -348,7 +318,7 @@ export const urlFetchTool: Tool = {
   description: "Fetches a webpage and returns its title and text content",
   callback: async (request: string) => {
     const input = JSON.parse(request);
-    const result = await webpage(input.url);
+    const result = await webpageRawish(input.url);
     return {
       title: request,
       contents: JSON.stringify(result),
