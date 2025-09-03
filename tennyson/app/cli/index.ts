@@ -20,33 +20,69 @@ async function electron() {
   })
 }
 
-import { FileSystem } from "@effect/platform"
-import { Stream, Effect, Option, Schema, Queue, Sink } from "effect"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
+// import { FileSystem } from "@effect/platform"
+// import { Stream, Effect, Option, Schema, Queue, Sink } from "effect"
+// import { NodeContext, NodeRuntime } from "@effect/platform-node"
 
 async function quickdev() {
-  const program = Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
-    const path = "/Users/tennyson/Desktop/test.txt"
-    yield* fs.access(path, { writable: true })
+  // const effect = await import("effect")
+  // const Schema = effect.Schema
 
-    const encoder = new TextEncoder();
-    const stream = Stream.make("1", "2").pipe(
-      Stream.map(s => encoder.encode(s))
-    )
+  // const schema2 = effect.Schema.Struct({
+  //   url: Schema.URL,
+  //   enum: Schema.optional(Schema.Enums({ a: 1, b: 2 })),
+  //   union:
+  //     Schema.Union(
+  //       Schema.Literal("processA"),
+  //       Schema.Literal("processB"),
+  //     ),
+  //   processessingB: Schema.optionalWith(Schema.Union(
+  //     Schema.Literal('processA').annotations({
+  //       description: "a description"
+  //     }),
+  //     Schema.Literal('processB'),
+  //   ), { default: () => 'processB' }).annotations({
+  //     description: "description",
+  //   }),
+  //   processessing: Schema.optional(Schema.Union(
+  //     Schema.Literal('processA').annotations({
+  //       description: "a description"
+  //     }),
+  //     Schema.Literal('processB'),
+  //   )).annotations({
+  //     description: "description",
+  //     default: 'processB',
+  //   }),
+  // })
+  // const res = JSON.stringify({
+  //   name: "name",
+  //   inputSchema: effect.JSONSchema.make(schema2),
+  // })
+  // const x = Schema.encodeSync(schema2)
+  // console.info(res)
+  // const program = Effect.gen(function* () {
 
-    const sink = fs.sink(path)
+  // const fs = yield* FileSystem.FileSystem
+  // const path = "/Users/tennyson/Desktop/test.txt"
+  // yield* fs.access(path, { writable: true })
 
-    yield* Stream.run(stream, sink)
+  // const encoder = new TextEncoder();
+  // const stream = Stream.make("1", "2").pipe(
+  //   Stream.map(s => encoder.encode(s))
+  // )
 
-    const committed$ = Sink.zipLeft
-    return {
-    }
-  })
+  // const sink = fs.sink(path)
 
-  NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+  // yield* Stream.run(stream, sink)
 
-  common.log.info('test14')
+  // const committed$ = Sink.zipLeft
+  //   return {
+  //   }
+  // })
+
+  // NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+
+  // common.log.info('test14')
   // const readline = await import('readline');
   // const rl = readline.createInterface({
   //   input: process.stdin,

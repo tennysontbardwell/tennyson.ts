@@ -145,6 +145,12 @@ function RangerCol(
     controller.focus(path, items_[nextIdx].name)
   }
 
+  if (focus === true
+      && items_ !== null
+      && items_.length > 0
+      && selected === undefined)
+    setIdx(0)
+
   const [key$] = useState(() => new rx.Subject<React.KeyboardEvent>());
   const onKey = (e: React.KeyboardEvent) => key$.next(e);
 

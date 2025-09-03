@@ -1,8 +1,9 @@
 import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
-import type { Attachment, Tool } from './tools'
+
+import type { Attachment, Tool2 } from './aichat'
 import { models } from './const';
-import { writeBigJson } from "../core/common-node";
+
 
 export const cmd = cli.flagsCommand(
   "ai",
@@ -62,15 +63,20 @@ export const cmd = cli.flagsCommand(
       type: "number",
       default: 5,
     },
-    "traceFile": {
-      type: "string"
-    },
+    "verbose": {
+      alias: "v",
+      describe: "print debug logs",
+      boolean: true,
+      default: false,
+    }
   },
   async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
+    const tools = await import("tennyson/lib/ai/tools");
+    const effect = await import("effect");
 
     const attachments: Attachment[] = [];
-    const tools: Tool[] = [];
+    const tools_: Tool2<any, any>[] = [];
 
     async function attach(
       lst: string[],
@@ -85,15 +91,18 @@ export const cmd = cli.flagsCommand(
       }
     }
 
+    const web = (cleanup: 'raw' | 'contentTags' | 'text') => (url: string) =>
+      tools.fetchWebpage(url, cleanup)
+
     await Promise.all([
-      attach(args.file, aichat.file),
-      attach(args.webpageRaw, aichat.webpageRaw),
-      attach(args.webpage, aichat.webpageRawish),
-      attach(args.cleanedWebpage, aichat.webpage),
+      attach(args.file, tools.file),
+      attach(args.webpageRaw, web('raw')),
+      attach(args.webpage, web('contentTags')),
+      attach(args.cleanedWebpage, web('text')),
     ])
 
     if (args.webpageTool) {
-      tools.push(aichat.urlFetchTool)
+      tools_.push(tools.urlFetchTool2)
     }
     // await writeBigJson("/tmp/aiattach.json", attachments)
 
@@ -102,9 +111,16 @@ export const cmd = cli.flagsCommand(
         userText: <string>args.prompt,
         attachments: attachments,
         model: args.model,
-        tools,
+        tools: tools_,
         maxToolCalls: args.maxToolIteration,
-      }, args.traceFile);
+      }).pipe(
+        effect.Logger.withMinimumLogLevel(
+          args.verbose
+            ? effect.LogLevel.Debug
+            : effect.LogLevel.Info),
+        effect.Effect.runPromise,
+      )
+        ;
       console.log(response);
     } catch (error) {
       common.log.error("AI query failed:", error);
