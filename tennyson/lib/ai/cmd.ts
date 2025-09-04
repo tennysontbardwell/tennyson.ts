@@ -2,7 +2,7 @@ import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
 
 import type { Attachment, Tool2 } from './aichat'
-import { models } from './const';
+import { models, openAIModels } from './const';
 
 
 export const cmd = cli.flagsCommand(
@@ -68,7 +68,13 @@ export const cmd = cli.flagsCommand(
       describe: "print debug logs",
       boolean: true,
       default: false,
-    }
+    },
+    "quiet": {
+      alias: "q",
+      describe: "Do not print the final response. Useful when using -v",
+      boolean: true,
+      default: false,
+    },
   },
   async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
@@ -110,7 +116,7 @@ export const cmd = cli.flagsCommand(
       const response = await aichat.query({
         userText: <string>args.prompt,
         attachments: attachments,
-        model: args.model,
+        model: args.model as keyof typeof openAIModels,
         tools: tools_,
         maxToolCalls: args.maxToolIteration,
       }).pipe(
@@ -118,10 +124,11 @@ export const cmd = cli.flagsCommand(
           args.verbose
             ? effect.LogLevel.Debug
             : effect.LogLevel.Info),
+        effect.Effect.provide(effect.Logger.json),
         effect.Effect.runPromise,
       )
-        ;
-      console.log(response);
+      if (!args.quiet)
+        console.log(response);
     } catch (error) {
       common.log.error("AI query failed:", error);
     }

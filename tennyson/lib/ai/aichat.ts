@@ -2,8 +2,8 @@ import * as common from "tennyson/lib/core/common";
 import * as cNode from "tennyson/lib/core/common-node";
 import * as openai from "tennyson/lib/ai/openai";
 import type { Static, TSchema } from '@sinclair/typebox'
-import { Effect, Option, Schema, pipe, JSONSchema } from 'effect'
-import { openAIConfig } from "./const";
+import { Effect, Option, Schema, pipe, JSONSchema, Either } from 'effect'
+import { openAIConfig, openAIModels } from "./const";
 import type { UnknownException } from "effect/Cause";
 
 const c = common
@@ -40,19 +40,9 @@ interface Query {
   maxToolCalls?: number,
   attachments?: Attachment[],
   outputSchema?: string,
-  model?: string,
+  model?: keyof typeof openAIModels,
   previousCallCount?: number,
 }
-
-const ppQuery = (query: Query) => c.id({
-  userText: query.userText,
-  toolsCount: query?.tools?.length,
-  maxToolCalls: query.maxToolCalls,
-  attachmentsCount: query?.attachments?.length,
-  outputSchema: query.outputSchema,
-  attachments: query?.attachments?.map(a =>
-    ({ title: a.title, contentLength: a.contents.length }))
-})
 
 interface ToolCall {
   toolName: string;
@@ -88,11 +78,6 @@ async function executeToolsInParallel(
   return Promise.all(toolPromises);
 }
 
-interface PromptSection {
-  header: string,
-  contents: string,
-}
-
 interface Prompt {
   role: string,
   userText: string,
@@ -100,54 +85,74 @@ interface Prompt {
   tools: Tool2<any, any>[],
 }
 
-function combineSections(sections: PromptSection[]) {
-  const sep = '==================================';
-
-  return sections.map(({ header, contents }) => [
-    sep,
-    ' ',
-    header,
-    '\n',
-    contents
-  ].join('')).join('\n\n')
+const responseName = "control-flow/responseToUser"
+const responseSchema = Schema.Struct({
+  response: Schema.String
+})
+const RespondToUserTool: Tool2<typeof responseSchema, typeof Schema.String> = {
+  tag: "type2",
+  name: responseName,
+  inputSchema: responseSchema,
+  outSchema: Schema.String,
+  description: "Does no further tool calls or execution steps, and returns the response to the user",
+  callback: async (input: Schema.Schema.Type<typeof responseSchema>) =>
+    c.id({ title: responseName, contents: input.response })
 }
 
-function promptSectionsOfPrompt(p: Prompt) {
-  const section =
-    (header: string, contents: string) => c.id({ header, contents })
+namespace PromptSection {
+  interface PromptSection {
+    header: string,
+    contents: string,
+  }
 
-  const tools =
-    (p.tools ?? []).map(
-      (tool: Tool | Tool2<any, any>, i: number) =>
-        section(
-          `Tool Number ${i + 1} of ${p.tools?.length}; `
-          + `Tool Name: \"${tool.name}\"`,
-          JSON.stringify({
-            name: tool.name,
-            inputSchema:
-              JSONSchema.make(Schema.Struct({
-                toolName: Schema.Literal(tool.name),
-                data: tool.inputSchema,
-              })),
-            outputSchema: JSONSchema.make(tool.outSchema),
-          })
-        ))
+  export function combine(sections: PromptSection[]) {
+    const sep = '==================================';
 
-  const attachments =
-    (p?.attachments ?? []).map(
-      (attachment: Attachment, i: number) =>
-        section(
-          `Attachment ${i + 1} of ${p.attachments?.length}; `
-          + `Title: ${attachment.title}`,
-          attachment.contents))
+    return sections.map(({ header, contents }) => [
+      sep,
+      ' ',
+      header,
+      '\n',
+      contents
+    ].join('')).join('\n\n')
+  }
 
-  return [
-    section("Developer Instruction, Top Level Objective", p.role),
-    section("Instructions From User", p.userText),
-    ...tools,
-    ...attachments,
-  ]
+  export function fromPrompt(p: Prompt) {
+    const section =
+      (header: string, contents: string) => c.id({ header, contents })
 
+    const tools =
+      (p.tools ?? []).map(
+        (tool: Tool | Tool2<any, any>, i: number) =>
+          section(
+            `Tool Number ${i + 1} of ${p.tools?.length}; `
+            + `Tool Name: \"${tool.name}\"`,
+            JSON.stringify({
+              name: tool.name,
+              inputSchema:
+                JSONSchema.make(Schema.Struct({
+                  toolName: Schema.Literal(tool.name),
+                  data: tool.inputSchema,
+                })),
+              outputSchema: JSONSchema.make(tool.outSchema),
+            })
+          ))
+
+    const attachments =
+      (p?.attachments ?? []).map(
+        (attachment: Attachment, i: number) =>
+          section(
+            `Attachment ${i + 1} of ${p.attachments?.length}; `
+            + `Title: ${attachment.title}`,
+            attachment.contents))
+
+    return [
+      section("Developer Instruction, Top Level Objective", p.role),
+      section("Instructions From User", p.userText),
+      ...tools,
+      ...attachments,
+    ]
+  }
 }
 
 function parseToolCall(response: string) {
@@ -169,8 +174,8 @@ function planOfQuery(q: Query) {
     attachments: q.attachments ?? [],
     tools: q.tools ?? [],
   },
-    promptSectionsOfPrompt,
-    combineSections,
+    PromptSection.fromPrompt,
+    PromptSection.combine,
   )
 }
 
@@ -196,13 +201,23 @@ function finalizePromptOfPlanAndCallResults(
     ],
     tools: q.tools ?? [],
   },
-    promptSectionsOfPrompt,
-    combineSections,
+    PromptSection.fromPrompt,
+    PromptSection.combine,
   )
 }
 
-function toolCallPromptOfPlannedQuery(q: Query, plan: string) {
-  const role = `You are an agent who is tasked with executing a plan for a user input. Write tool call, as a JSON, necessary to advance the plan. No execution on this plan has occurred thus far.`
+function toolCallPromptOfPlannedQuery(
+  q: Query, plan: string, prev: number, remaining: number
+) {
+  const role = [
+    `You are an agent who is tasked with executing a plan for a user input. Write tool call, as a JSON, necessary to advance the plan.`,
+    prev == 0
+      ? `No execution on this plan has occurred thus far.`
+      : `There have been ${prev} previous tool calls. The results of these tool calls are under attached with names "Tool Call Number <number>; <tool response title>".`,
+    remaining == 0
+      ? `This is the final chance to call a tool.`
+      : `There will be ${remaining} remaining chances to call a tool after this tool call.`,
+  ].join(' ')
   return pipe({
     role,
     userText: q.userText,
@@ -215,72 +230,102 @@ function toolCallPromptOfPlannedQuery(q: Query, plan: string) {
     ],
     tools: q.tools ?? [],
   },
-    promptSectionsOfPrompt,
-    combineSections,
+    PromptSection.fromPrompt,
+    PromptSection.combine,
   )
 }
 
+let spentMills = 0
+// const spentMills = Metric.counter("spent_mills", {
+//   description: "Number of spent 0.001 USD on openai",
+//   incremental: true,
+// })
+
 function generatePrompt(
   prompt: string,
-  model?: string,
+  model?: keyof typeof openAIModels,
 ) {
   return Effect.gen(function* () {
     const model_ = model ?? "gpt-4.1-mini";
     const resp = yield* Effect.tryPromise(() =>
       openai.openai.generateWithModel(model_, openAIConfig, prompt))
     yield* Effect.logDebug({ type: 'query', model, prompt, resp });
-    return resp
+    spentMills += pipe(resp.price * 1000, Math.ceil)
+    return resp.response
   })
 }
 
-const DelimitedString = (delimiter: string) =>
-  Schema.transform(
-    Schema.String,
-    Schema.Array(Schema.String),
-    {
-      strict: true,
-      decode: (str) => str.split(delimiter),
-      encode: (parts) => parts.join(delimiter)
-    }
-  )
-
-export const query = (q: Query): Effect.Effect<string, UnknownException> =>
+export const query = (q_: Query): Effect.Effect<string, UnknownException> =>
   Effect.gen(function* () {
+    const tools: Tool2<any, any>[] = [RespondToUserTool].concat(q_.tools ?? [])
+    const q = {
+      ...q_,
+      tools
+    }
 
     const plan = yield* generatePrompt(planOfQuery(q), q.model)
     yield* Effect.logDebug({ type: 'plan', plan });
 
-    const toolCallResponse =
-      yield* generatePrompt(toolCallPromptOfPlannedQuery(q, plan), q.model)
-    const toolCall = parseToolCall(toolCallResponse)
+    let allToolResults = [] as Attachment[]
+    for (const i of c.range(3)) {
+      const toolCallResponse = yield* generatePrompt(
+        toolCallPromptOfPlannedQuery(
+          {
+            ...q,
+            attachments: (q.attachments ?? []).concat(allToolResults)
+          },
+          plan, i, 5 - 1 - i),
+        q.model
+      )
+      const toolCall = parseToolCall(toolCallResponse)
 
-    const toolResults = yield* Option.match(toolCall, {
-      onNone: () => Effect.succeed([]),
-      onSome: (toolCall) => Effect.gen(function* () {
-        const toolResults = yield* Effect.tryPromise(() =>
-          executeToolsInParallel([toolCall], q.tools ?? []))
+      if (Option.isSome(toolCall) && toolCall.value.toolName === responseName) {
+        const data = pipe(toolCall.value.data,
+          Schema.decodeEither(RespondToUserTool.inputSchema))
+        yield* Effect.logDebug({ priceUSDSoFar: spentMills / 1000 })
+        if (Either.isLeft(data)) {
+          yield* Effect.logWarning(data.left)
+          return "Failure"
+        } else
+          return data.right.response
+      }
 
-        yield* Effect.logDebug({
-          type: 'tool_call',
-          toolCall,
-          results: toolResults.map(result => ({
-            title: result.title,
-            contentLength: result.contents.length,
-            contentPreview:
-              result.contents.substring(0, 200)
-              + (result.contents.length > 200 ? '...' : '')
-          }))
+      const toolResults = yield* Option.match(toolCall, {
+        onNone: () => Effect.succeed([]),
+        onSome: (toolCall) => Effect.gen(function* () {
+          const toolResults = yield* Effect.tryPromise(() =>
+            executeToolsInParallel([toolCall], q.tools ?? []))
+
+          yield* Effect.logDebug({
+            type: 'tool_call',
+            toolCall,
+            results: toolResults.map(result => ({
+              title: result.title,
+              contentLength: result.contents.length,
+              contentPreview:
+                result.contents.substring(0, 200)
+                + (result.contents.length > 200 ? '...' : '')
+            }))
+          })
+
+          return toolResults
         })
-
-        return toolResults
       })
-    })
+      const toolResults_ = toolResults.map(x => c.id({
+        title: `Tool Call Number ${i + 1}; ${x.title}`,
+        contents: `${toolCallResponse}\n${x.contents}`
+      }))
+      allToolResults = allToolResults.concat(toolResults_)
+    }
 
     const finalPrompt = finalizePromptOfPlanAndCallResults(
       q,
       plan,
-      toolResults,
+      allToolResults,
     )
-    return yield* generatePrompt(finalPrompt, q.model)
+    const res = yield* generatePrompt(finalPrompt, q.model)
+
+    yield* Effect.logDebug({ priceUSDSoFar: spentMills / 1000 })
+    return res
   })
 

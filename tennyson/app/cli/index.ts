@@ -172,4 +172,59 @@ export const cmds: cli.Command[] = [
     const wb = await import("tennyson/lib/web/waybackmachine");
     return wb.cmds;
   }),
+  cli.lazyGroup("viewer", async () => {
+    const cn = await import("tennyson/lib/core/common-node")
+    const exec = await import("tennyson/lib/core/exec")
+    const shellescape = (await import("shell-escape")).default;
+    const path = (await import('path')).default;
+    const fs = (await import('fs'));
+    const os = (await import('os')).default;
+    const uuid = (await import('uuid'));
+
+    return [
+      cli.flagsCommand(
+        "json [path]",
+        {
+          "path": {
+            type: "string",
+          }
+        },
+        async (args) => {
+          async function cmdInTmux(shCmd: string, pwd: string) {
+            await exec.exec("tmux",
+              ["new-window", "-c", pwd, "-t", "main", shCmd])
+            await exec.exec("osascript",
+              ["-e", 'tell application "iTerm" to activate'])
+          }
+          const view = async (f: string) =>
+            cmdInTmux(`nvim ${shellescape([f])}`, '/')
+          if (args.path === undefined) {
+            const tempDir = path.join(os.tmpdir(), uuid.v4());
+            await fs.promises.mkdir(tempDir);
+            const f = path.join(tempDir, "input.json")
+
+            const writeStream = fs.createWriteStream(f);
+
+            const finished = new Promise<void>(resolve => {
+              writeStream.on('finish', () => {
+                resolve()
+              });
+            })
+            writeStream.on('error', (err) => {
+              throw err
+            });
+            process.stdin.on('end', () => {
+              writeStream.end();
+            });
+
+            process.stdin.pipe(writeStream);
+            await finished
+            await view(f)
+          } else {
+            await view(args.path)
+          }
+        }
+      )
+    ]
+  }),
 ];

@@ -1,7 +1,7 @@
 import * as common from "tennyson/lib/core/common";
 import * as net_util from "tennyson/lib/core/net-util";
 import type { OpenAIConfig } from "./const"
-import { openAIConfig } from "./const";
+import { openAIConfig, openAIModels } from "./const";
 
 // openai-api.ts
 // https://kagi.com/assistant/f87f6e6e-167d-4a0a-a054-72fd4832f2e5
@@ -41,16 +41,29 @@ export interface OpenAIRequestOptions {
   instructions?: string;
 }
 
+export interface OpenAIUsage {
+  input_tokens: number,
+  input_tokens_details: {
+    cached_tokens: number,
+  },
+  output_tokens: number,
+  output_tokens_details: {
+    reasoning_tokens: number,
+  },
+  total_tokens: number,
+}
+
 export interface OpenAIResponse {
   output: Array<ReasoningMessage | ResponseMessage>;
+  usage: OpenAIUsage;
 }
 
 // Main API client class
 export class OpenAIClient {
-  private model: string;
+  private model: keyof typeof openAIModels;
   private config: OpenAIConfig;
 
-  constructor(model: string, config: OpenAIConfig) {
+  constructor(model: keyof typeof openAIModels, config: OpenAIConfig) {
     this.model = model;
     this.config = config;
   }
@@ -58,7 +71,7 @@ export class OpenAIClient {
   /**
    * Generate text from a simple prompt
    */
-  async generateText(prompt: string, instructions?: string): Promise<string> {
+  async generateText(prompt: string, instructions?: string) {
     const options: OpenAIRequestOptions = {
       model: this.model,
       input: prompt,
@@ -66,13 +79,23 @@ export class OpenAIClient {
     };
 
     const response = await this.makeRequest(options);
-    return this.extractText(response);
+    const pricing = openAIModels[this.model].price
+    const price = (
+      pricing.input * response.usage.input_tokens
+      + pricing.cached_input * response.usage.input_tokens_details.cached_tokens
+      + pricing.output * response.usage.output_tokens
+    ) / 1_000_000
+    return {
+      response: this.extractText(response),
+      usage: response.usage,
+      price,
+    };
   }
 
   /**
    * Generate text using message-based prompts with roles
    */
-  async generateWithMessages(messages: Message[], instructions?: string): Promise<string> {
+  async generateWithMessages(messages: Message[], instructions?: string) {
     const options: OpenAIRequestOptions = {
       model: this.model,
       input: messages,
@@ -80,7 +103,10 @@ export class OpenAIClient {
     };
 
     const response = await this.makeRequest(options);
-    return this.extractText(response);
+    return {
+      response: this.extractText(response),
+      usage: response.usage,
+    };
   }
 
   /**
@@ -89,7 +115,7 @@ export class OpenAIClient {
   async generateWithContext(
     developerInstructions: string,
     userPrompt: string
-  ): Promise<string> {
+  ) {
     const messages: Message[] = [
       { role: 'developer', content: developerInstructions },
       { role: 'user', content: userPrompt }
@@ -157,7 +183,7 @@ export const openai = {
   async generate(
     prompt: string,
     instructions?: string,
-  ): Promise<string> {
+  ) {
     const client = new OpenAIClient('gpt-4.1-mini', openAIConfig);
     return client.generateText(prompt, instructions);
   },
@@ -166,11 +192,11 @@ export const openai = {
    * Generate with specific model
    */
   async generateWithModel(
-    model: string,
+    model: keyof typeof openAIModels,
     config: OpenAIConfig,
     prompt: string,
     instructions?: string
-  ): Promise<string> {
+  ) {
     const client = new OpenAIClient(model, config);
     return client.generateText(prompt, instructions);
   },
@@ -179,7 +205,7 @@ export const openai = {
    * Create a configured client instance
    */
   createClient(
-    model: string = 'gpt-4.1-mini',
+    model: keyof typeof openAIModels = 'gpt-4.1-mini',
     config: OpenAIConfig = openAIConfig,
   ): OpenAIClient {
     return new OpenAIClient(model, config);

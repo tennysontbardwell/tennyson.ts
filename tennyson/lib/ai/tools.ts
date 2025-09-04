@@ -104,7 +104,7 @@ const urlFetchInput = Schema.Struct({
   processessing: Schema.Union(
     Schema.Literal('rawHTML').annotations({
       description:
-        "Performs no processessing on the content returned by the fetch"
+        "Performs no processessing on the content returned by the fetch. This should only be used if defaultCleanup fails, or if there is a reason to believe that style and/or script tags will be useful"
     }),
     Schema.Literal('defaultCleanup').annotations({
       description:

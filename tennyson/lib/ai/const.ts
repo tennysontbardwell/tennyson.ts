@@ -1,6 +1,9 @@
 import * as secrets from "tennyson/secrets/secrets";
 import * as common from "tennyson/lib/core/common";
 
+const c = common
+
+
 export interface OpenAIConfig {
   apiKey: string;
   baseUrl: string;
@@ -16,14 +19,21 @@ export const openAIConfig = {
 //   baseUrl: 'https://api.together.xyz/v1/chat/completions',
 // } as const;
 
-const openAIModels = [
-  "gpt-4.1",
-  "gpt-4.1-mini",
-  "gpt-4.1-nano",
-  "o3",
-  "o3-nano",
-  "o4-mini",
-] as const;
+const priceRatio =
+  (input: number, cached_input_ratio: number, output_ratio: number) => c.id({
+    input,
+    cached_input: input * cached_input_ratio,
+    output: input * output_ratio
+  })
+
+export const openAIModels = {
+  "gpt-4.1": { price: priceRatio(2.0, 0.25, 4) },
+  "gpt-4.1-mini": { price: priceRatio(0.4, 0.25, 4) },
+  "gpt-4.1-nano": { price: priceRatio(0.1, 0.25, 4) },
+  "o3": { price: priceRatio(2.0, 0.25, 4) },
+  "o3-mini": { price: priceRatio(1.1, 0.5, 4) },
+  "o4-mini": { price: priceRatio(1.1, 0.25, 4) },
+} as const;
 
 // const togetherAIModels = [
 //   "deepseek-ai/DeepSeek-V3",
@@ -41,7 +51,7 @@ export const models = (() => {
       model => model);
   }
   return {
-    ...mapToConfigs(openAIModels, openAIConfig),
+    ...mapToConfigs(Object.keys(openAIModels), openAIConfig),
     // ...mapToConfigs(togetherAIModels, togetherAIConfig),
   }
 })()
