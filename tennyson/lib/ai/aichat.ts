@@ -41,10 +41,9 @@ interface Query<R> {
   tools?: Array<Tool2<any, any, R>>,
   maxToolCalls?: number,
   attachments?: Attachment[],
-  outputSchema?: string,
   model?: keyof typeof openAIModels,
   previousCallCount?: number,
-  responseSchema: Schema.Schema<R>,
+  responseSchema: Schema.Schema<R, any>,
 }
 
 const ToolCall = Schema.Struct({
@@ -351,7 +350,7 @@ export const query = <R>(q_: Query<R>): Effect.Effect<R, UnknownException> =>
     let q: Query<R> = yield* augmentWithPlan(q_)
     q = augmentWithControlFlow(q)
 
-    const maxCalls = 3
+    const maxCalls = q_.maxToolCalls ?? 5
     for (const i of c.range(maxCalls)) {
       const res = yield* executeToolAndAugment(q, i, maxCalls - i - 1)
       if (Either.isRight(res)) {
