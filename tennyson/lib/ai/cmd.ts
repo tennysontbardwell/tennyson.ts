@@ -3,6 +3,7 @@ import * as common from "tennyson/lib/core/common";
 
 import type { Attachment, Tool2 } from './aichat'
 import { models, openAIModels } from './const';
+import { Schema } from "effect";
 
 
 export const cmd = cli.flagsCommand(
@@ -119,6 +120,7 @@ export const cmd = cli.flagsCommand(
         model: args.model as keyof typeof openAIModels,
         tools: tools_,
         maxToolCalls: args.maxToolIteration,
+        responseSchema: Schema.String,
       }).pipe(
         effect.Logger.withMinimumLogLevel(
           args.verbose

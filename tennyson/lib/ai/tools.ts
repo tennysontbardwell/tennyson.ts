@@ -1,7 +1,7 @@
 import { Type } from '@sinclair/typebox'
 import type { Attachment, Tool, Tool2 } from './aichat';
 import { query } from './aichat';
-import { JSONSchema, Schema, Effect } from 'effect'
+import { Schema, Effect, Either } from 'effect'
 import * as c from "tennyson/lib/core/common";
 
 
@@ -132,7 +132,7 @@ const urlFetchOutput = Schema.Struct({
   contents: Schema.String,
 })
 
-export const urlFetchTool2: Tool2<typeof urlFetchInput, any> = {
+export const urlFetchTool2: Tool2<Schema.Schema.Type<typeof urlFetchInput>, any> = {
   name: "tool/network/fetch-webpage",
   tag: "type2",
   inputSchema: urlFetchInput,
@@ -158,6 +158,7 @@ export const urlFetchTool2: Tool2<typeof urlFetchInput, any> = {
             model: 'gpt-4.1-nano',
             tools: [],
             maxToolCalls: 0,
+            responseSchema: Schema.String,
           }))
           const contents = [
             '## Query',
@@ -167,7 +168,7 @@ export const urlFetchTool2: Tool2<typeof urlFetchInput, any> = {
           ].join('\n\n')
           return { ...attachment, contents }
         }
-    );
+    ).then(Either.right);
   }
 };
 

@@ -1,0 +1,25 @@
+import * as c from "tennyson/lib/core/common";
+
+import { FileSystem } from "@effect/platform"
+import { NodeContext, NodeRuntime } from "@effect/platform-node"
+
+import { Stream, Effect, Schedule, Schema, Sink } from "effect";
+import { homedir } from "os";
+import path from "path";
+import { runTxLog } from "tennyson/lib/core/txlog";
+
+export function quickdev() {
+  const p = path.join(homedir(), 'Desktop/txlogtest')
+  const txRequests$ =
+    Schedule.spaced("1 second").pipe(
+      Schedule.compose(Schedule.recurs(10)),
+      Stream.fromSchedule,
+    )
+  const committed$ = Sink.forEach(Effect.log)
+  const f = (state: number) => (tx: number) => tx + state
+  const program =
+    // Stream.run(txRequests$, committed$)
+    runTxLog(p, 0, txRequests$, committed$, f, Schema.Number, Schema.Number)
+    // Stream.runCollect(txRequests$).pipe(Effect.map(console.log))
+  NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
+}

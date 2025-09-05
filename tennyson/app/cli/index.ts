@@ -20,91 +20,9 @@ async function electron() {
   })
 }
 
-// import { FileSystem } from "@effect/platform"
-// import { Stream, Effect, Option, Schema, Queue, Sink } from "effect"
-// import { NodeContext, NodeRuntime } from "@effect/platform-node"
-
 async function quickdev() {
-  // const effect = await import("effect")
-  // const Schema = effect.Schema
-
-  // const schema2 = effect.Schema.Struct({
-  //   url: Schema.URL,
-  //   enum: Schema.optional(Schema.Enums({ a: 1, b: 2 })),
-  //   union:
-  //     Schema.Union(
-  //       Schema.Literal("processA"),
-  //       Schema.Literal("processB"),
-  //     ),
-  //   processessingB: Schema.optionalWith(Schema.Union(
-  //     Schema.Literal('processA').annotations({
-  //       description: "a description"
-  //     }),
-  //     Schema.Literal('processB'),
-  //   ), { default: () => 'processB' }).annotations({
-  //     description: "description",
-  //   }),
-  //   processessing: Schema.optional(Schema.Union(
-  //     Schema.Literal('processA').annotations({
-  //       description: "a description"
-  //     }),
-  //     Schema.Literal('processB'),
-  //   )).annotations({
-  //     description: "description",
-  //     default: 'processB',
-  //   }),
-  // })
-  // const res = JSON.stringify({
-  //   name: "name",
-  //   inputSchema: effect.JSONSchema.make(schema2),
-  // })
-  // const x = Schema.encodeSync(schema2)
-  // console.info(res)
-  // const program = Effect.gen(function* () {
-
-  // const fs = yield* FileSystem.FileSystem
-  // const path = "/Users/tennyson/Desktop/test.txt"
-  // yield* fs.access(path, { writable: true })
-
-  // const encoder = new TextEncoder();
-  // const stream = Stream.make("1", "2").pipe(
-  //   Stream.map(s => encoder.encode(s))
-  // )
-
-  // const sink = fs.sink(path)
-
-  // yield* Stream.run(stream, sink)
-
-  // const committed$ = Sink.zipLeft
-  //   return {
-  //   }
-  // })
-
-  // NodeRuntime.runMain(program.pipe(Effect.provide(NodeContext.layer)))
-
-  // common.log.info('test14')
-  // const readline = await import('readline');
-  // const rl = readline.createInterface({
-  //   input: process.stdin,
-  //   output: process.stdout,
-  //   terminal: false
-  // });
-
-  // let urlTemplate: string;
-
-  // rl.on('line', (line: string) => {
-  //   if (urlTemplate === undefined) {
-  //     urlTemplate = line;
-  //     return
-  //   }
-  //   const encodedQuery = encodeURIComponent(line);
-  //   const resultUrl = urlTemplate.replace('{query}', encodedQuery);
-  //   console.log(resultUrl);
-  // });
-
-  // rl.on('close', () => {
-  //   process.exit(0);
-  // });
+  const m = await import('./quickdev')
+  m.quickdev()
 }
 
 export const cmds: cli.Command[] = [
