@@ -109,7 +109,7 @@ export const cmd = cli.flagsCommand(
     ])
 
     if (args.webpageTool) {
-      tools_.push(tools.urlFetchTool2)
+      tools_.push(tools.urlFetchTool2())
     }
     // await writeBigJson("/tmp/aiattach.json", attachments)
 

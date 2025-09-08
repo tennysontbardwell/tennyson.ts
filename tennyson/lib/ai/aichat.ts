@@ -41,6 +41,7 @@ interface Query<R> {
   tools?: Array<Tool2<any, any, R>>,
   maxToolCalls?: number,
   attachments?: Attachment[],
+  planModel?: keyof typeof openAIModels,
   model?: keyof typeof openAIModels,
   previousCallCount?: number,
   responseSchema: Schema.Schema<R, any>,
@@ -259,7 +260,7 @@ let spentMills = 0
 
 const augmentWithPlan = <R>(q: Query<R>) =>
   Effect.gen(function* () {
-    const plan = yield* generatePrompt(planOfQuery(q), q.model)
+    const plan = yield* generatePrompt(planOfQuery(q), q.planModel ?? q.model)
     yield* Effect.logDebug({ type: 'plan', plan });
 
     const planAttachment = { title: "Plan", contents: plan }
@@ -331,7 +332,7 @@ const executeToolAndAugment =
         })))
     })
 
-function generatePrompt(
+export function generatePrompt(
   prompt: string,
   model?: keyof typeof openAIModels,
 ) {
@@ -366,7 +367,37 @@ export const query = <R>(q_: Query<R>): Effect.Effect<R, UnknownException> =>
     const finalPrompt = finalizePromptOfPlanAndCallResults(q)
     const res = yield* generatePrompt(finalPrompt, q.model)
     yield* Effect.logDebug({ priceUSDSoFar: spentMills / 1000 })
-    const data = Schema.decodeSync(Schema.parseJson(ToolCall))(res).data
-    return Schema.decodeSync(Schema.parseJson(q.responseSchema))(data)
+    const parse = yield* Schema.decode(Schema.parseJson(ToolCall))(res)
+      .pipe(Effect.mapError((e) => new UnknownException(e)))
+    const data = parse.data
+    return yield* Schema.decodeOption(Schema.parseJson(q.responseSchema))(data)
+      .pipe(Effect.mapError((e) => new UnknownException(e)))
   })
 
+
+// export const query2 = <R>(q_: Query<R>): Effect.Effect<
+//   { results: R, priorHistory: string, newHistory: string }
+// , UnknownException> =>
+//   Effect.gen(function* () {
+//     let q: Query<R> = yield* augmentWithPlan(q_)
+//     q = augmentWithControlFlow(q)
+
+//     const maxCalls = q_.maxToolCalls ?? 5
+//     for (const i of c.range(maxCalls)) {
+//       const res = yield* executeToolAndAugment(q, i, maxCalls - i - 1)
+//       if (Either.isRight(res)) {
+//         q = res.right
+//       } else {
+//         if (res.left._tag === "return") {
+//           return res.left.results
+//         }
+//       }
+//     }
+
+//     q = augmentToDemandReturn(q)
+//     const finalPrompt = finalizePromptOfPlanAndCallResults(q)
+//     const res = yield* generatePrompt(finalPrompt, q.model)
+//     yield* Effect.logDebug({ priceUSDSoFar: spentMills / 1000 })
+//     const data = Schema.decodeSync(Schema.parseJson(ToolCall))(res).data
+//     return Schema.decodeSync(Schema.parseJson(q.responseSchema))(data)
+//   })

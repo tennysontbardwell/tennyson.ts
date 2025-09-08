@@ -15,7 +15,7 @@ const regex = {
 }
 
 async function makeWebpageAttachment(
-  url: string,
+  url: string | URL,
   process: (text: string) => string,
 ) {
   const response = await fetch(url);
@@ -26,7 +26,7 @@ async function makeWebpageAttachment(
   const html = await response.text();
 
   const titleMatch = html.match(regex.title);
-  const title = titleMatch ? titleMatch[1].trim() : url;
+  const title = titleMatch ? titleMatch[1].trim() : url.toString();
 
   const text = process(html);
 
@@ -39,10 +39,13 @@ async function makeWebpageAttachment(
 }
 
 export async function fetchWebpage(
-  url: string,
+  url: string | URL,
   cleanup: 'raw' | 'contentTags' | 'text',
-  cssSelector?: string,
-  llmProcess?: (arg: Attachment) => Promise<Attachment>,
+  options?: {
+    cssSelector?: string | undefined,
+    llmProcessing?: undefined | ((arg: Attachment) => Promise<Attachment>),
+    maxChar?: number | undefined,
+  }
 ) {
   const cheerio = await import('cheerio')
   const process = (() => {
@@ -53,14 +56,15 @@ export async function fetchWebpage(
 
     const toRm = { raw, contentTags, text }[cleanup]
 
+    const selector = options?.cssSelector
     const cssSelect =
-      (cssSelector === undefined)
+      (selector === undefined)
         ? c.id
         : (text: string) => {
           const doc = cheerio.load(text)
           const res = doc.extract({
             results: [{
-              selector: cssSelector,
+              selector,
               value: "outerHTML"
             }]
           })
@@ -73,14 +77,21 @@ export async function fetchWebpage(
       const cleaned = toRm.reduce((accum, regex) =>
         accum.replace(regex, ''), html)
 
-      return cssSelect(cleaned)
+      const results = cssSelect(cleaned)
+
+      if (options?.maxChar === undefined || results.length <= options.maxChar)
+        return results
+      else
+        return JSON.stringify({ error: "exceeded max char" })
     }
+
   })();
 
   const attachment = await makeWebpageAttachment(url, process);
 
-  if (llmProcess)
-    return await llmProcess(attachment)
+  const llmProcessing = options?.llmProcessing
+  if (llmProcessing)
+    return await llmProcessing(attachment)
   else
     return attachment
 }
@@ -127,50 +138,61 @@ const urlFetchInput = Schema.Struct({
   )),
 })
 
-const urlFetchOutput = Schema.Struct({
-  title: Schema.String,
-  contents: Schema.String,
-})
+const urlFetchOutput = Schema.Union(
+  Schema.Struct({
+    title: Schema.String,
+    contents: Schema.String,
+  }),
+  Schema.Struct({
+    error: Schema.String,
+    message: Schema.optional(Schema.String),
+  }),
+)
 
-export const urlFetchTool2: Tool2<Schema.Schema.Type<typeof urlFetchInput>, any> = {
-  name: "tool/network/fetch-webpage",
-  tag: "type2",
-  inputSchema: urlFetchInput,
-  outSchema: urlFetchOutput,
-  description: "Fetches a webpage and returns its title and text content",
-  callback: async (input: Schema.Schema.Type<typeof urlFetchInput>) => {
-    return await fetchWebpage(
-      input.url.toString(),
-      input.processessing === 'rawHTML'
-        ? 'raw'
-        : input.processessing === 'defaultCleanup'
-          ? 'contentTags'
-          : input.processessing === 'onlyTextContent'
-            ? 'text'
-            : c.unreachable(input.processessing),
-      input.cssSelector,
-      input.llmProcessing === undefined
-        ? async (attachment: Attachment) => attachment
-        : async (attachment: Attachment) => {
-          const response = await Effect.runPromise(query({
-            userText: input.llmProcessing!.prompt,
-            attachments: [attachment],
-            model: 'gpt-4.1-nano',
-            tools: [],
-            maxToolCalls: 0,
-            responseSchema: Schema.String,
-          }))
-          const contents = [
-            '## Query',
-            input.llmProcessing!.prompt,
-            '## Response',
-            response
-          ].join('\n\n')
-          return { ...attachment, contents }
-        }
-    ).then(Either.right);
-  }
-};
+export const urlFetchTool2 =
+  (options?: { maxChar?: number }) =>
+    c.id<Tool2<Schema.Schema.Type<typeof urlFetchInput>, any>>({
+      name: "tool/network/fetch-webpage",
+      tag: "type2",
+      inputSchema: urlFetchInput,
+      outSchema: urlFetchOutput,
+      description: "Fetches a webpage and returns its title and text content",
+      callback: async (input: Schema.Schema.Type<typeof urlFetchInput>) => {
+        return await fetchWebpage(
+          input.url.toString(),
+          input.processessing === 'rawHTML'
+            ? 'raw'
+            : input.processessing === 'defaultCleanup'
+              ? 'contentTags'
+              : input.processessing === 'onlyTextContent'
+                ? 'text'
+                : c.unreachable(input.processessing),
+          {
+            cssSelector: input.cssSelector,
+            maxChar: options?.maxChar,
+            llmProcessing: input.llmProcessing === undefined
+              ? async (attachment: Attachment) => attachment
+              : async (attachment: Attachment) => {
+                const response = await Effect.runPromise(query({
+                  userText: input.llmProcessing!.prompt,
+                  attachments: [attachment],
+                  model: 'gpt-4.1-nano',
+                  tools: [],
+                  maxToolCalls: 0,
+                  responseSchema: Schema.String,
+                }))
+                const contents = [
+                  '## Query',
+                  input.llmProcessing!.prompt,
+                  '## Response',
+                  response
+                ].join('\n\n')
+                return { ...attachment, contents }
+              }
+          }
+        ).then(Either.right);
+      }
+    });
 
 export const urlFetchTool: Tool = {
   name: "tool/network/fetch-webpage",

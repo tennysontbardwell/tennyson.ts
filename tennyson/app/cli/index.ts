@@ -66,7 +66,10 @@ export const cmds: cli.Command[] = [
         },
         async (args) => {
           const cheerio = await import('cheerio')
-          const doc = await cheerio.fromURL(args.url)
+          const net_util = await import('tennyson/lib/core/net-util')
+          const res = await fetch(args.url)
+          await net_util.checkResponseExn(res)
+          const doc = cheerio.load(await res.text())
           c.info(doc.extract({
             results: [{
               selector: args.cssSelector,
