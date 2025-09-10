@@ -148,4 +148,54 @@ export const cmds: cli.Command[] = [
       )
     ]
   }),
+  cli.group("meta", [
+    cli.group("test", [
+      cli.flagsCommand("perf-effect-quit", {
+        platform: {
+          alias: 'p',
+          describe: "Imports Node Platform",
+          type: 'string',
+          // choices: ['bun', 'node'],
+          choices: ['node'],
+          required: false,
+        }
+      },
+        async (args) => {
+          // const platformBun_ = () => import("@effect/platform-bun")
+          const platformNode_ = () => import("@effect/platform-node")
+          const effect_ = () => import("effect")
+
+          // const target = args.platform as 'bun' | 'node' | undefined
+          const target = args.platform as 'node' | undefined
+
+          if (target === undefined) {
+            const effect = await effect_()
+
+            effect.Effect.log("Hello World")
+              .pipe(effect.Effect.runSync)
+
+          } else if (target === 'node') {
+            const [effect, platformNode] =
+              await Promise.all([effect_(), platformNode_()])
+
+            effect.Effect.log("Hello World").pipe(
+              effect.Effect.provide(platformNode.NodeContext.layer),
+              platformNode.NodeRuntime.runMain()
+            )
+
+            // } else if (target === 'bun') {
+            //   const [effect, platformBun] =
+            //     await Promise.all([effect_(), platformBun_()])
+
+            //   effect.Effect.log("Hello World").pipe(
+            //     effect.Effect.provide(platformBun.BunContext.layer),
+            //     platformBun.BunRuntime.runMain()
+            //   )
+
+          } else {
+            c.unreachable(target)
+          }
+        }),
+    ])
+  ])
 ];

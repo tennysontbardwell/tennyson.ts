@@ -6,7 +6,6 @@ import * as common from "tennyson/lib/core/common";
 import { tqdm } from "../core/tqdm";
 import * as pipe from "tennyson/lib/core/pipe";
 import * as cheerio from 'cheerio';
-import * as playwrite from 'playwright'
 
 export interface Cache {
   get(version: number, params: string, name: string): Promise<string | undefined>;
@@ -285,42 +284,14 @@ export class Get extends Node<
   }
 }
 
-export async function fetchHeadless(url: string) {
-  const f = await playwrite.firefox.launch({})
-  const page = await f.newPage()
-  await page.goto(url)
-  const html = await page.content()
-  await f.close()
-  return html
-}
+// DISABLED because playwright is an annoying dependency. fine to enable
 
-// export async function domFragmentOfUrl(url: string) {
-//   const res = await net_util.checkResponseExn(await fetch(url))
-//   cheerio.
-//   return JSDOM.fragment(await res.text())
-// }
-
-// export async function queryAllUrl(url: string, selectors: string) {
-//   const frag = await domFragmentOfUrl(url)
-//   return frag.querySelectorAll(selectors)
-// }
-
-// export async function xpathOfHTML(html: string, xpath: string) {
-//   const dom = new JSDOM(html)
-//   return dom.window.document.evaluate(xpath, dom.window.document, null, 2)
-// }
-
-// export async function fetchXpath(url: string, xpath: string) {
-//   const res = await net_util.checkResponseExn(await fetch(url))
-//   return xpathOfHTML(await res.text(), xpath)
-// }
-
-
-// class GetJson extends Node<{ url: string }, any> {
-//   name = "get-json";
-
-//   async getUncached(params: { url: string; }) {
-//     const response = await fetch(params.url);
-//     return responseJsonExn(response);
-//   }
+// import * as playwrite from 'playwright'
+// export async function fetchHeadless(url: string) {
+//   const f = await playwrite.firefox.launch({})
+//   const page = await f.newPage()
+//   await page.goto(url)
+//   const html = await page.content()
+//   await f.close()
+//   return html
 // }

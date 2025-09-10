@@ -56,9 +56,10 @@ export function group(
     getName(a).localeCompare(getName(b)));
   return <yargs.CommandModule>{
     command: name,
-    describe: "",
+    describe: describe ?? "",
     builder: function (yargs) {
-      return sorted.reduce((accum, curr) => accum.command(curr), yargs);
+      return sorted.reduce((accum, curr) => accum.command(curr), yargs)
+        .demandCommand(1);
     },
     handler: (args: any) => {
       configuredYargs().showHelp();
@@ -94,7 +95,9 @@ function configuredYargs() {
     .wrap(null);
 }
 
-export async function execute(commands: Array<Command>) {
+export async function execute(commands: Array<Command>, options?: {
+  scriptName?: string
+}) {
   const yargs =
     commands
       .sort((a, b) => getName(a).localeCompare(getName(b)))
@@ -102,8 +105,10 @@ export async function execute(commands: Array<Command>) {
         (acc, curr) => acc.command(curr),
         configuredYargs())
       .completion();
+  const yargs_ = options?.scriptName
+    ? yargs.scriptName(options.scriptName) : yargs
   try {
-    await yargs.parse();
+    await yargs_.parse();
   } catch (error) {
     common.log.error("Error in command parsing/execution", error);
     process.exit(1);

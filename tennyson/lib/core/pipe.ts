@@ -204,77 +204,9 @@ export namespace PingPongConfig {
       });
     })
 
-    // if (w.readyState === w.CONNECTING) {
-    //   w.on('open', () => setupPingPong(t, w));
-    //   return
-    // }
-    // if (w.readyState !== w.OPEN)
-    //   return
-    // common.log.info("We are in the ready state");
-    // var state: 'init' | 'pingOutstanding' | 'sleeping' | 'closed' = 'init';
-    // function handle(event: 'timeout' | 'pong') {
-    //   const startState = state;
-    //   let interval = null as NodeJS.Timeout | null;
-    //   function alarm(ms: number) {
-    //     interval?.close();
-    //     interval = setInterval(() => { handle('timeout') }, ms);
-    //   }
-    //   switch (state) {
-    //     case 'init':
-    //       w.ping();
-    //       state = 'pingOutstanding';
-    //       alarm(t.pongToleranceMs);
-    //       break;
-    //     case 'pingOutstanding':
-    //       if (event === 'timeout') {
-    //         common.log.warn('ws closed after failing to respond to ping');
-    //         w.close();
-    //         state = 'closed';
-    //       } else {
-    //         state = 'sleeping';
-    //         alarm(t.pingFreqMs);
-    //       }
-    //       break;
-    //     case 'sleeping':
-    //       if (event === 'timeout') {
-    //         state = 'pingOutstanding';
-    //         w.ping();
-    //         alarm(t.pongToleranceMs)
-    //       } else {}
-    //       break;
-    //   }
-    //   common.log.info(`${startState} === ${event} ===> ${state}`);
-    // }
-    // handle('timeout');
-    // w.on("pong", () => handle("pong"));
   }
 }
 
-
-// export async function run() {
-//   const server = createHTTPServer({
-//     router: appRouter,
-//   });
-
-//   const wss = new ws.WebSocketServer({
-//     server
-//   });
-//   wss.on('connection', (clientws, request) => {
-//     const kws = kalshiWS.getKalshiWS();
-//     kws.messages$.forEach(msg => {
-//       common.log.info(msg);
-//       return clientws.send(JSON.stringify(msg))
-//     });
-//     clientws.on('message', data =>
-//       kws.commander.next(<kalshiWS.Command>JSON.parse(data.toString())));
-//   })
-//   applyWSSHandler({
-//     wss,
-//     router: appRouter,
-//   });
-
-//   server.listen(3000);
-// }
 
 export namespace WebSocket {
   // TODO ping and pong functions
@@ -294,36 +226,6 @@ export async function gather<T>(source: AsyncGenerator<T>) {
   }
   return accum;
 }
-// static eventToAsyncGenerator<T>(emitter: any, eventName: string)
-//   : AsyncGenerator<T>
-// {
-//   const queue: T[] = [];
-//   const resolvers: Array<(value: T | IteratorResult<T>) => void> = [];
-
-//   const handleEvent = (data: T) => {
-//     if (resolvers.length > 0) {
-//       resolvers.shift()!({ value: data, done: false });
-//     } else {
-//       queue.push(data);
-//     }
-//   };
-
-//   emitter.on(eventName, handleEvent);
-
-//   return {
-//     async next(): Promise<IteratorResult<T>> {
-//       if (queue.length > 0) {
-//         return { value: queue.shift()!, done: false };
-//       }
-
-//       return new Promise(resolve => {
-//         resolvers.push(resolve);
-//       });
-//     },
-
-//     [Symbol.asyncIterator]() { return this; }
-//   };
-// }
 
 export class Pipe<T> {
   source: AsyncGenerator<T>
