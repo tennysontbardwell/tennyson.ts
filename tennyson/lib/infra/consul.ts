@@ -9,7 +9,7 @@ import axios from "axios";
 
 export async function addConsulService(
   exec: execlib.ExecLike,
-  serviceName: string
+  serviceName: string,
 ) {
   await execlib.ExecHelpers.putJson(exec, "/etc/consul.d/service.json", {
     service: { name: serviceName, port: 443 },
@@ -22,7 +22,7 @@ export async function listMembers() {
     //headers: { "X-Consul-Token": secrets.consulBootstrap },
   });
   const members: host.Host[] = res.data.map((x: any) =>
-    host.Host.ofLocalName(x.Node, x.Meta?.ssh_user)
+    host.Host.ofLocalName(x.Node, x.Meta?.ssh_user),
   );
   return members;
 }
@@ -66,11 +66,11 @@ export async function installConsul(exec: execlib.ExecLike) {
   ]);
   await execlib.ExecHelpers.sh(
     exec,
-    "curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -"
+    "curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -",
   );
   await execlib.ExecHelpers.sh(
     exec,
-    'apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"'
+    'apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"',
   );
   await new host.Apt(exec).upgrade();
   await new host.Apt(exec).install(["consul"]);
@@ -90,7 +90,7 @@ export async function setupClient(exec: execlib.ExecLike) {
   await execlib.ExecHelpers.sh(exec, "mkdir -p /var/local/consul/logs");
   await execlib.ExecHelpers.sh(
     exec,
-    "chown consul:consul -R /etc/consul.d /var/local/consul"
+    "chown consul:consul -R /etc/consul.d /var/local/consul",
   );
   await execlib.ExecHelpers.putJson(
     exec,
@@ -108,7 +108,7 @@ export async function setupClient(exec: execlib.ExecLike) {
       ],
       encrypt: secrets.consul_encrypt_key,
       datacenter: "nyc1",
-    }
+    },
   );
   await enableConsul(exec);
 }
@@ -134,17 +134,20 @@ export async function setupAgent(exec: execlib.ExecLike) {
       domain: "consul.tennysontbardwell.com",
       log_file: "/var/local/consul/logs/consul.log",
       recursors: ["1.1.1.1"],
-    }
+    },
   );
   await execlib.ExecHelpers.putJson(exec, "/etc/consul.d/service.json", {
     service: { name: "consul", port: 443 },
   });
-  await execlib.ExecHelpers.sh(exec, "systemctl disable --now systemd-resolved");
+  await execlib.ExecHelpers.sh(
+    exec,
+    "systemctl disable --now systemd-resolved",
+  );
   await nginx.setupProxy(exec, [{ listen: 53, deliver: 8600 }], true);
   await execlib.ExecHelpers.sh(exec, "mkdir -p /var/local/consul/logs");
   await execlib.ExecHelpers.sh(
     exec,
-    "chown consul:consul -R /etc/consul.d /var/local/consul"
+    "chown consul:consul -R /etc/consul.d /var/local/consul",
   );
 
   await enableConsul(exec);

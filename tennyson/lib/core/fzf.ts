@@ -10,14 +10,14 @@ import shellescape from "shell-escape";
 export async function fzf(
   choices: Array<string>,
   preview: ((choice: string) => string) | ((choice: string) => Promise<string>),
-  action: (choice: string) => Promise<any> = async (_) => null
+  action: (choice: string) => Promise<any> = async (_) => null,
 ) {
   const location = "fzf";
   // const location_ = await execlib.exec("/bin/zsh", ["-ic", "which fzf"]);
   // const location = location_.stdout.replace(/\n$/, '');
   const requestListener = async function (
     req: http.IncomingMessage,
-    res: http.ServerResponse
+    res: http.ServerResponse,
   ) {
     res.writeHead(200);
     const input = await execlib.readableToString(req);
@@ -43,7 +43,7 @@ export async function fzf(
       const out = path + "/out";
 
       const choicesStr = choices.map((x) => x.replace("\n", "\\n")).join("\n");
-      await fs.writeFile(in_, choicesStr)
+      await fs.writeFile(in_, choicesStr);
       const preview = `--preview 'curl --silent ${host}:${port} --data-raw {}'`;
       await common_node.passthru("/usr/bin/env", [
         "-S",
@@ -113,7 +113,7 @@ export function website(url: string, name?: string) {
 export function lazySubtree(
   name: string,
   items: () => Promise<Array<FzfItem>>,
-  preview?: LazyString
+  preview?: LazyString,
 ) {
   // const items_ = common.cache(items);
   const items_ = items;
@@ -135,7 +135,7 @@ export function lazySubtree(
 export function subtree(
   name: string,
   items: Array<FzfItem>,
-  preview?: LazyString
+  preview?: LazyString,
 ) {
   if (preview === undefined) {
     preview = items.map((x) => x.choice).join("\n") || "";
@@ -154,14 +154,14 @@ export async function evalAfterExit(cmd: string) {
   }
 }
 
-export async function displayPath(path_: string) : Promise<string> {
+export async function displayPath(path_: string): Promise<string> {
   const stats = await fs.stat(path_);
   if (stats.isFile()) {
     return fs.readFile(path_, { encoding: "utf8" });
   } else if (stats.isDirectory()) {
     return (await fs.readdir(path_)).join("\n");
   } else {
-    return 'not dir or file'
+    return "not dir or file";
   }
 }
 
@@ -193,7 +193,7 @@ export function static_snippet(val: string, key?: string, preview?: string) {
 export function sh_snippet(
   template: string,
   key?: string,
-  preview?: LazyString
+  preview?: LazyString,
 ): FzfItem {
   const choice = typeof key === "string" ? `${key} | ${template}` : template;
   const runSnip = async () => execlib.sh(template).then((x) => x.stdout);

@@ -31,7 +31,7 @@ export async function makeSamba(exec: execlib.ExecLike) {
         path = /srv/samba
         valid users = samba
         writable = yes
-`
+`,
   );
   await exec("mkdir", ["/srv/samba"]);
   await exec("chown", ["samba:samba", "/srv/samba"]);
@@ -42,12 +42,12 @@ export async function tankClient(exec: execlib.ExecLike) {
   await execlib.ExecHelpers.putFile(
     exec,
     "/etc/samba/tank-credential",
-    "username=samba\npassword=" + sambaPassword
+    "username=samba\npassword=" + sambaPassword,
   );
   await execlib.ExecHelpers.appendFile(
     exec,
     "/etc/fstab",
-    "\n//nyc1-samba-a01.node.nyc1.consul.tennysontbardwell.com/files /t/tank  cifs credentials=/etc/samba/tank-credential,uid=1000,gid=1000 0 2\n"
+    "\n//nyc1-samba-a01.node.nyc1.consul.tennysontbardwell.com/files /t/tank  cifs credentials=/etc/samba/tank-credential,uid=1000,gid=1000 0 2\n",
   );
   await exec("mkdir", ["-p", "/t/tank/"]);
   await exec("mount", ["-av"]);

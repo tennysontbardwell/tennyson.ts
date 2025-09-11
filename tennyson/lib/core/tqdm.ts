@@ -152,9 +152,11 @@ type StripUndefined<T> = {
   [K in keyof T as undefined extends T[K] ? never : K]: T[K];
 };
 
-function stripUndefined<T extends Record<string, any>>(obj: T): NonUndefined<StripUndefined<T>> {
+function stripUndefined<T extends Record<string, any>>(
+  obj: T,
+): NonUndefined<StripUndefined<T>> {
   return Object.fromEntries(
-    Object.entries(obj).filter(([_, value]) => value !== undefined)
+    Object.entries(obj).filter(([_, value]) => value !== undefined),
   ) as NonUndefined<StripUndefined<T>>;
 }
 

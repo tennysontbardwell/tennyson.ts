@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom/client';
-import { fetchFileSystem } from './ItemDisplay';
-import type { RangerItem } from './Ranger';
-import { Ranger, RangerOfItems } from './Ranger';
+import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom/client";
+import { fetchFileSystem } from "./ItemDisplay";
+import type { RangerItem } from "./Ranger";
+import { Ranger, RangerOfItems } from "./Ranger";
 
 export function ViewerApp() {
   const [items, setItems] = useState<Array<RangerItem>>([]);

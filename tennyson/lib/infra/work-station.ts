@@ -31,7 +31,7 @@ export async function build(host_: host.Host, privileged: Boolean) {
     await execlib.ExecHelpers.su(rootExec, "admin", true)(
       "vault",
       ["login", "-address=" + addr, "-"],
-      { stdin: token.stdout.trim() }
+      { stdin: token.stdout.trim() },
     );
   }
   if (privileged) {
@@ -41,10 +41,10 @@ export async function build(host_: host.Host, privileged: Boolean) {
   async function docker() {
     await apt.install(["ca-certificates", "curl", "gnupg", "lsb-release"]);
     await sh(
-      "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg"
+      "curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
     );
     await sh(
-      'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null'
+      'echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null',
     );
     await apt.upgrade();
     await apt.install([
@@ -136,12 +136,12 @@ export async function build(host_: host.Host, privileged: Boolean) {
     await execlib.ExecHelpers.putFile(
       exec,
       "/home/admin/.git-credentials",
-      secrets.gitlabGitCredentials + "\n"
+      secrets.gitlabGitCredentials + "\n",
     );
     await execlib.ExecHelpers.putFile(
       exec,
       "/home/admin/.gitconfig",
-      "[credential]\n    helper = store\n"
+      "[credential]\n    helper = store\n",
     );
     await sh("mkdir .git-credentals");
     await sh("mkdir projects");
@@ -149,7 +149,7 @@ export async function build(host_: host.Host, privileged: Boolean) {
       await sh(
         "cd projects; git clone https://gitlab.service.consul.tennysontbardwell.com/root/" +
           repo +
-          ".git"
+          ".git",
       );
     }
     await sh("rm /home/admin/.gitconfig");
@@ -175,7 +175,7 @@ export async function build(host_: host.Host, privileged: Boolean) {
 
   async function vim() {
     await sh(
-      "curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"
+      "curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim",
     );
     await sh("nvim +PlugInstall +qall");
   }
@@ -201,10 +201,12 @@ export async function build(host_: host.Host, privileged: Boolean) {
     await execlib.ExecHelpers.su(
       rootExec,
       "admin",
-      true
+      true,
     )("bash", [
       "-c",
-      "vault kv get -field=tar-data -address=" + addr + " kv/hosts-keys/nyc1-arch-misc1 | tar -C $HOME -x",
+      "vault kv get -field=tar-data -address=" +
+        addr +
+        " kv/hosts-keys/nyc1-arch-misc1 | tar -C $HOME -x",
     ]);
   }
   if (privileged) {
@@ -217,7 +219,7 @@ export async function build(host_: host.Host, privileged: Boolean) {
 export async function buildNext(privileged: Boolean = true) {
   const hosts = await prox.All.listHostnames();
   const hostnames = hosts.map((host_) =>
-    host.Host.ofLocalName(host_).hostname()
+    host.Host.ofLocalName(host_).hostname(),
   );
   for (var i = 1; i < 1000; i++) {
     if (hostnames.find((host_) => host_ === nameOfNum(i)) === undefined) {

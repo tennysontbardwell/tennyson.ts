@@ -1,5 +1,5 @@
-import { Stream, Effect, Schema, Sink, Chunk } from "effect"
-import { FileSystem } from "@effect/platform"
+import { Stream, Effect, Schema, Sink, Chunk } from "effect";
+import { FileSystem } from "@effect/platform";
 
 export function runTxLog<S, T>(
   path: string,
@@ -17,48 +17,45 @@ export function runTxLog<S, T>(
   // )
 
   return Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem
+    const fs = yield* FileSystem.FileSystem;
 
-    const decodeTx = Schema.decodeSync(Schema.parseJson(Tx))
-    const encodeTx = Schema.encodeSync(Schema.parseJson(Tx))
+    const decodeTx = Schema.decodeSync(Schema.parseJson(Tx));
+    const encodeTx = Schema.encodeSync(Schema.parseJson(Tx));
 
     const seed_ = yield* Effect.gen(function* () {
       if (yield* fs.exists(path)) {
-        const prevTxs = yield* fs.readFileString(path)
+        const prevTxs = yield* fs.readFileString(path);
         // TODO fix large streams
-        return prevTxs.split('\n')
-          .filter(x => x.trim().length > 0)
-          .map(x => decodeTx(x))
-          .reduce((state, tx) => f(state)(tx), seed)
+        return prevTxs
+          .split("\n")
+          .filter((x) => x.trim().length > 0)
+          .map((x) => decodeTx(x))
+          .reduce((state, tx) => f(state)(tx), seed);
       } else {
-        yield* fs.writeFileString(path, "")
-        return seed
+        yield* fs.writeFileString(path, "");
+        return seed;
       }
-    })
+    });
 
     const stream$ = txRequests$.pipe(
       Stream.mapAccum(seed_, (state, tx) => {
-        const state_ = f(state)(tx)
-        return [state_, [state_, tx] as const]
+        const state_ = f(state)(tx);
+        return [state_, [state_, tx] as const];
       }),
-      Stream.mapChunksEffect(chunk =>
+      Stream.mapChunksEffect((chunk) =>
         Effect.gen(function* () {
-          if (chunk.length === 0)
-            return chunk
+          if (chunk.length === 0) return chunk;
 
-          const strTxChunk = chunk.pipe(
-            Chunk.map(([_, tx]) => encodeTx(tx)),
-          )
+          const strTxChunk = chunk.pipe(Chunk.map(([_, tx]) => encodeTx(tx)));
 
-          yield* fs.writeFileString(
-            path,
-            Chunk.join(strTxChunk, '\n') + '\n',
-            { flag: 'a' }
-          )
-          return chunk
-        }))
-    )
+          yield* fs.writeFileString(path, Chunk.join(strTxChunk, "\n") + "\n", {
+            flag: "a",
+          });
+          return chunk;
+        }),
+      ),
+    );
 
-    return yield* Stream.run(stream$, committed$)
-  })
+    return yield* Stream.run(stream$, committed$);
+  });
 }

@@ -18,15 +18,14 @@ source /etc/profile
 apt-key adv --keyserver keyserver.ubuntu.com --recv 06E85760C0A52C50
 echo 'deb https://www.ui.com/downloads/unifi/debian stable ubiquiti' | tee /etc/apt/sources.list.d/100-ubnt-unifi.list
 apt update -y && apt install -y unifi
-`
+`;
 
 export const defaultHostname = "nyc1-unifi-a01";
 
 export const defaultHost = host.Host.ofLocalName(defaultHostname);
 
 export async function make() {
-  const vm = await infraBuilder.mkCT(prox.instances[3], defaultHostname)
+  const vm = await infraBuilder.mkCT(prox.instances[3], defaultHostname);
   await vm.putFile("/root/install.sh", script);
   await vm.exec("bash", ["/root/install.sh"]);
 }
-

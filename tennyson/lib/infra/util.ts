@@ -14,7 +14,7 @@ export async function emailAlert(subject: string, contents: string) {
   const fqdn = await sh("hostname --fqdn");
   const me = process.env["EMAIL"];
   if (me === undefined) {
-    throw "$EMAIL undefined"
+    throw "$EMAIL undefined";
   }
   await ses.send(
     new client_ses.SendEmailCommand({
@@ -34,6 +34,6 @@ export async function emailAlert(subject: string, contents: string) {
         },
       },
       Source: me,
-    })
+    }),
   );
 }

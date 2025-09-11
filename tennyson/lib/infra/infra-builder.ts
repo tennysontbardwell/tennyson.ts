@@ -22,7 +22,7 @@ export const kdc = host.Host.ofLocalName("nyc1-kdc-a01");
 
 export async function delIfExists(name: string) {
   await Promise.all(
-    Object.entries(prox.instances).map(([k, v]) => v.delIfExists(name))
+    Object.entries(prox.instances).map(([k, v]) => v.delIfExists(name)),
   );
   await forceLeave(name);
 }
@@ -30,7 +30,7 @@ export async function delIfExists(name: string) {
 export async function mkCT(
   prox_: prox.Prox,
   name: string,
-  options?: Partial<prox.Params>
+  options?: Partial<prox.Params>,
 ) {
   const name_ = host.Host.ofLocalName(name).fqdn();
   await delIfExists(name_);
@@ -41,7 +41,7 @@ export async function mkCT(
   return host_;
 }
 
-export async function mkVM(name: string, prox_? : prox.Prox) {
+export async function mkVM(name: string, prox_?: prox.Prox) {
   const name_ = host.Host.ofLocalName(name).fqdn();
   await delIfExists(name_);
   const host_ = await prox.createVM(name_, prox_);
@@ -56,7 +56,7 @@ export async function addConsulService(host_: host.Host, serviceName: string) {
     "/etc/consul.d/service.json",
     JSON.stringify({
       service: { name: serviceName, port: 443 },
-    })
+    }),
   );
   await host_.exec("consul", ["reload"]);
 }
@@ -75,12 +75,12 @@ WantedBy=multi-user.target
 export async function addService(
   exec: execlib.ExecLike,
   name: string,
-  command: string
+  command: string,
 ) {
   await execlib.ExecHelpers.putFile(
     exec,
     "/etc/systemd/system/" + name + ".service",
-    serviceTemplate.replace(/COMMAND/, command)
+    serviceTemplate.replace(/COMMAND/, command),
   );
   await exec("systemctl", ["enable", "--now", name]);
 }
@@ -128,7 +128,6 @@ export async function mkConsulAgent(num: ConsulNum) {
   return host;
 }
 
-
 const vaultConfig = {
   1: {
     prox: prox.instances[2],
@@ -146,7 +145,7 @@ export async function mkVault(num: VaultNum) {
   const name = "nyc1-vault-a" + String(num).padStart(2, "0");
   await delIfExists(name);
   const config = vaultConfig[num];
-  const vm = await mkVM(name, config.prox );
+  const vm = await mkVM(name, config.prox);
   await vault.setupVault(vm.exec.bind(vm));
   return vm;
 }

@@ -2,32 +2,34 @@ import * as common from "tennyson/lib/core/common";
 
 import type { IncomingMessage } from "http";
 
-import * as rx from 'rxjs';
-import type * as ws from 'ws';
+import * as rx from "rxjs";
+import type * as ws from "ws";
 import { Data, Equal, HashMap, Option, Tuple } from "effect";
 
-const c = common
+const c = common;
 
 export namespace BiComm {
   export interface T<C, M> {
-    commander$: rx.Subject<C>,
-    messages$: rx.Observable<M>,
+    commander$: rx.Subject<C>;
+    messages$: rx.Observable<M>;
   }
 
   export function ofWS<C, M>(ws: WebSocket | ws.WebSocket): T<C, M> {
     function isNodeWS(ws: WebSocket | ws.WebSocket): ws is WebSocket {
-      return 'dispatchEvent' in ws
+      return "dispatchEvent" in ws;
     }
     if (ws.readyState !== ws.CONNECTING)
       throw new Error(
-        "This websocket is already open, messages might have been lost");
+        "This websocket is already open, messages might have been lost",
+      );
 
     const isClosed$ = new rx.BehaviorSubject(false);
     const closed$ = isClosed$.pipe(
-      rx.filter(x => x),
-      rx.take(1));
+      rx.filter((x) => x),
+      rx.take(1),
+    );
 
-    let queue = [] as string[] | 'toClose';
+    let queue = [] as string[] | "toClose";
 
     function fromEvent<T>(
       ws: WebSocket | ws.WebSocket,
@@ -35,90 +37,81 @@ export namespace BiComm {
     ): rx.Observable<T> {
       return isNodeWS(ws)
         ? rx.fromEvent<T, T>(ws, target, c.id)
-        : rx.fromEvent<T, T>(ws, target, c.id)
+        : rx.fromEvent<T, T>(ws, target, c.id);
     }
 
     function singleEvent<E extends keyof WebSocketEventMap, O>(
-      target: E, handler: (event: WebSocketEventMap[E]) => O
+      target: E,
+      handler: (event: WebSocketEventMap[E]) => O,
     ) {
-      return fromEvent<WebSocketEventMap[E]>(ws, target)
-        .pipe(
-          rx.map(handler),
-          rx.take(1),
-          rx.takeUntil(closed$),
-          rx.tap({ error: err => common.log.error(err) }),
-          rx.catchError(_err => rx.of(true)),
-        );
+      return fromEvent<WebSocketEventMap[E]>(ws, target).pipe(
+        rx.map(handler),
+        rx.take(1),
+        rx.takeUntil(closed$),
+        rx.tap({ error: (err) => common.log.error(err) }),
+        rx.catchError((_err) => rx.of(true)),
+      );
     }
 
-    singleEvent('open', () => null).forEach(() => {
-      if (queue === 'toClose')
-        ws.close()
+    singleEvent("open", () => null).forEach(() => {
+      if (queue === "toClose") ws.close();
       else {
-        queue.forEach(s => ws.send(s))
+        queue.forEach((s) => ws.send(s));
         queue = [];
       }
     });
 
     // Needed in case `closed$` cancels `singleEvent('open'`
 
-    fromEvent<void>(ws, 'open',).pipe(
+    fromEvent<void>(ws, "open").pipe(
       rx.map(() => null),
       rx.take(1),
-      rx.catchError(_err => rx.of(null)),
-    )
+      rx.catchError((_err) => rx.of(null)),
+    );
 
-    singleEvent('close', (_) => true).subscribe(isClosed$);
-    singleEvent('error', (errorEvent) => {
+    singleEvent("close", (_) => true).subscribe(isClosed$);
+    singleEvent("error", (errorEvent) => {
       common.log.error({ message: "Error in ws", errorEvent });
       return true;
     }).subscribe(isClosed$);
 
     function closeWS() {
-      if (ws.readyState == ws.CONNECTING)
-        queue = 'toClose'
-      if (ws.readyState == ws.OPEN)
-        ws.close()
+      if (ws.readyState == ws.CONNECTING) queue = "toClose";
+      if (ws.readyState == ws.OPEN) ws.close();
     }
-    closed$.forEach(closeWS)
+    closed$.forEach(closeWS);
 
-    const messages$ =
-      fromEvent<MessageEvent>(ws, "message").pipe(
-        rx.map((x: MessageEvent) =>
-          <M>JSON.parse(<string>x.data)),
-        rx.takeUntil(closed$),
-        rx.share({ resetOnError: false, resetOnComplete: false }),
-      );
+    const messages$ = fromEvent<MessageEvent>(ws, "message").pipe(
+      rx.map((x: MessageEvent) => <M>JSON.parse(<string>x.data)),
+      rx.takeUntil(closed$),
+      rx.share({ resetOnError: false, resetOnComplete: false }),
+    );
 
     const commander$ = new rx.Subject<C>();
-    commander$
-      .pipe(rx.takeUntil(closed$))
-      .subscribe({
-        next: (command: C) => {
-          const s = JSON.stringify(command);
-          if (ws.readyState === ws.OPEN)
-            ws.send(s);
-          else if (ws.readyState === ws.CONNECTING && queue !== 'toClose')
-            queue.push(s);
-        },
-        error: () => isClosed$.next(true),
-        complete: () => isClosed$.next(true),
-      });
+    commander$.pipe(rx.takeUntil(closed$)).subscribe({
+      next: (command: C) => {
+        const s = JSON.stringify(command);
+        if (ws.readyState === ws.OPEN) ws.send(s);
+        else if (ws.readyState === ws.CONNECTING && queue !== "toClose")
+          queue.push(s);
+      },
+      error: () => isClosed$.next(true),
+      complete: () => isClosed$.next(true),
+    });
 
     return {
       messages$,
       commander$,
-    }
+    };
   }
 
-  export function ofWSSConnection<C, M>(
-    wss: ws.WebSocketServer
-  ) {
-    const connections$ =
-      rx.fromEvent(
-        wss, 'connection',
-        (clientws: ws.WebSocket, _request: IncomingMessage) =>
-          ofWS<C, M>(clientws));
+  export function ofWSSConnection<C, M>(wss: ws.WebSocketServer) {
+    const connections$ = rx.fromEvent(
+      wss,
+      "connection",
+      (clientws: ws.WebSocket, _request: IncomingMessage) =>
+        ofWS<C, M>(clientws),
+    );
     return connections$;
   }
 }
@@ -165,53 +158,48 @@ export namespace BiComm {
 
 export namespace PingPongConfig {
   interface T {
-    pingFreqMs: number,
-    pongToleranceMs: number,
+    pingFreqMs: number;
+    pongToleranceMs: number;
   }
 
   export function setupPingPong(t: T, w: ws.WebSocket) {
     const open$ = (() => {
       switch (w.readyState) {
         case w.CONNECTING:
-          return rx.fromEvent(w, 'open', () => "open");
+          return rx.fromEvent(w, "open", () => "open");
         case w.OPEN:
-          return rx.of("open")
+          return rx.of("open");
         default:
-          return rx.EMPTY
+          return rx.EMPTY;
       }
     })();
     open$.pipe(rx.first()).forEach(() => {
       const pongTimer$ = rx.interval(t.pingFreqMs);
       const pong$ = rx.fromEventPattern(
-        handler => w.on("pong", handler),
-        handler => w.off("pong", handler)
-      )
+        (handler) => w.on("pong", handler),
+        (handler) => w.off("pong", handler),
+      );
 
       const failures$ = pongTimer$.pipe(
         rx.map(() => {
           w.ping();
-          return rx.interval(t.pongToleranceMs).pipe(
-            rx.takeUntil(pong$)
-          );
+          return rx.interval(t.pongToleranceMs).pipe(rx.takeUntil(pong$));
         }),
         rx.mergeAll(),
         rx.take(1),
       );
 
       failures$.subscribe(() => {
-        common.log.warn('ws closed after failing to respond to ping');
-        w.close()
+        common.log.warn("ws closed after failing to respond to ping");
+        w.close();
       });
-    })
-
+    });
   }
 }
-
 
 export namespace WebSocket {
   // TODO ping and pong functions
 }
-
 
 export async function* toAsyncGenerator<T>(source: Iterable<T>) {
   for (const elm of source) {
@@ -228,7 +216,7 @@ export async function gather<T>(source: AsyncGenerator<T>) {
 }
 
 export class Pipe<T> {
-  source: AsyncGenerator<T>
+  source: AsyncGenerator<T>;
 
   constructor(source: AsyncGenerator<T>) {
     this.source = source;
@@ -250,52 +238,40 @@ export class Pipe<T> {
   mapSync<R>(f: (input: T) => R): Pipe<R> {
     const source = this.source;
     async function* gen() {
-      for await (const x of source)
-        yield f(x)
+      for await (const x of source) yield f(x);
     }
-    return new Pipe(gen())
+    return new Pipe(gen());
   }
 
   map<R>(f: (input: T) => Promise<R>): Pipe<R> {
     const source = this.source;
     async function* gen() {
-      for await (const x of source)
-        yield await f(x)
+      for await (const x of source) yield await f(x);
     }
-    return new Pipe(gen())
+    return new Pipe(gen());
   }
 
-  batchMap<R, U>(
-    this: Pipe<U[]>,
-    f: (input: U) => Promise<R>
-  ): Pipe<R[]> {
+  batchMap<R, U>(this: Pipe<U[]>, f: (input: U) => Promise<R>): Pipe<R[]> {
     const source = this.source;
     async function* gen() {
       for await (const x of source) {
         const accum = [];
-        for (const y of x)
-          accum.push(await f(y));
+        for (const y of x) accum.push(await f(y));
         yield accum;
       }
     }
-    return new Pipe(gen())
+    return new Pipe(gen());
   }
 
-  batchMapSync<R, U>(
-    this: Pipe<U[]>,
-    f: (input: U) => R
-  ): Pipe<R[]> {
+  batchMapSync<R, U>(this: Pipe<U[]>, f: (input: U) => R): Pipe<R[]> {
     const source = this.source;
     async function* gen() {
-      for await (const x of source)
-        yield x.map(f);
+      for await (const x of source) yield x.map(f);
     }
-    return new Pipe(gen())
+    return new Pipe(gen());
   }
 
-  batchFlat<U>(
-    this: Pipe<U[][]>,
-  ): Pipe<U[]> {
+  batchFlat<U>(this: Pipe<U[][]>): Pipe<U[]> {
     const source = this.source;
     async function* gen() {
       for await (const batch of source) {
@@ -305,9 +281,7 @@ export class Pipe<T> {
     return new Pipe(gen());
   }
 
-  flat<U>(
-    this: Pipe<U[]>,
-  ): Pipe<U> {
+  flat<U>(this: Pipe<U[]>): Pipe<U> {
     const source = this.source;
     async function* gen() {
       for await (const batch of source) {
@@ -345,7 +319,7 @@ export class Pipe<T> {
 
 export async function* createBatches<T>(
   source: AsyncIterable<T>,
-  batchSize: number
+  batchSize: number,
 ): AsyncGenerator<T[], void, undefined> {
   let batch: T[] = [];
   for await (const item of source) {
@@ -361,16 +335,12 @@ export async function* createBatches<T>(
   }
 }
 
-export async function* batchesOfArray<T>(
-  source: Array<T>,
-  batchSize: number
-) {
+export async function* batchesOfArray<T>(source: Array<T>, batchSize: number) {
   var remaining;
   while (true) {
     yield source.slice(0, batchSize);
     remaining = source.slice(batchSize);
-    if (remaining.length == 0)
-      break;
+    if (remaining.length == 0) break;
   }
 }
 
@@ -380,38 +350,47 @@ export async function* runBatchProcessing<A, B>(
   batchSize: number,
 ): AsyncGenerator<B[]> {
   const batchedObjectStream = createBatches(source, batchSize);
-  batchedObjectStream
+  batchedObjectStream;
   for await (const batch of batchedObjectStream) {
     yield await fn(batch);
   }
 }
 
 export async function drain(source: AsyncGenerator<any>) {
-  for await (const _batch of source) {}
+  for await (const _batch of source) {
+  }
 }
 
 export function tapDebug<T>(meta: { [key: string]: any }, enableNext = true) {
-  const notes = { ...meta, message: "tapDebug event" }
+  const notes = { ...meta, message: "tapDebug event" };
   let count = 0;
   const log = (x: any) => common.log.debug({ ...notes, ...x, count });
   const next = enableNext
     ? (item: any) => log({ event: "next", item })
     : undefined;
-  return rx.tap<T>(c.stripUndefined({
-    next,
-    subscribe: () => { count++; log({ event: "subscribe" }) },
-    unsubscribe: () => { count--; log({ event: "subscribe" }) },
-    complete: () => log({ event: "complete" }),
-    error: (error: any) => log({ event: "error", error }),
-    finalize: () => log({ event: "finalize" }),
-  }));
+  return rx.tap<T>(
+    c.stripUndefined({
+      next,
+      subscribe: () => {
+        count++;
+        log({ event: "subscribe" });
+      },
+      unsubscribe: () => {
+        count--;
+        log({ event: "subscribe" });
+      },
+      complete: () => log({ event: "complete" }),
+      error: (error: any) => log({ event: "error", error }),
+      finalize: () => log({ event: "finalize" }),
+    }),
+  );
 }
 
 export function tapFinalize<T>(meta: { [key: string]: any }, warn = false) {
   const notes = { message: "Observable closed", ...meta };
   const log = warn
     ? (x: any) => common.log.warn(x)
-    : (x: any) => common.log.error(x)
+    : (x: any) => common.log.error(x);
   return rx.tap<T>({
     error: (error: any) => log({ ...notes, results: "error", error }),
     complete: () => log({ ...notes, results: "complete" }),
@@ -426,42 +405,44 @@ export function tapError<T>(meta: { [key: string]: any }, warn = false) {
 }
 
 export function rxfilterMap<A, B>(f: (arg: A) => Option.Option<B>) {
-  return (src$: rx.Observable<A>) => src$.pipe(
-    rx.map(f),
-    rx.filter(Option.isSome),
-    rx.map(x => x.value),
-  )
+  return (src$: rx.Observable<A>) =>
+    src$.pipe(
+      rx.map(f),
+      rx.filter(Option.isSome),
+      rx.map((x) => x.value),
+    );
 }
 
 export class ReplayOnceSubject<T> extends rx.Subject<T> {
-  private _buffer: T[] | 'drained' = [];
+  private _buffer: T[] | "drained" = [];
 
   next(value: T): void {
-    if (!this.closed && this.isStopped && this._buffer !== 'drained')
+    if (!this.closed && this.isStopped && this._buffer !== "drained")
       this._buffer.push(value);
     return super.next(value);
   }
 
   error(err: any) {
-    this._buffer = 'drained'
-    return super.error(err)
+    this._buffer = "drained";
+    return super.error(err);
   }
 
   complete() {
-    this._buffer = 'drained'
-    return super.complete()
+    this._buffer = "drained";
+    return super.complete();
   }
 
   /** @internal */
   protected _subscribe(subscriber: rx.Subscriber<T>): rx.Subscription {
     (this as any)._throwIfClosed();
 
-    const subscription: rx.Subscription
-      = (this as any)._innerSubscribe(subscriber);
+    const subscription: rx.Subscription = (this as any)._innerSubscribe(
+      subscriber,
+    );
 
-    if (this._buffer != 'drained') {
+    if (this._buffer != "drained") {
       const buffer = this._buffer;
-      this._buffer = 'drained';
+      this._buffer = "drained";
       for (let i = 0; i < buffer.length && !subscriber.closed; i++)
         subscriber.next(buffer[i]);
     }
@@ -472,41 +453,58 @@ export class ReplayOnceSubject<T> extends rx.Subject<T> {
   }
 }
 
-export function sharePlus<T>(
-  config: {
-    resetOnError?: boolean | ((error: any) => rx.ObservableInput<any>),
-    resetOnComplete?: boolean | (() => rx.ObservableInput<any>),
-    resetOnRefCountZero?: boolean | (() => rx.ObservableInput<any>),
-    replayOne?: boolean
-  }
-) {
-  const { resetOnError, resetOnComplete, resetOnRefCountZero, replayOne } =
-    { replayOne: false, ...config }
+export function sharePlus<T>(config: {
+  resetOnError?: boolean | ((error: any) => rx.ObservableInput<any>);
+  resetOnComplete?: boolean | (() => rx.ObservableInput<any>);
+  resetOnRefCountZero?: boolean | (() => rx.ObservableInput<any>);
+  replayOne?: boolean;
+}) {
+  const { resetOnError, resetOnComplete, resetOnRefCountZero, replayOne } = {
+    replayOne: false,
+    ...config,
+  };
 
-  let storedVal = Option.none<T>()
+  let storedVal = Option.none<T>();
 
   return function (src$: rx.Observable<T>): rx.Observable<T> {
     if (replayOne) {
-      return rx.concat(
-        rx.defer(() => rx.of(storedVal)),
-        src$.pipe(
-          rx.tap({ next: (val) => { storedVal = Option.some(val) } }),
-          rx.finalize(() => { storedVal = Option.none() }),
-          rx.share(c.stripUndefined(
-            { resetOnError, resetOnComplete, resetOnRefCountZero })),
-          rx.map(Option.some),
+      return rx
+        .concat(
+          rx.defer(() => rx.of(storedVal)),
+          src$.pipe(
+            rx.tap({
+              next: (val) => {
+                storedVal = Option.some(val);
+              },
+            }),
+            rx.finalize(() => {
+              storedVal = Option.none();
+            }),
+            rx.share(
+              c.stripUndefined({
+                resetOnError,
+                resetOnComplete,
+                resetOnRefCountZero,
+              }),
+            ),
+            rx.map(Option.some),
+          ),
         )
-      ).pipe(
-        rx.filter(Option.isSome),
-        rx.map(x => x.value),
-      )
-    }
-    else
+        .pipe(
+          rx.filter(Option.isSome),
+          rx.map((x) => x.value),
+        );
+    } else
       return src$.pipe(
-        rx.share(c.stripUndefined(
-          { resetOnError, resetOnComplete, resetOnRefCountZero })),
-      )
-  }
+        rx.share(
+          c.stripUndefined({
+            resetOnError,
+            resetOnComplete,
+            resetOnRefCountZero,
+          }),
+        ),
+      );
+  };
 }
 
 // export function scanMap<V, A, O>(
@@ -525,9 +523,10 @@ export function scanMap<V, A, O, S>(
     src$.pipe(
       rx.scan<V, [A, Option.Option<O>], [S, Option.Option<O>]>(
         ([accum, _output], input, index) => f(accum, input, index),
-        Tuple.make(seed, Option.none())),
+        Tuple.make(seed, Option.none()),
+      ),
       rx.map(Tuple.getSecond),
       rx.filter(Option.isSome),
-      rx.map(x => x.value),
-    )
+      rx.map((x) => x.value),
+    );
 }

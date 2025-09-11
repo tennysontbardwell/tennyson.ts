@@ -8,21 +8,21 @@ const c = common;
 
 async function electron() {
   // await common.passthru("zsh", ['-ic', 'find . | fzf']);
-  const { app, BrowserWindow } = await import('electron');
+  const { app, BrowserWindow } = await import("electron");
 
   const createWindow = () => {
     const win = new BrowserWindow({ width: 800, height: 1500 });
-    win.loadURL('https://google.com');
-  }
+    win.loadURL("https://google.com");
+  };
 
   app.whenReady().then(() => {
-    createWindow()
-  })
+    createWindow();
+  });
 }
 
 async function quickdev() {
-  const m = await import('./quickdev')
-  m.quickdev()
+  const m = await import("./quickdev");
+  m.quickdev();
 }
 
 export const cmds: cli.Command[] = [
@@ -44,11 +44,13 @@ export const cmds: cli.Command[] = [
   }),
   cli.command("fleet-test", async () => {
     const fleetlib = await import("tennyson/lib/fleet");
-    await fleetlib.Fleet.withFleet(2, async fleet => {
-      common.log.info(await fleet.process({
-        kind: "getCommand",
-        url: "https://ipecho.net/plain"
-      }));
+    await fleetlib.Fleet.withFleet(2, async (fleet) => {
+      common.log.info(
+        await fleet.process({
+          kind: "getCommand",
+          url: "https://ipecho.net/plain",
+        }),
+      );
     });
   }),
   cli.command("ranger-fs", async () => {
@@ -61,21 +63,25 @@ export const cmds: cli.Command[] = [
       cli.flagsCommand(
         "cssFetch",
         {
-          url: { alias: 'u', type: 'string', required: true },
-          cssSelector: { alias: 'q', type: 'string', required: true },
+          url: { alias: "u", type: "string", required: true },
+          cssSelector: { alias: "q", type: "string", required: true },
         },
         async (args) => {
-          const cheerio = await import('cheerio')
-          const net_util = await import('tennyson/lib/core/net-util')
-          const res = await fetch(args.url)
-          await net_util.checkResponseExn(res)
-          const doc = cheerio.load(await res.text())
-          c.info(doc.extract({
-            results: [{
-              selector: args.cssSelector,
-              value: "outerHTML"
-            }]
-          }))
+          const cheerio = await import("cheerio");
+          const net_util = await import("tennyson/lib/core/net-util");
+          const res = await fetch(args.url);
+          await net_util.checkResponseExn(res);
+          const doc = cheerio.load(await res.text());
+          c.info(
+            doc.extract({
+              results: [
+                {
+                  selector: args.cssSelector,
+                  value: "outerHTML",
+                },
+              ],
+            }),
+          );
           // c.info(doc(args.cssSelector)[0])
           // c.info(doc(args.cssSelector).map(x => x.toString()))
           // await jless(doc(args.cssSelector).map(x => x.toString()))
@@ -85,103 +91,113 @@ export const cmds: cli.Command[] = [
           // c.info(res.html())
           // c.info(doc(args.cssSelector).length)
           // // c.info(doc(args.cssSelector))
-        }
-      )
-    ]
+        },
+      ),
+    ];
   }),
   cli.lazyGroup("wayback", async () => {
     const wb = await import("tennyson/lib/web/waybackmachine");
     return wb.cmds;
   }),
   cli.lazyGroup("viewer", async () => {
-    const cn = await import("tennyson/lib/core/common-node")
-    const exec = await import("tennyson/lib/core/exec")
+    const cn = await import("tennyson/lib/core/common-node");
+    const exec = await import("tennyson/lib/core/exec");
     const shellescape = (await import("shell-escape")).default;
-    const path = (await import('path')).default;
-    const fs = (await import('fs'));
-    const os = (await import('os')).default;
-    const uuid = (await import('uuid'));
+    const path = (await import("path")).default;
+    const fs = await import("fs");
+    const os = (await import("os")).default;
+    const uuid = await import("uuid");
 
     return [
       cli.flagsCommand(
         "json [path]",
         {
-          "path": {
+          path: {
             type: "string",
-          }
+          },
         },
         async (args) => {
           async function cmdInTmux(shCmd: string, pwd: string) {
-            await exec.exec("tmux",
-              ["new-window", "-c", pwd, "-t", "main", shCmd])
-            await exec.exec("osascript",
-              ["-e", 'tell application "iTerm" to activate'])
+            await exec.exec("tmux", [
+              "new-window",
+              "-c",
+              pwd,
+              "-t",
+              "main",
+              shCmd,
+            ]);
+            await exec.exec("osascript", [
+              "-e",
+              'tell application "iTerm" to activate',
+            ]);
           }
           const view = async (f: string) =>
-            cmdInTmux(`nvim ${shellescape([f])}`, '/')
+            cmdInTmux(`nvim ${shellescape([f])}`, "/");
           if (args.path === undefined) {
             const tempDir = path.join(os.tmpdir(), uuid.v4());
             await fs.promises.mkdir(tempDir);
-            const f = path.join(tempDir, "input.json")
+            const f = path.join(tempDir, "input.json");
 
             const writeStream = fs.createWriteStream(f);
 
-            const finished = new Promise<void>(resolve => {
-              writeStream.on('finish', () => {
-                resolve()
+            const finished = new Promise<void>((resolve) => {
+              writeStream.on("finish", () => {
+                resolve();
               });
-            })
-            writeStream.on('error', (err) => {
-              throw err
             });
-            process.stdin.on('end', () => {
+            writeStream.on("error", (err) => {
+              throw err;
+            });
+            process.stdin.on("end", () => {
               writeStream.end();
             });
 
             process.stdin.pipe(writeStream);
-            await finished
-            await view(f)
+            await finished;
+            await view(f);
           } else {
-            await view(args.path)
+            await view(args.path);
           }
-        }
-      )
-    ]
+        },
+      ),
+    ];
   }),
   cli.group("meta", [
     cli.group("test", [
-      cli.flagsCommand("perf-effect-quit", {
-        platform: {
-          alias: 'p',
-          describe: "Imports Node Platform",
-          type: 'string',
-          // choices: ['bun', 'node'],
-          choices: ['node'],
-          required: false,
-        }
-      },
+      cli.flagsCommand(
+        "perf-effect-quit",
+        {
+          platform: {
+            alias: "p",
+            describe: "Imports Node Platform",
+            type: "string",
+            // choices: ['bun', 'node'],
+            choices: ["node"],
+            required: false,
+          },
+        },
         async (args) => {
           // const platformBun_ = () => import("@effect/platform-bun")
-          const platformNode_ = () => import("@effect/platform-node")
-          const effect_ = () => import("effect")
+          const platformNode_ = () => import("@effect/platform-node");
+          const effect_ = () => import("effect");
 
           // const target = args.platform as 'bun' | 'node' | undefined
-          const target = args.platform as 'node' | undefined
+          const target = args.platform as "node" | undefined;
 
           if (target === undefined) {
-            const effect = await effect_()
+            const effect = await effect_();
 
-            effect.Effect.log("Hello World")
-              .pipe(effect.Effect.runSync)
-
-          } else if (target === 'node') {
-            const [effect, platformNode] =
-              await Promise.all([effect_(), platformNode_()])
+            effect.Effect.log("Hello World").pipe(effect.Effect.runSync);
+          } else if (target === "node") {
+            const [effect, platformNode] = await Promise.all([
+              effect_(),
+              platformNode_(),
+            ]);
 
             effect.Effect.log("Hello World").pipe(
               effect.Effect.provide(platformNode.NodeContext.layer),
-              platformNode.NodeRuntime.runMain()
-            )
+              platformNode.NodeRuntime.runMain(),
+            );
 
             // } else if (target === 'bun') {
             //   const [effect, platformBun] =
@@ -191,11 +207,11 @@ export const cmds: cli.Command[] = [
             //     effect.Effect.provide(platformBun.BunContext.layer),
             //     platformBun.BunRuntime.runMain()
             //   )
-
           } else {
-            c.unreachable(target)
+            c.unreachable(target);
           }
-        }),
-    ])
-  ])
+        },
+      ),
+    ]),
+  ]),
 ];

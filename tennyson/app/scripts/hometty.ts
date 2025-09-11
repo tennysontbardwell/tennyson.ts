@@ -54,7 +54,7 @@ async function scripts(
   dir: string,
   glob_: string,
   prefix: string = "",
-  preActionHook: (name: string) => Promise<void> = async (_) => {}
+  preActionHook: (name: string) => Promise<void> = async (_) => {},
 ) {
   const glob: any = await require("glob");
   dir = common_node.resolveHome(dir);
@@ -72,24 +72,32 @@ async function scripts(
 }
 
 async function zshExec(cmd: string) {
-  const ssh = child_process.spawn("zsh", ["-ic", cmd], { detached: true }
-  );
+  const ssh = child_process.spawn("zsh", ["-ic", cmd], { detached: true });
   const stdoutPromise = execlib.readableToString(ssh.stdout);
   const stderrPromise = execlib.readableToString(ssh.stderr);
   const code = await new Promise((resolve) =>
-    ssh.on("exit", (code, signal) => resolve(code))
+    ssh.on("exit", (code, signal) => resolve(code)),
   );
   const stdout = await stdoutPromise;
   const stderr = await stderrPromise;
   if (code != 0) {
-    throw { msg: 'Failed zsh exec', cmd: cmd, code: code, stdout: stdout, stderr: stderr }
+    throw {
+      msg: "Failed zsh exec",
+      cmd: cmd,
+      code: code,
+      stdout: stdout,
+      stderr: stderr,
+    };
   }
   return stdout;
 }
 
 async function personalSnippets() {
-  const contents = await fs.readFile(common_node.resolveHome("~/.config/tennyson/snippets.json"), { encoding: "utf-8" })
-  const snippets: string[][] = JSON.parse(contents)
+  const contents = await fs.readFile(
+    common_node.resolveHome("~/.config/tennyson/snippets.json"),
+    { encoding: "utf-8" },
+  );
+  const snippets: string[][] = JSON.parse(contents);
   try {
     return snippets.map((elm) => fzf.static_snippet(elm[1], elm[0]));
   } catch (e) {
@@ -101,7 +109,7 @@ async function functions() {
   const funs = await zshExec("print -rl -- ${(k)aliases} ${(k)functions}");
   return funs.split("\n").map((choice) => {
     const action = () => fzf.evalAfterExit(`LBUFFER=\${LBUFFER}${choice}`);
-    const preview = () => zshExec(shellescape(['which', choice]));
+    const preview = () => zshExec(shellescape(["which", choice]));
     return { choice: `[zsh] ${choice}`, preview: preview, action: action };
   });
 }
@@ -114,7 +122,7 @@ export async function run() {
         fzf.sh_snippet('date +"%Y-%m-%d"', "datetime/today"),
         fzf.sh_snippet('date +"%Y-%m-%d %H:%M:%S"', "datetime/nnow"),
         fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
-      ].concat(more)
+      ].concat(more);
     }),
     fzf.subtree("websites", [
       fzf.website("google.com"),
@@ -134,7 +142,7 @@ export async function run() {
         "",
         async (name: string) => {
           await execlib.exec("chmod", ["+x", name]);
-        }
+        },
       );
       const publicBash = await scripts(
         "~/repos/tennysontbardwell/public/scripts",
@@ -142,12 +150,12 @@ export async function run() {
         "",
         async (name: string) => {
           await execlib.exec("chmod", ["+x", name]);
-        }
+        },
       );
       const ts = await scripts(
         "~/repos/tennysontbardwell/tennyson.ts/build/src/app/scripts/",
         "**/*.js",
-        "~/repos/tennysontbardwell/tennyson.ts/run-script.sh "
+        "~/repos/tennysontbardwell/tennyson.ts/run-script.sh ",
       );
       const funcs = await functions();
       const res = bash.concat(publicBash, ts, funcs);
@@ -162,7 +170,7 @@ export async function run() {
     }),
     fzf.subtree("commands", [
       fzf.command("node prompt", async () =>
-        common_node.passthru("node", ["--enable-source-maps"])
+        common_node.passthru("node", ["--enable-source-maps"]),
       ),
     ]),
   ]);

@@ -48,7 +48,7 @@ export async function setupProxy(
     listen: Number;
     deliver: Number;
   }[],
-  shortTimeout = false
+  shortTimeout = false,
 ) {
   await new host.Apt(exec).install(["nginx"]);
   await exec("systemctl", ["stop", "nginx"]);
@@ -58,7 +58,7 @@ export async function setupProxy(
   const configBody = ports.map((port) =>
     template
       .replace(/SRC/g, port.listen.toString())
-      .replace(/DEST/g, port.deliver.toString())
+      .replace(/DEST/g, port.deliver.toString()),
   );
   const config = proxyConfigHeader + configBody + proxyConfigFooter;
   await execlib.ExecHelpers.putFile(exec, "/etc/nginx/nginx.conf", config);

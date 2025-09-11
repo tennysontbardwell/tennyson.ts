@@ -12,7 +12,7 @@ export function concatStream(stream: stream.Readable) {
 export const askQuestion = (query: string): Promise<string> => {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
   return new Promise((resolve) => {

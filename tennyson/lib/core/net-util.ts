@@ -1,8 +1,10 @@
 import * as common from "tennyson/lib/core/common";
-import * as net from 'net';
+import * as net from "net";
 
-export function getRandomFreePort(min: number = 3000, max: number = 65535)
-  : Promise<number> {
+export function getRandomFreePort(
+  min: number = 3000,
+  max: number = 65535,
+): Promise<number> {
   return new Promise((resolve, reject) => {
     const port = Math.floor(Math.random() * (max - min + 1) + min);
     const server = net.createServer();
@@ -11,7 +13,7 @@ export function getRandomFreePort(min: number = 3000, max: number = 65535)
       server.close(() => resolve(port));
     });
 
-    server.on('error', () => {
+    server.on("error", () => {
       resolve(getRandomFreePort(min, max));
     });
   });
@@ -26,7 +28,8 @@ export async function checkResponseExn(response: Response) {
       common.log.error(text.substring(0, 10_000));
     }
     throw new Error(
-      `HTTP error! status: ${response.status} | url: ${response.url}`);
+      `HTTP error! status: ${response.status} | url: ${response.url}`,
+    );
   }
   return response;
 }
@@ -38,17 +41,15 @@ export async function responseJsonExn<T>(response: Response) {
 
 export function queryOfUrlAndParams(
   url: string,
-  params: Record<string, string | number | boolean | undefined>
+  params: Record<string, string | number | boolean | undefined>,
 ): string {
   let params_ = Object.fromEntries(
     Object.entries(params)
-      .filter(([_, value]) =>
-      value !== undefined && value !== null)
-      .map(([key, value]) => [key, value!.toString()])
+      .filter(([_, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [key, value!.toString()]),
   );
 
   const queryStr = new URLSearchParams(params_).toString();
-  const res = (queryStr.length == 0) ? url : `${url}?${queryStr}`;
+  const res = queryStr.length == 0 ? url : `${url}?${queryStr}`;
   return res;
 }
-

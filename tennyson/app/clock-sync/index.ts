@@ -3,8 +3,8 @@ import * as common from "tennyson/lib/core/common";
 import * as host from "tennyson/lib/infra/host";
 import * as execlib from "tennyson/lib/core/exec";
 import dns from "dns";
-import * as path from 'path';
-import Papa from 'papaparse';
+import * as path from "path";
+import Papa from "papaparse";
 import * as fs from "fs";
 
 const iterations = 10;
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         receive_udp_packets()
     elif sys.argv[1] == 'client':
         ping_bot()
-`
+`;
 
 // frame.number,frame.time,eth.src,eth.dst,ip.src,ip.dst,ip.proto,udp.payload,data
 type CsvRow = {
@@ -98,20 +98,23 @@ type CsvRow = {
   "udp.payload": string | number | null;
 };
 
-
 class Node {
   readonly name: string;
   box: host.Host | undefined;
 
   constructor() {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let rnd = Array.from({ length: 5 }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+    let rnd = Array.from({ length: 5 }, (_) =>
+      chars.charAt(Math.floor(Math.random() * chars.length)),
+    );
     this.name = "temp-box-" + rnd.join("");
   }
 
   async expertStart() {
     common.log.info(`Starting ${this.name}`);
-    this.box = await ec2.createNewSmall(this.name, { additionalSecurityGroups: ["allow-all"]})
+    this.box = await ec2.createNewSmall(this.name, {
+      additionalSecurityGroups: ["allow-all"],
+    });
   }
 
   async cleanup() {
@@ -134,16 +137,18 @@ class Fleet {
   directory: string;
 
   constructor(n: number) {
-    this.nodes = Array.from({ length: n }, _ => new Node());
+    this.nodes = Array.from({ length: n }, (_) => new Node());
     this.ips = {};
     this.directory = `/tmp/fleet-results/${new Date().toISOString()}`;
   }
 
   async fetchIps() {
-    await Promise.all(this.nodes.map(async node => {
-      const res = await dns.promises.lookup(node.box!.fqdn());
-      this.ips[node.name] = res.address;
-    }))
+    await Promise.all(
+      this.nodes.map(async (node) => {
+        const res = await dns.promises.lookup(node.box!.fqdn());
+        this.ips[node.name] = res.address;
+      }),
+    );
   }
 
   async runTest() {
@@ -151,7 +156,7 @@ class Fleet {
 
     const fleetFile = (node: Node) =>
       JSON.stringify({
-        nodes: this.nodes.map(node => ({
+        nodes: this.nodes.map((node) => ({
           name: node.name,
           hostname: node.box!.fqdn(),
           ip: this.ips[node.name],
@@ -176,22 +181,38 @@ class Fleet {
         // apt?.upgrade().then(() => apt.install(["python3-websockets", "python3-aiottp"]))
       ]);
       await Promise.all([
-        bg_cmd(node, `sudo timeout ${totalDelay + 5} tcpdump -U -n inbound -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`),
-        bg_cmd(node, `sudo timeout ${totalDelay + 5} tcpdump -U -n outbound -w /tmp/results/outbound.pcap --time-stamp-precision=nano &> /tmp/results/outbound-tcpdump.stdout`),
+        bg_cmd(
+          node,
+          `sudo timeout ${totalDelay + 5} tcpdump -U -n inbound -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
+        ),
+        bg_cmd(
+          node,
+          `sudo timeout ${totalDelay + 5} tcpdump -U -n outbound -w /tmp/results/outbound.pcap --time-stamp-precision=nano &> /tmp/results/outbound-tcpdump.stdout`,
+        ),
       ]);
     }
 
     async function runNode(node: Node) {
       await Promise.all([
-        bg_cmd(node, 'python3 /tmp/script.py server &> /tmp/results/server.stdout'),
-        bg_cmd(node, 'python3 /tmp/script.py client &> /tmp/results/client.stdout'),
+        bg_cmd(
+          node,
+          "python3 /tmp/script.py server &> /tmp/results/server.stdout",
+        ),
+        bg_cmd(
+          node,
+          "python3 /tmp/script.py client &> /tmp/results/client.stdout",
+        ),
       ]);
     }
 
     async function finNode(node: Node) {
       const dir = path.resolve(fleet.directory, node.box!.hostname());
       await execlib.exec("mkdir", ["-p", dir]);
-      await execlib.exec("scp", ['-r', `${node.box!.user}@${node.box!.fqdn()}:/tmp/results`, dir]);
+      await execlib.exec("scp", [
+        "-r",
+        `${node.box!.user}@${node.box!.fqdn()}:/tmp/results`,
+        dir,
+      ]);
     }
 
     await this.fetchIps();
@@ -200,40 +221,41 @@ class Fleet {
     await Promise.all(this.nodes.map(runNode));
     common.log.info(`Waiting ${totalDelay + 15} seconds for completion`);
     await common.sleep((totalDelay + 15) * 1000);
-    common.log.info("Test complete. Retrieving results")
+    common.log.info("Test complete. Retrieving results");
     await Promise.all(this.nodes.map(finNode));
-    common.log.info("Processing results")
+    common.log.info("Processing results");
     await this.processResults();
   }
 
   async processResults() {
     function parseHex(hex: String) {
       try {
-        const cleanedHex = hex.replace(/\s+/g, '').replace(/^0x/, '');
-        const byteArray = new Uint8Array(cleanedHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-        return new TextDecoder('utf-8').decode(byteArray);
-      } catch(e) {
+        const cleanedHex = hex.replace(/\s+/g, "").replace(/^0x/, "");
+        const byteArray = new Uint8Array(
+          cleanedHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+        );
+        return new TextDecoder("utf-8").decode(byteArray);
+      } catch (e) {
         common.log.error({ message: "error parsing hex", hex: hex });
         throw e;
       }
     }
 
     async function parseCsv(file: string) {
-      const cmd = `tshark -r ${file} -T fields -e frame.number -e frame.time -e eth.src -e eth.dst -e ip.src -e ip.dst -e ip.proto -e udp.payload -E header=y -E separator=, -E quote=d -E occurrence=f`
+      const cmd = `tshark -r ${file} -T fields -e frame.number -e frame.time -e eth.src -e eth.dst -e ip.src -e ip.dst -e ip.proto -e udp.payload -E header=y -E separator=, -E quote=d -E occurrence=f`;
       const res = await execlib.sh(`${cmd}`);
       return Papa.parse<CsvRow>(res.stdout, {
         header: true,
         skipEmptyLines: true,
-        dynamicTyping: true
-      }).data
-        .map(x => {
+        dynamicTyping: true,
+      })
+        .data.map((x) => {
           const payloadStr = x["udp.payload"]?.toString();
-          if (payloadStr === undefined || payloadStr.length === 0)
-            return null;
+          if (payloadStr === undefined || payloadStr.length === 0) return null;
           else {
             const payload = parseHex(payloadStr);
-            const allowlist = new Set(['resp', 'ping', 'pong']);
-            const words = payload.split(' ');
+            const allowlist = new Set(["resp", "ping", "pong"]);
+            const words = payload.split(" ");
             if (allowlist.has(words[0]))
               return {
                 ...x,
@@ -242,47 +264,56 @@ class Fleet {
                 host1: words[2],
                 host2: words[3],
                 host3: words[4],
-                "udp.payload": payload
+                "udp.payload": payload,
               };
-            else
-              return null
+            else return null;
           }
         })
-        .filter(x => x !== null);
+        .filter((x) => x !== null);
     }
 
     const results = await Promise.all(
-      this.nodes.flatMap(node =>
-        ["inbound", "outbound"].map(async dir => {
-          const file = path.resolve(this.directory, node.box!.hostname(), "results", dir + ".pcap");
+      this.nodes.flatMap((node) =>
+        ["inbound", "outbound"].map(async (dir) => {
+          const file = path.resolve(
+            this.directory,
+            node.box!.hostname(),
+            "results",
+            dir + ".pcap",
+          );
           const data = await parseCsv(file);
-          return data.map(d => ({
-            ...(d!),
+          return data.map((d) => ({
+            ...d!,
             dir: dir,
           }));
-    })));
-    const data = await Promise.all(results).then(x => x.flat());
-    await fs.promises.writeFile(path.resolve(this.directory, "results.json"), JSON.stringify(data));
+        }),
+      ),
+    );
+    const data = await Promise.all(results).then((x) => x.flat());
+    await fs.promises.writeFile(
+      path.resolve(this.directory, "results.json"),
+      JSON.stringify(data),
+    );
   }
 
   async withLive(f: (nodes: Node[]) => Promise<void>) {
     const nodes = this.nodes;
-    process.on('SIGINT', async () => {
-      common.log.warn('Received SIGINT (Ctrl+C). Starting cleanup...');
+    process.on("SIGINT", async () => {
+      common.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
       try {
-        await Promise.all(nodes.map(x => x.cleanup()));
-        common.log.info('Cleanup completed successfully.');
+        await Promise.all(nodes.map((x) => x.cleanup()));
+        common.log.info("Cleanup completed successfully.");
       } catch (error) {
-        common.log.error(['Error during cleanup:', error]);
+        common.log.error(["Error during cleanup:", error]);
       } finally {
         process.exit(0);
       }
     });
     async function run() {
-      await Promise.all(nodes.map(x => x.expertStart()));
+      await Promise.all(nodes.map((x) => x.expertStart()));
       await f(nodes);
     }
-    await run().finally(() => Promise.all(nodes.map(x => x.cleanup())))
+    await run().finally(() => Promise.all(nodes.map((x) => x.cleanup())));
   }
 }
 
@@ -290,7 +321,7 @@ async function main() {
   common.log.info("main");
   let fleet = new Fleet(fleetSize);
   await fleet.withLive(async () => {
-    common.log.info("Fleet start-up complete")
+    common.log.info("Fleet start-up complete");
     await fleet.runTest();
   });
   common.log.info("Cleaned up");

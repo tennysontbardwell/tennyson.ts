@@ -6,7 +6,7 @@ import { spawn } from "child_process";
 export type ExecLike = (
   command: string,
   args: string[],
-  options?: ExecOptions
+  options?: ExecOptions,
 ) => Promise<{
   command: string;
   args: string[];
@@ -24,7 +24,7 @@ export type ExecOptions = Partial<{
 export class ExecHelpers {
   static async withTempDir<Output>(
     exec: ExecLike,
-    f: (path: string) => Promise<Output>
+    f: (path: string) => Promise<Output>,
   ) {
     const tmp = await exec("mktemp", ["-d"]);
     const path = tmp.stdout.trim();
@@ -36,7 +36,7 @@ export class ExecHelpers {
 
   static map(
     exec: ExecLike,
-    f: (command: string, args: string[]) => [string, string[]]
+    f: (command: string, args: string[]) => [string, string[]],
   ) {
     return (command: string, args: string[], options?: ExecOptions) => {
       const [newCmd, newArgs] = f(command, args);
@@ -108,7 +108,7 @@ export async function readableToString(readable: NodeJS.ReadableStream) {
 export async function exec(
   command: string,
   args: string[],
-  options: ExecOptions = {}
+  options: ExecOptions = {},
 ) {
   common.log.debug("exec", { command, args, options });
   const ssh = spawn(command, args);
@@ -123,7 +123,7 @@ export async function exec(
     code: number | null;
     signal: NodeJS.Signals | null;
   } = await new Promise((resolve) =>
-    ssh.on("exit", (code, signal) => resolve({ code: code, signal: signal }))
+    ssh.on("exit", (code, signal) => resolve({ code: code, signal: signal })),
   );
 
   const stdout = await stdoutPromise;

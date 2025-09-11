@@ -22,8 +22,8 @@ async function watchOne(url: string) {
           JSON.stringify(
             { msg: "url updated", url: url, curr: curr, prev: prev },
             null,
-            2
-          )
+            2,
+          ),
         );
       }
     }

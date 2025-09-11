@@ -41,7 +41,11 @@ export namespace GithubRepo {
 
   export async function clone(t: t, useSSH = false) {
     await execlib.exec("mkdir", ["-p", localPath(t)]);
-    return common_node.passthru("git", ["clone", toRepoURL(t, useSSH), localPath(t)]);
+    return common_node.passthru("git", [
+      "clone",
+      toRepoURL(t, useSSH),
+      localPath(t),
+    ]);
   }
 
   export async function fzfLocalRepos() {
@@ -55,7 +59,7 @@ export namespace GithubRepo {
             level2.forEach((x) => dirs.push(Path.join(file, x)));
           } catch {}
           return null;
-        })
+        }),
       );
     } catch {}
     const repos = dirs.map((dir) => fzf.cd(Path.join(repoPath, dir), dir));
@@ -74,11 +78,11 @@ export namespace GithubRepo {
           rl.close();
           // https://github.com/nodejs/node/issues/45213
           // only affects zsh widgets
-          if (answer.startsWith('~') && answer.endsWith('~')) {
+          if (answer.startsWith("~") && answer.endsWith("~")) {
             answer = answer.slice(1, -1);
           }
           const t = ofURL(answer);
-          const useSSH = (t.user == process.env["GITHUB_USERNAME"]);
+          const useSSH = t.user == process.env["GITHUB_USERNAME"];
           await clone(t, useSSH);
           await fzf.evalAfterExit(shellescape(["cd", localPath(t)]));
         },

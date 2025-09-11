@@ -1,7 +1,7 @@
 import * as blessed from "blessed";
 import { Widgets } from "blessed";
 import * as fs from "fs";
-import * as fsSync from 'fs';
+import * as fsSync from "fs";
 import * as xml from "fast-xml-parser";
 import * as common from "tennyson/lib/core/common";
 
@@ -54,7 +54,7 @@ class RangerScreen {
 
   detachAll() {
     [this.col1, this.col2, this.col3].map((col) =>
-      col.children.map((child) => child.detach())
+      col.children.map((child) => child.detach()),
     );
   }
 }
@@ -127,8 +127,9 @@ class RangerNode<T extends Dir | Leaf> {
   }
 }
 
-type ChildFunc =
-  (path: string[]) => string[] | string | Promise<string[] | string>;
+type ChildFunc = (
+  path: string[],
+) => string[] | string | Promise<string[] | string>;
 
 export class Ranger {
   readonly rangerScreen = new RangerScreen();
@@ -150,8 +151,8 @@ export class Ranger {
     const this_ = this;
     function onKeyGeneral(
       key: string | string[],
-      fun: () => (void | Promise<void>),
-      onDirFun: (active: Widgets.ListElement) => void
+      fun: () => void | Promise<void>,
+      onDirFun: (active: Widgets.ListElement) => void,
     ) {
       screen.key(key, async function (ch, key) {
         await fun();
@@ -163,7 +164,7 @@ export class Ranger {
         }
         await this_.redraw();
         this_.rangerScreen.header.setContent(
-          "/" + this_.activePath.join("/") + active.selected()
+          "/" + this_.activePath.join("/") + active.selected(),
         );
         screen.render();
       });
@@ -174,7 +175,7 @@ export class Ranger {
     }
     function onDirKey(
       key: string | string[],
-      fun: (active: Widgets.ListElement) => void
+      fun: (active: Widgets.ListElement) => void,
     ) {
       onKeyGeneral(key, nop, fun);
     }
@@ -186,10 +187,10 @@ export class Ranger {
     onDirKey("g", (active) => active.select(0));
     onDirKey("S-g", (active) => active.select(active.getScrollHeight()));
     onDirKey("C-d", (active) =>
-      active.down(Math.ceil(Number(active.height) / 2))
+      active.down(Math.ceil(Number(active.height) / 2)),
     );
     onDirKey("C-u", (active) =>
-      active.up(Math.ceil(Number(active.height) / 2))
+      active.up(Math.ceil(Number(active.height) / 2)),
     );
 
     await this_.redraw();
@@ -292,7 +293,6 @@ export function lsFiles(path: string[]) {
     return [];
   }
 }
-
 
 // const ranger = new Ranger(lsFiles);
 // const ranger = new Ranger(objLs);

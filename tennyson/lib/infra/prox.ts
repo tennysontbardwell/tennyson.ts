@@ -88,7 +88,7 @@ export class Prox {
     const first = async (arr: Promise<any>[]) => {
       const arr_ = await Promise.allSettled(arr);
       const res_ = arr_.map((res: PromiseSettledResult<any>) =>
-        res.status == "fulfilled" ? res?.value : null
+        res.status == "fulfilled" ? res?.value : null,
       );
       return res_.find((el) => el !== undefined);
     };
@@ -132,7 +132,7 @@ deb http://download.proxmox.com/debian/pve bullseye pve-no-subscription
 
 # security updates
 deb http://security.debian.org/debian-security bullseye-security main contrib
-`
+`,
   );
 }
 
@@ -149,7 +149,7 @@ export class All {
       Object.values(instances).map(async (prox) => {
         const hosts = await prox.listHosts();
         return hosts.map((host) => host.name);
-      })
+      }),
     );
     return hosts.flat();
   }
@@ -170,7 +170,7 @@ export class BabyVm {
     return this.prox.host.exec(
       "pct",
       ["exec", this.id.toString(), "--", "/usr/bin/env", command].concat(args),
-      options
+      options,
     );
   }
 
@@ -240,7 +240,7 @@ export async function createVM(hostname: string, prox: Prox = instances[3]) {
     "1",
   ]);
   await sh(
-    `qm importdisk ${next.toString()} /t/tank/projects-data/iso/external/debian-11-genericcloud-amd64-20220328-962.raw local-lvm`
+    `qm importdisk ${next.toString()} /t/tank/projects-data/iso/external/debian-11-genericcloud-amd64-20220328-962.raw local-lvm`,
   );
   await prox.host.execNoStderr("qm", [
     "set",
@@ -395,10 +395,10 @@ ${fileYaml}
   await ExecHelpers.putFile(
     prox.host.exec.bind(prox.host),
     `/var/lib/vz/snippets/${userInitSnippetName}`,
-    file
+    file,
   );
   await sh(
-    `qm set ${next.toString()} --cicustom "user=local:snippets/${userInitSnippetName}"`
+    `qm set ${next.toString()} --cicustom "user=local:snippets/${userInitSnippetName}"`,
   );
   await sh(`qm start ${next.toString()}`);
   await host_.waitOnDNS();
@@ -410,14 +410,14 @@ ${fileYaml}
     "/etc/apt/sources.list",
   ]);
   // await host_.exec("chsh", ['-s', '/usr/bin/bash', 'admin']);
-  await host_.exec("chsh", ['-s', '/usr/bin/env', '-S', 'bash', 'admin']);
+  await host_.exec("chsh", ["-s", "/usr/bin/env", "-S", "bash", "admin"]);
   return host_;
 }
 
 export async function createDebianWithoutConsul(
   prox: Prox,
   hostname: string,
-  options?: Partial<Params>
+  options?: Partial<Params>,
 ) {
   const params = { ...defaultParams, ...options };
   const next = await prox.nextId();
@@ -457,7 +457,7 @@ export async function createDebianWithoutConsul(
       "nesting=1",
       "--net0",
       `name=eth1,bridge=vmbr0,${ip},firewall=1`,
-    ].concat(nameserverArgs)
+    ].concat(nameserverArgs),
   );
   const configPath = "/etc/pve/lxc/" + next.toString() + ".conf";
   await prox.host.appendFile(
@@ -465,9 +465,9 @@ export async function createDebianWithoutConsul(
     "\n\n# begin tbardwell added\n" +
       params.mountPoints
         .map(
-          (path, i) => "mp" + i.toString() + ": " + path + ",mp=" + path + "\n"
+          (path, i) => "mp" + i.toString() + ": " + path + ",mp=" + path + "\n",
         )
-        .join("")
+        .join(""),
   );
   await prox.host.execNoStderr("pct", ["start", next.toString()]);
   const config = await prox.host.exec("pct", ["config", next.toString()]);
@@ -496,10 +496,10 @@ export async function createDebianWithoutConsul(
   ]);
   const cmd = (str: string) => vm.execOnContainer("bash", ["-c", str]);
   await cmd(
-    "curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -"
+    "curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add -",
   );
   await cmd(
-    'apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"'
+    'apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"',
   );
   await apt.fullUpgrade();
   await ExecHelpers.sh(exec, "mkdir /etc/systemd/system-preset/");
@@ -511,7 +511,7 @@ export async function createDebianWithoutConsul(
 export async function createDebian(
   prox: Prox,
   hostname: string,
-  options?: Partial<Params>
+  options?: Partial<Params>,
 ) {
   const vm = await createDebianWithoutConsul(prox, hostname, options);
   const exec = vm.execOnContainer.bind(vm);

@@ -16,18 +16,20 @@ function home(body: string) {
 }
 
 async function fetchServices(): Promise<string[]> {
-  const res = await axios.get("http://127.0.0.1:8500/v1/catalog/services", {timeout: 2000});
+  const res = await axios.get("http://127.0.0.1:8500/v1/catalog/services", {
+    timeout: 2000,
+  });
   return Object.keys(res.data);
 }
 
 export async function run() {
   const app = express.default();
 
-  app.use(function(err: any, req: any, res: any, next: any) {
+  app.use(function (err: any, req: any, res: any, next: any) {
     res.status(err.status || 500);
-    res.render('error', {
+    res.render("error", {
       message: err.message,
-      error: err
+      error: err,
     });
   });
 
@@ -35,7 +37,7 @@ export async function run() {
     const services = await fetchServices();
     const serviceURLs = services.map(
       (service) =>
-        "https://" + service + ".service.consul.tennysontbardwell.com"
+        "https://" + service + ".service.consul.tennysontbardwell.com",
     );
 
     const urls = [

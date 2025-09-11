@@ -58,12 +58,12 @@ export async function makeKDC(prox_: prox.Prox) {
         kdc_ports = 750, 88
         max_life = 10h 0m 0s
         max_renewable_life = 7d 0h 0m 0s
-    }`
+    }`,
   );
 
   await host_.putFile(
     "/var/kerberos/krb5kdc/kadm5.acl",
-    "tbardwell/admin@TENNYSONTBARDWELL.COM *"
+    "tbardwell/admin@TENNYSONTBARDWELL.COM *",
   );
 
   await host_.apt().install(["krb5-kdc", "krb5-admin-server", "krb5-config"]);
@@ -124,9 +124,9 @@ export async function registerPrincipal(host_: host.Host) {
     principals
       .map(
         (principal: string) =>
-          "0 * * * * root kinit " + shellEscape(kinitArgs(principal))
+          "0 * * * * root kinit " + shellEscape(kinitArgs(principal)),
       )
-      .join("\n") + "\n"
+      .join("\n") + "\n",
   );
 
   await host_.appendFile("/etc/ssh/sshd_config", "GSSAPIAuthentication yes\n");

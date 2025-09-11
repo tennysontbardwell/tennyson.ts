@@ -5,7 +5,7 @@ import * as fs from "fs";
 export async function mkVpn(
   exec: execlib.ExecLike,
   hostname: string,
-  configFileOutputPath: string
+  configFileOutputPath: string,
 ) {
   // make sure aws has correct security group added
   const apt = new host.Apt(exec);
@@ -31,7 +31,7 @@ set_var EASYRSA_CURVE secp521r1
 se
 t_var EASYRSA_DIGEST "sha512"
 set_var EASYRSA_NS_SUPPORT "yes"
-`
+`,
   );
   const easyrsa = "/root/EasyRSA-v3.0.6/easyrsa";
   await exec(easyrsa, ["init-pki"]);
@@ -68,14 +68,14 @@ persist-tun
 status /var/log/openvpn/openvpn-status.log
 verb 3
 explicit-exit-notify 1
-`
+`,
   );
   await exec("systemctl", ["enable", "--now", "openvpn-server@server"]);
   await exec("sysctl", ["enable", "--now", "openvpn-server@server"]);
   await execlib.ExecHelpers.putFile(
     exec,
     "/etc/sysctl.d/10-custom.conf",
-    "net.ipv4.ip_forward = 1\n"
+    "net.ipv4.ip_forward = 1\n",
   );
   await exec("sysctl", ["--system"]);
   await exec("iptables", [
@@ -127,7 +127,7 @@ cipher AES-256-CBC
 verb 3
 `;
   await new Promise((resolve) =>
-    fs.writeFile(configFileOutputPath, clientConf, resolve)
+    fs.writeFile(configFileOutputPath, clientConf, resolve),
   );
 }
 

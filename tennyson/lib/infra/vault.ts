@@ -20,7 +20,7 @@ export async function token() {
   return res.stdout;
 }
 
-export async function addr(){
+export async function addr() {
   const addr = process.env["VAULT_ADDR"];
   if (addr == undefined) {
     throw "VAULT_ADDR undefined";
@@ -30,7 +30,7 @@ export async function addr(){
 
 export async function setupHostCaFiles(
   host_: host.Host,
-  services: string[] = []
+  services: string[] = [],
 ) {
   const token_ = await token();
   const addr_ = await addr();
@@ -41,7 +41,7 @@ export async function setupHostCaFiles(
           const serviceHost = host.Host.ofLocalName(service);
           return [serviceHost.fqdn(), serviceHost.fqdnNoDc()];
         })
-        .flat()
+        .flat(),
     )
     .join(",");
   const httpsAgent = new https.Agent({ ca: commonInfra.pem });
@@ -62,7 +62,7 @@ export async function setupHostCaFiles(
   const data: any = res.data;
   const crt: string = data.data.issuing_ca;
   const key: string = data.data.private_key;
-  const exec = execlib.ExecHelpers.su(host_.exec.bind(host_), 'root', true);
+  const exec = execlib.ExecHelpers.su(host_.exec.bind(host_), "root", true);
   await execlib.ExecHelpers.putFile(exec, "/etc/ssl/node.crt", crt);
   await execlib.ExecHelpers.putFile(exec, "/etc/ssl/node.key", key);
 }
@@ -71,7 +71,7 @@ export async function setupCaFile(exec: execlib.ExecLike) {
   await execlib.ExecHelpers.putFile(
     exec,
     "/usr/local/share/ca-certificates/tennysontbardwell.com.crt",
-    commonInfra.pem
+    commonInfra.pem,
   );
   await exec("update-ca-certificates", []);
 }

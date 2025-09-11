@@ -63,20 +63,20 @@ export async function setup(exec: execlib.ExecLike, config = defaultConfig) {
   await execlib.ExecHelpers.putFile(
     exec,
     "/home/admin/.jupyter/jupyter_server_config.json",
-    config
+    config,
   );
   await nginx.setupProxy(exec, [{ listen: 443, deliver: 8080 }]);
   await exec("pip3", ["install", "jupyterlab"]);
   await infraBuilder.addService(
     exec,
     "jupyterlab",
-    "/usr/local/bin/jupyter-lab --port 8080"
+    "/usr/local/bin/jupyter-lab --port 8080",
   );
 }
 
 export async function make(hostname: string = defaultHostname) {
   const host_ = await infraBuilder.mkVM(hostname, prox.instances[3]);
-  const exec = execlib.ExecHelpers.su(host_.exec.bind(host_), 'root', true);
+  const exec = execlib.ExecHelpers.su(host_.exec.bind(host_), "root", true);
   await new host.Apt(exec).install(["lib32z1"]);
   await setup(exec);
   return host_;

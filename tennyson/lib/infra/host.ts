@@ -39,7 +39,7 @@ export class Apt {
     const command =
       "DEBIAN_FRONTEND=noninteractive " +
       shellescape(
-        ["apt-get", "install", "-y", "-q", "--force-yes"].concat(packages)
+        ["apt-get", "install", "-y", "-q", "--force-yes"].concat(packages),
       );
     await this.exec("bash", ["-c", command]);
   }
@@ -94,9 +94,8 @@ export class Host {
   }
 
   fqdnNoDc() {
-    return this.hostname() + '.node.consul.tennysontbardwell.com';
+    return this.hostname() + ".node.consul.tennysontbardwell.com";
   }
-
 
   sshTarget() {
     return this.user + "@" + this.fqdn();
@@ -113,7 +112,12 @@ export class Host {
     const target = this.sshTarget();
     // const sshArgs = [target, "/bin/bash", "-c", shellescape([remoteCommand])];
     const sshArgs = [
-      target, "/usr/bin/env", "-S", "bash", "-c", shellescape([remoteCommand])
+      target,
+      "/usr/bin/env",
+      "-S",
+      "bash",
+      "-c",
+      shellescape([remoteCommand]),
     ];
     return execlib.exec("ssh", sshArgs, options);
   }
@@ -160,7 +164,7 @@ export class Host {
       ["-c", "base64 -d | dd status=none of=" + shellescape([path])],
       {
         stdin: contents,
-      }
+      },
     );
   }
   async appendFile(path: string, contents: string) {
@@ -170,29 +174,33 @@ export class Host {
   }
 
   async learnHostKey() {
-    await execlib.exec("bash", ["-c", "yes yes | ssh-keygen -R " + this.fqdn()], {
-      acceptExitCode: (_code: number | null) => true,
-    });
+    await execlib.exec(
+      "bash",
+      ["-c", "yes yes | ssh-keygen -R " + this.fqdn()],
+      {
+        acceptExitCode: (_code: number | null) => true,
+      },
+    );
     const hostKey = await execlib.exec("bash", [
       "-c",
       "yes yes | ssh-keyscan -H " + this.fqdn(),
     ]);
     await execlib.appendFile(
       process.env["HOME"] + "/.ssh/known_hosts",
-      hostKey.stdout
+      hostKey.stdout,
     );
   }
 
   async scpTo(localPath: string, remotePath: string) {
     await execlib.exec("scp", [
       localPath,
-      `${this.user}@${this.fqdn()}:${remotePath}`])
+      `${this.user}@${this.fqdn()}:${remotePath}`,
+    ]);
   }
 
   async sshTunnel(remotePort: number, localPort?: number) {
-    const localPort_ = (localPort === undefined)
-      ? await net_util.getRandomFreePort()
-      : localPort;
+    const localPort_ =
+      localPort === undefined ? await net_util.getRandomFreePort() : localPort;
 
     const process = spawn("ssh", [
       "-NL",
@@ -203,4 +211,3 @@ export class Host {
     return { localPort: localPort_, process };
   }
 }
-

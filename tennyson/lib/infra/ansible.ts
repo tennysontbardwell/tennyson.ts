@@ -14,7 +14,7 @@ export async function test(hostname: string, user = "root") {
   const res = await execlib.ExecHelpers.bashWrapForStdinPipe(execlib.exec)(
     "ansible-playbook",
     ["-i", fqdn + ",", "-u", user, "/dev/stdin"],
-    { stdin: playbook }
+    { stdin: playbook },
   );
   common.log.info(res);
 }

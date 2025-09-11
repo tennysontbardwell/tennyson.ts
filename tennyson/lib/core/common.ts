@@ -1,11 +1,13 @@
 import * as tslog from "tslog";
 import { tqdm } from "./tqdm";
-import stableStringify from "json-stable-stringify"
+import stableStringify from "json-stable-stringify";
 import type { NotFunction } from "effect/Types";
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
-export function notEmpty<TValue>(value: TValue | null | undefined): value is TValue {
+export function notEmpty<TValue>(
+  value: TValue | null | undefined,
+): value is TValue {
   return value !== null && value !== undefined;
 }
 
@@ -46,19 +48,16 @@ export class ErrorWithData extends Error {
 // }
 
 export const inNode =
-  typeof process !== 'undefined'
-  && process.versions != null
-  && process.versions.node != null
+  typeof process !== "undefined" &&
+  process.versions != null &&
+  process.versions.node != null;
 
-const debugOn =
-  inNode
-    ? (
-      process.env["DEBUG"] !== undefined &&
-      process.env["DEBUG"] !== null &&
-      process.env["DEBUG"] !== "0" &&
-      process.env["DEBUG"] !== ""
-    )
-    : false;
+const debugOn = inNode
+  ? process.env["DEBUG"] !== undefined &&
+    process.env["DEBUG"] !== null &&
+    process.env["DEBUG"] !== "0" &&
+    process.env["DEBUG"] !== ""
+  : false;
 
 // var logLevel = "info";
 
@@ -104,8 +103,8 @@ export const jsonStdErrlog = new tslog.Logger({
   overwrite: {
     transportJSON: (logObj) => {
       console.error(JSON.stringify(logObj));
-    }
-  }
+    },
+  },
 });
 
 const webLog = {
@@ -114,13 +113,16 @@ const webLog = {
   warn: console.warn,
   error: console.error,
   fatal: console.error,
-}
+};
 
 export var log = inNode ? prettyLog : webLog;
 
 // export const debug = log.debug.bind(log);
 export const info = log.info.bind(log);
-export const infoTap = <T>(a: T): T => { log.info(a); return a };
+export const infoTap = <T>(a: T): T => {
+  log.info(a);
+  return a;
+};
 // export const warn = log.warn.bind(log);
 // export const error = log.error.bind(log);
 // export const fatal = log.fatal.bind(log);
@@ -129,16 +131,16 @@ export function assert(condition: false, data?: NotFunction<any>): never;
 export function assert(condition: boolean, data?: NotFunction<any>): void;
 export function assert(condition: boolean, data?: NotFunction<any>) {
   if (!condition) {
-    log.error({ message: "Assertion Failed", data })
-    throw new ErrorWithData("Assertion Failed", data)
+    log.error({ message: "Assertion Failed", data });
+    throw new ErrorWithData("Assertion Failed", data);
   }
 }
 
 export function lazyAssert(condition: boolean, data?: () => any) {
   const data_ = data === undefined ? undefined : data();
   if (!condition) {
-    log.error({ message: "Assertion Failed", data: data_ })
-    throw new ErrorWithData("Assertion Failed", data_)
+    log.error({ message: "Assertion Failed", data: data_ });
+    throw new ErrorWithData("Assertion Failed", data_);
   }
 }
 
@@ -164,10 +166,12 @@ export function lazyGet<K, V>(map: Map<K, V>, key: K, get: () => V) {
   return map.get(key)!;
 }
 
-export function lazyGetObj<O extends Object, K extends keyof O>
-  (obj: Partial<O>, key: K, get: () => O[K]): O[K] {
-  if (!(key in obj))
-    obj[key] = get()
+export function lazyGetObj<O extends Object, K extends keyof O>(
+  obj: Partial<O>,
+  key: K,
+  get: () => O[K],
+): O[K] {
+  if (!(key in obj)) obj[key] = get();
   return obj[key]!;
 }
 
@@ -188,7 +192,7 @@ export function sleep(ms: number) {
 
 export async function didRaise(fun: () => Promise<void>) {
   try {
-    await fun()
+    await fun();
   } catch {
     return false;
   }
@@ -204,7 +208,7 @@ export async function ignoreAsync(x: any) {
 export async function retry(
   ms: number,
   retries: number,
-  task: () => Promise<boolean>
+  task: () => Promise<boolean>,
 ): Promise<boolean> {
   if (retries < 1) {
     return false;
@@ -221,7 +225,7 @@ export async function retry(
 export async function retryExn(
   ms: number,
   retries: number,
-  task: () => Promise<boolean>
+  task: () => Promise<boolean>,
 ): Promise<void> {
   const res = await retry(ms, retries, task);
   if (!res) {
@@ -229,16 +233,15 @@ export async function retryExn(
   }
 }
 
-export function cache<T>(fun: () => T): (() => T) {
-  var res: null | ['set', T] = null;
+export function cache<T>(fun: () => T): () => T {
+  var res: null | ["set", T] = null;
   return () => {
     if (res === null) {
-      res = ['set', fun()];
+      res = ["set", fun()];
     }
     return res[1];
   };
 }
-
 
 export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
   return {
@@ -247,19 +250,18 @@ export function lazy<T extends NonNullable<any>>(f: () => Promise<T>) {
       if (this.data === null) {
         this.data = f();
       }
-      return this.data
-    }
-  }
+      return this.data;
+    },
+  };
 }
 
 export const range = (a: number, b?: number) => {
-  if (b === undefined)
-    return Array.from({ length: a }, (_value, key) => key)
-  return Array.from({ length: b - a }, (_value, key) => key + a)
-}
+  if (b === undefined) return Array.from({ length: a }, (_value, key) => key);
+  return Array.from({ length: b - a }, (_value, key) => key + a);
+};
 
 export function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n))
+  return Math.max(min, Math.min(max, n));
 }
 
 export class Semaphore {
@@ -309,13 +311,13 @@ export class Semaphore {
 
 export async function runInLimitedConcurrency<T>(
   fns: (() => Promise<T>)[],
-  maxConcurrency: number)
-  : Promise<T[]> {
+  maxConcurrency: number,
+): Promise<T[]> {
   const results: T[] = [];
   const executing: Set<Promise<void>> = new Set();
 
   for await (const fn of tqdm(fns)) {
-    const p = fn().then(result => {
+    const p = fn().then((result) => {
       results.push(result);
       executing.delete(p);
     });
@@ -331,19 +333,19 @@ export async function runInLimitedConcurrency<T>(
 }
 
 export async function mapInLimitedConcurrency<A, B>(
-  fn: ((x: A) => Promise<B>),
+  fn: (x: A) => Promise<B>,
   inputs: A[],
-  maxConcurrency: number)
-  : Promise<B[]> {
+  maxConcurrency: number,
+): Promise<B[]> {
   return runInLimitedConcurrency(
-    inputs.map(elm => (() => fn(elm))),
-    maxConcurrency
+    inputs.map((elm) => () => fn(elm)),
+    maxConcurrency,
   );
 }
 
 export function splitMap<K extends string | number | symbol, A, B>(
   array: A[],
-  fn: (input: A) => [K, B]
+  fn: (input: A) => [K, B],
 ): Record<K, B[]> {
   const res = {} as Record<K, B[]>;
   for (const item of array) {
@@ -359,15 +361,16 @@ export function splitMap<K extends string | number | symbol, A, B>(
 
 export function splitArray<K extends string | number | symbol, V>(
   array: V[],
-  keyFn: (input: V) => K
+  keyFn: (input: V) => K,
 ): Record<K, V[]> {
-  return splitMap(array, x => [keyFn(x), x]);
+  return splitMap(array, (x) => [keyFn(x), x]);
 }
-
 
 export function rndAlphNum(length: number) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  const rnd = Array.from({ length }, _ => chars.charAt(Math.floor(Math.random() * chars.length)));
+  const rnd = Array.from({ length }, (_) =>
+    chars.charAt(Math.floor(Math.random() * chars.length)),
+  );
   return rnd.join("");
 }
 
@@ -378,63 +381,70 @@ export function getRandomElement<T>(array: T[]): T | undefined {
 }
 
 declare const __brand: unique symbol;
-type Brand<B> = { [__brand]: B }
-export type Branded<T, B> = T & Brand<B>
+type Brand<B> = { [__brand]: B };
+export type Branded<T, B> = T & Brand<B>;
 
 export function objOfKeys<T, K extends string | number | symbol, D>(
   lst: readonly T[],
   data: (elm: T) => D,
   key: (elm: T) => K,
 ): Record<K, D> {
-  return lst.reduce((accum, item) => {
-    accum[key(item)] = data(item);
-    return accum;
-  },
-    {} as Record<K, D>);
+  return lst.reduce(
+    (accum, item) => {
+      accum[key(item)] = data(item);
+      return accum;
+    },
+    {} as Record<K, D>,
+  );
 }
 
 export function groupByMulti<T>(lst: T[], keys: (elm: T) => string[]) {
-  return lst.reduce((accum, item) =>
-    keys(item).reduce((accum, key) => {
-      if (!accum[key])
-        accum[key] = [item];
-      else
-        accum[key].push(item);
-      return accum;
-    }, accum),
-    {} as Record<string, T[]>);
+  return lst.reduce(
+    (accum, item) =>
+      keys(item).reduce((accum, key) => {
+        if (!accum[key]) accum[key] = [item];
+        else accum[key].push(item);
+        return accum;
+      }, accum),
+    {} as Record<string, T[]>,
+  );
 }
 
 export function groupBy<T>(lst: T[], key: (elm: T) => string) {
-  return lst.reduce((accum, item) => {
-    const key_ = key(item);
-    if (!accum[key_])
-      accum[key_] = [item];
-    else
-      accum[key_].push(item);
-    return accum;
-  }, {} as Record<string, T[]>);
+  return lst.reduce(
+    (accum, item) => {
+      const key_ = key(item);
+      if (!accum[key_]) accum[key_] = [item];
+      else accum[key_].push(item);
+      return accum;
+    },
+    {} as Record<string, T[]>,
+  );
 }
 
-export function aListGroupBy<T>(lst: T[], key: (elm: T) => string)
-  : [string, T[]][] {
+export function aListGroupBy<T>(
+  lst: T[],
+  key: (elm: T) => string,
+): [string, T[]][] {
   const obj = groupBy(lst, key);
   return Object.keys(obj)
-    .map(key => [key, obj[key]] as [string, T[]])
+    .map((key) => [key, obj[key]] as [string, T[]])
     .sort(([a, _x], [b, _y]) => a.localeCompare(b));
 }
 
-export function aListGroupByMulti<T>(lst: T[], keys: (elm: T) => string[])
-  : [string, T[]][] {
+export function aListGroupByMulti<T>(
+  lst: T[],
+  keys: (elm: T) => string[],
+): [string, T[]][] {
   const obj = groupByMulti(lst, keys);
   return Object.keys(obj)
-    .map(key => [key, obj[key]] as [string, T[]])
+    .map((key) => [key, obj[key]] as [string, T[]])
     .sort(([a, _x], [b, _y]) => a.localeCompare(b));
 }
 
 export function errorToObject(error: any) {
   const errorObj: Record<string, any> = {};
-  Object.getOwnPropertyNames(error).forEach(key => {
+  Object.getOwnPropertyNames(error).forEach((key) => {
     errorObj[key] = error[key];
   });
   return errorObj;
@@ -459,7 +469,7 @@ export function getWeekNumber(date: Date): number {
 
   // If this is not a Thursday, set the target to the next Thursday
   if (tempDate.getDay() !== 4) {
-    tempDate.setMonth(0, 1 + ((4 - tempDate.getDay()) + 7) % 7);
+    tempDate.setMonth(0, 1 + ((4 - tempDate.getDay() + 7) % 7));
   }
 
   // The weeknumber is the number of weeks between the first Thursday of the year
@@ -476,11 +486,36 @@ export function unreachable(x: never): never {
 }
 
 export namespace AlphaNumeric {
-  export const alphaLower =
-    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
-      'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'] as const
+  export const alphaLower = [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+  ] as const;
 
-  export type AlphaLower = (typeof alphaLower)[number]
+  export type AlphaLower = (typeof alphaLower)[number];
 }
 
 type NonUndefined<T> = {
@@ -491,9 +526,10 @@ type StripUndefined<T> = {
   [K in keyof T as undefined extends T[K] ? never : K]: T[K];
 };
 
-export function stripUndefined<T extends Record<string, any>>(obj: T)
-: NonUndefined<StripUndefined<T>> {
+export function stripUndefined<T extends Record<string, any>>(
+  obj: T,
+): NonUndefined<StripUndefined<T>> {
   return Object.fromEntries(
-    Object.entries(obj).filter(([_, value]) => value !== undefined)
+    Object.entries(obj).filter(([_, value]) => value !== undefined),
   ) as NonUndefined<StripUndefined<T>>;
 }

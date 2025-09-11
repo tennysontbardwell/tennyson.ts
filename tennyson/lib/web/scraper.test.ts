@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { expect, test } from "vitest";
 
 // import { xpathOfHTML } from "./scraper";
 
@@ -14,8 +14,7 @@ const html = `
     </html>
   `;
 
-test('placeholder', async () => {
-})
+test("placeholder", async () => {});
 
 // test("cssSelectorOfHTML", async () => {
 //   const frag = JSDOM.fragment(html)
