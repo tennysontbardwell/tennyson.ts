@@ -11,6 +11,8 @@ import * as common from "tennyson/lib/core/common";
 import * as common_node from "tennyson/lib/core/common-node";
 import * as child_process from "child_process";
 
+const c = common;
+
 function py_docs(name: string) {
   var modules: Promise<string[]> | null = null;
   const fetchModules = async (): Promise<string[]> =>
@@ -56,7 +58,7 @@ async function scripts(
   prefix: string = "",
   preActionHook: (name: string) => Promise<void> = async (_) => {},
 ) {
-  const glob: any = await require("glob");
+  const glob = await require("glob");
   dir = common_node.resolveHome(dir);
   const scripts: Array<string> = glob.sync(path.join(dir, glob_));
   return scripts.map((name: string) => {
@@ -114,6 +116,47 @@ async function functions() {
   });
 }
 
+function sops(name: string) {
+  async function sopsFiles() {
+    const glob = await require("glob");
+    const dir = common_node.resolveHome("~/secrets/");
+    const res = await glob.sync(path.join(dir, "*.json"));
+    return res as string[];
+  }
+
+  async function preview(file: string) {
+    const jqQuery =
+      'del(.sops) | [paths(scalars) as $p  | ($p | join("->"))] | join("\n")';
+    const res = await execlib.exec("jq", [jqQuery, file]);
+    return res.stdout
+  }
+
+  async function itemsFromFile(file: string): Promise<fzf.FzfItem[]> {
+    const jqQuery =
+      '[paths(scalars) as $p  | {key: ($p | join("->")), value: getpath($p)}]';
+
+    const res = await execlib.exec("sops", ["decrypt", file]);
+    const res2 = await execlib.exec("jq", [jqQuery], { stdin: res.stdout });
+    const secrets: { key: string; value: string }[] = JSON.parse(res2.stdout);
+    const fzfItems = secrets.map((secret) =>
+      c.id({
+        choice: secret.key,
+        preview: "******",
+        action: () => execlib.exec("pbcopy", [], { stdin: secret.value }),
+      }),
+    );
+    return fzfItems;
+  }
+
+  async function items() {
+    const files = await sopsFiles();
+    return files.map((file) =>
+      fzf.lazySubtree(file, () => itemsFromFile(file)),
+    );
+  }
+
+  return fzf.lazySubtree(name, items);
+}
 export async function run() {
   await fzf.richFzf([
     fzf.lazySubtree("snippets", async () => {
@@ -162,6 +205,7 @@ export async function run() {
       return res;
     }),
     py_docs("python-docs"),
+    sops("sops-secrets"),
     fzf.lazySubtree("repos", git.GithubRepo.fzfLocalRepos),
     fzf.command("ranger-fs", async () => {
       const ranger = await import("tennyson/app/ranger/index");

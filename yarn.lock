@@ -1245,10 +1245,27 @@
   dependencies:
     uuid "^11.0.3"
 
+"@effect/platform-bun@^0.79.1":
+  version "0.79.1"
+  resolved "https://registry.yarnpkg.com/@effect/platform-bun/-/platform-bun-0.79.1.tgz#3651b727a3231b0953484b59fdacce9da7d4fecc"
+  integrity sha512-Q3wJkalDJaYZecJf7Vz37CNfvDN0HDXnahFbbhfZ7+dTBEQZxlKw48Qw85BXbNK0gTOfQSwIJ5TkCJhRcnN+Lw==
+  dependencies:
+    "@effect/platform-node-shared" "^0.49.2"
+    multipasta "^0.2.7"
+
 "@effect/platform-node-shared@^0.49.0":
   version "0.49.0"
   resolved "https://registry.yarnpkg.com/@effect/platform-node-shared/-/platform-node-shared-0.49.0.tgz#d78857f6ee1549c631335f5cd9cbc1229d9c4ee9"
   integrity sha512-6ufPQUtofYW+jsADRI4Pa4sMY+kc0dcoXWpH1ozH/bD6I5c2au1n/wDffnLoXMeHGYSpt/54Dd7WOqqNcOdXlg==
+  dependencies:
+    "@parcel/watcher" "^2.5.1"
+    multipasta "^0.2.7"
+    ws "^8.18.2"
+
+"@effect/platform-node-shared@^0.49.2":
+  version "0.49.2"
+  resolved "https://registry.yarnpkg.com/@effect/platform-node-shared/-/platform-node-shared-0.49.2.tgz#ed51269a32147a725c0f8aec6473d86e3b420111"
+  integrity sha512-uYlQi2swDV9hdHatr2Onov3G+VlEF+3+Qm9dvdOZiZNE1bVqvs/zs6LVT8Yrz/3Vq/4JPzGcN+acx0iiJo5ZVw==
   dependencies:
     "@parcel/watcher" "^2.5.1"
     multipasta "^0.2.7"
