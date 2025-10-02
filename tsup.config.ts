@@ -4,8 +4,8 @@ export default defineConfig([
   {
     entry: [
       'tennyson/index.ts',
-      'tennyson/app/scripts/hometty.ts',
-      'tennyson/app/scripts/aws-ranger.ts',
+      'tennyson/bin/hometty.ts',
+      'tennyson/bin/aws-ranger.ts',
     ],
     format: ['esm'],
     dts: false,

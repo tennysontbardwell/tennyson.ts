@@ -29,7 +29,7 @@ export const cmds: cli.Command[] = [
   aicmd.cmd,
   infra_cmd.Devbox.cmd,
   cli.command("hometty", async () => {
-    const hometty = await import("tennyson/app/scripts/hometty");
+    const hometty = await import("tennyson/lib/hometty/hometty");
     await hometty.run();
   }),
   cli.command("api-run", async () => {

@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as path from "path";
 import shellescape from "shell-escape";
 import * as fs from "fs/promises";
@@ -157,6 +155,7 @@ function sops(name: string) {
 
   return fzf.lazySubtree(name, items);
 }
+
 export async function run() {
   await fzf.richFzf([
     fzf.lazySubtree("snippets", async () => {
@@ -172,6 +171,7 @@ export async function run() {
       fzf.website("old.reddit.com"),
       fzf.website("xkcd.com"),
       fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
+      fzf.website("lazamar.co.uk/nix-versions/"),
     ]),
     fzf.subtree("ff | favorite files", [
       fzf.cd("~/repos/tennysontbardwell/misc-projects"),

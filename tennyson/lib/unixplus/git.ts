@@ -71,6 +71,7 @@ export namespace GithubRepo {
           const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
+            terminal: true,
           });
           var answer: string = await new Promise((resolve) => {
             rl.question("Enter URL: ", resolve);
