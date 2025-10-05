@@ -28,7 +28,7 @@ async function quickdev() {
 export const cmds: cli.Command[] = [
   aicmd.cmd,
   infra_cmd.Devbox.cmd,
-  cli.command("hometty", async () => {
+  cli.command("hometty-public", async () => {
     const hometty = await import("tennyson/lib/hometty/hometty");
     await hometty.run();
   }),

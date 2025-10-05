@@ -126,7 +126,7 @@ function sops(name: string) {
     const jqQuery =
       'del(.sops) | [paths(scalars) as $p  | ($p | join("->"))] | join("\n")';
     const res = await execlib.exec("jq", [jqQuery, file]);
-    return res.stdout
+    return res.stdout;
   }
 
   async function itemsFromFile(file: string): Promise<fzf.FzfItem[]> {
@@ -156,8 +156,15 @@ function sops(name: string) {
   return fzf.lazySubtree(name, items);
 }
 
-export async function run() {
-  await fzf.richFzf([
+interface HomettyOptions {
+  additionalItems?: fzf.FzfItem[];
+  additions?: {
+    websites?: fzf.FzfItem[];
+  };
+}
+
+export const hometty = (options: HomettyOptions = {}) =>
+  [
     fzf.lazySubtree("snippets", async () => {
       const more = await personalSnippets();
       return [
@@ -166,13 +173,16 @@ export async function run() {
         fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
       ].concat(more);
     }),
-    fzf.subtree("websites", [
-      fzf.website("google.com"),
-      fzf.website("old.reddit.com"),
-      fzf.website("xkcd.com"),
-      fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
-      fzf.website("lazamar.co.uk/nix-versions/"),
-    ]),
+    fzf.subtree(
+      "websites",
+      [
+        fzf.website("google.com"),
+        fzf.website("old.reddit.com"),
+        fzf.website("xkcd.com"),
+        fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
+        fzf.website("lazamar.co.uk/nix-versions/"),
+      ].concat(options.additions?.websites ?? []),
+    ),
     fzf.subtree("ff | favorite files", [
       fzf.cd("~/repos/tennysontbardwell/misc-projects"),
       fzf.cd("~/projects/dotfiles/zsh"),
@@ -217,5 +227,8 @@ export async function run() {
         common_node.passthru("node", ["--enable-source-maps"]),
       ),
     ]),
-  ]);
+  ].concat(options?.additionalItems ?? []);
+
+export async function run(options?: HomettyOptions) {
+  await fzf.richFzf(hometty(options));
 }

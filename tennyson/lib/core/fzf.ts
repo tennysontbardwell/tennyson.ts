@@ -7,11 +7,14 @@ import * as path from "path";
 import process from "process";
 import shellescape from "shell-escape";
 
-export async function fzf(
-  choices: Array<string>,
-  preview: ((choice: string) => string) | ((choice: string) => Promise<string>),
-  action: (choice: string) => Promise<any> = async (_) => null,
-) {
+interface FzfMenu {
+  choices: Array<string>;
+  preview: ((choice: string) => string) | ((choice: string) => Promise<string>);
+  action: (choice: string) => Promise<any>;
+}
+
+export async function fzf(menu: FzfMenu) {
+  const { choices, preview, action } = menu;
   const location = "fzf";
   // const location_ = await execlib.exec("/bin/zsh", ["-ic", "which fzf"]);
   // const location = location_.stdout.replace(/\n$/, '');
@@ -98,11 +101,11 @@ export async function richFzf(choices: Array<FzfItem>) {
       throw e;
     }
   };
-  await fzf([...choices_.keys()], preview, action);
+  await fzf({ choices: [...choices_.keys()], preview, action });
 }
 
-export function website(url: string, name?: string) {
-  const choice = typeof name === "string" ? `${url} | ${name}` : url;
+export function website(url: string, name?: string): FzfItem {
+  const choice = typeof name === "string" ? `${name} | ${url}` : url;
   return {
     choice: choice,
     preview: url,
