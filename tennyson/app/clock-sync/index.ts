@@ -113,7 +113,7 @@ class Node {
   async expertStart() {
     common.log.info(`Starting ${this.name}`);
     this.box = await ec2.createNewSmall(this.name, {
-      additionalSecurityGroups: ["allow-all"],
+      additionalSecurityGroups: ["default"],
     });
   }
 
