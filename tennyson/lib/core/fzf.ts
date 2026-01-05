@@ -113,6 +113,41 @@ export function website(url: string, name?: string): FzfItem {
   };
 }
 
+// TODO websearch("https://www.google.com/search?q={query}", "google") causes a
+// prompt to be shown via readline, the contents of that prompt gets http escaped,
+// put into the url at {query} and then opened
+export function websearch(
+  urlWithQueryTemplate: string,
+  name?: string,
+): FzfItem {
+  const choice =
+    typeof name === "string"
+      ? `${name} | ${urlWithQueryTemplate}`
+      : urlWithQueryTemplate;
+  return {
+    choice: choice,
+    preview: urlWithQueryTemplate,
+    action: async () => {
+      const readline = await import("readline");
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+
+      const query = await new Promise<string>((resolve) => {
+        rl.question("Search query: ", (answer) => {
+          rl.close();
+          resolve(answer);
+        });
+      });
+
+      const encodedQuery = encodeURIComponent(query);
+      const url = urlWithQueryTemplate.replace("{query}", encodedQuery);
+      await execlib.sh(`open "https://${url}"`);
+    },
+  };
+}
+
 export function lazySubtree(
   name: string,
   items: () => Promise<Array<FzfItem>>,

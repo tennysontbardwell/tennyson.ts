@@ -160,6 +160,7 @@ interface HomettyOptions {
   additionalItems?: fzf.FzfItem[];
   additions?: {
     websites?: fzf.FzfItem[];
+    websearch?: fzf.FzfItem[];
   };
 }
 
@@ -182,6 +183,24 @@ export const hometty = (options: HomettyOptions = {}) =>
         fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
         fzf.website("lazamar.co.uk/nix-versions/"),
       ].concat(options.additions?.websites ?? []),
+    ),
+    fzf.subtree(
+      "web-search",
+      [
+        fzf.websearch("www.google.com/search?q={query}", "google"),
+        fzf.websearch(
+          "www.wolframalpha.com/input?i={query}",
+          "wra | wolfram alpha",
+        ),
+        fzf.websearch("kagi.com/search?q={query}", "kagi"),
+        fzf.websearch("wikipedia.org/w/index.php?search={query}", "wikipedia"),
+        fzf.websearch("www.packagetrackr.com/track/{query}", "packagetrackr"),
+        fzf.websearch("trakt.tv/search?query={query}", "trakt: media tracking"),
+        fzf.websearch(
+          "search.nixos.org/packages?query={query}",
+          "nixos package search",
+        ),
+      ].concat(options.additions?.websearch ?? []),
     ),
     fzf.subtree("ff | favorite files", [
       fzf.cd("~/repos/tennysontbardwell/misc-projects"),
