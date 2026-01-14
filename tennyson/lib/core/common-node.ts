@@ -190,6 +190,17 @@ export async function withTempDir(f: (dir: string) => Promise<void>) {
   }
 }
 
+export async function withTempFile(
+  filename: string,
+  f: (file: string) => Promise<void>,
+) {
+  return await withTempDir(async (dir: string) => {
+    const file = path.join(dir, filename);
+    await fs.writeFile(file, "");
+    return await f(file);
+  });
+}
+
 async function dataExamineCommand(cmd: string, data: any) {
   await withTempDir(async (dir: string) => {
     const file = path.join(dir, "data.json");
