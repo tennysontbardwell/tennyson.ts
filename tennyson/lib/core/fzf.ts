@@ -113,6 +113,16 @@ export function website(url: string, name?: string): FzfItem {
   };
 }
 
+export function multiwebsite(urls: string[], name: string): FzfItem {
+  const choice = `${name} | ${urls.length} urls`;
+  return {
+    choice: choice,
+    preview: urls.join("\n"),
+    action: async () =>
+      Promise.all(urls.map((url) => execlib.sh(`open "https://${url}"`))),
+  };
+}
+
 // TODO websearch("https://www.google.com/search?q={query}", "google") causes a
 // prompt to be shown via readline, the contents of that prompt gets http escaped,
 // put into the url at {query} and then opened
