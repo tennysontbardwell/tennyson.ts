@@ -533,3 +533,11 @@ export function stripUndefined<T extends Record<string, any>>(
     Object.entries(obj).filter(([_, value]) => value !== undefined),
   ) as NonUndefined<StripUndefined<T>>;
 }
+
+export function toArray<T>(input: T[] | T): T[] {
+  if (Array.isArray(input)) {
+    return input; // It's already an array
+  } else {
+    return [input]; // Wrap the object in an array
+  }
+}
