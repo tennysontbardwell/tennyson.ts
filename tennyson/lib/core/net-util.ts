@@ -53,3 +53,35 @@ export function queryOfUrlAndParams(
   const res = queryStr.length == 0 ? url : `${url}?${queryStr}`;
   return res;
 }
+
+export async function selectorOfUrl(url: string | URL, selector: string) {
+  const netRes = await fetch(url);
+  const response = await checkResponseExn(netRes);
+  const cheerio = await import("cheerio");
+  const doc = cheerio.load(await response.text());
+  const extraction = doc.extract({
+    results: [
+      {
+        selector,
+        value: "outerHTML",
+      },
+    ],
+  });
+  return extraction.results;
+}
+
+export async function selectorTextOfUrl(url: string | URL, selector: string) {
+  const netRes = await fetch(url);
+  const response = await checkResponseExn(netRes);
+  const cheerio = await import("cheerio");
+  const doc = cheerio.load(await response.text());
+  const extraction = doc.extract({
+    results: [
+      {
+        selector,
+        value: "textContent",
+      },
+    ],
+  });
+  return extraction.results;
+}
