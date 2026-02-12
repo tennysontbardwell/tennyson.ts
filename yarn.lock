@@ -7997,6 +7997,11 @@ vary@~1.1.2:
   resolved "https://registry.npmjs.org/vary/-/vary-1.1.2.tgz"
   integrity sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==
 
+vcard-ts@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/vcard-ts/-/vcard-ts-2.0.0.tgz#871c3c01d7d3185010b8256e7c2baf37abb23470"
+  integrity sha512-+qbaVbAunDenuJbPI7cvHrmR2vpwweaqMCLUGUxlEXgd9oHTiGWJHnXT+IFYwvrgig4aaWrC62WmNELUr9E6Eg==
+
 vite-node@3.2.4:
   version "3.2.4"
   resolved "https://registry.yarnpkg.com/vite-node/-/vite-node-3.2.4.tgz#f3676d94c4af1e76898c162c92728bca65f7bb07"
