@@ -1,6 +1,18 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig([
+  // your library build (keep ESM if you want)
+  {
+    entry: ["tennyson/bin/electron.ts"],
+    format: ["cjs"],
+    bundle: true,
+    sourcemap: true,
+    clean: true,
+    outDir: "bin",
+    tsconfig: "./tsconfig.json",
+    noExternal: ["effect"],
+  },
+
   {
     entry: [
       'tennyson/index.ts',

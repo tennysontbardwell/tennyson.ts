@@ -55,7 +55,8 @@ export const cmds: cli.Command[] = [
   }),
   cli.command("ranger-fs", async () => {
     const ranger = await import("tennyson/app/ranger/index");
-    new ranger.Ranger(ranger.lsFiles);
+    const r = new ranger.Ranger(ranger.lsFiles);
+    await r.run();
   }),
   cli.lazyGroup("scrape", async () => {
     const scraper = await import("tennyson/lib/web/scraper");
@@ -171,17 +172,17 @@ export const cmds: cli.Command[] = [
             alias: "p",
             describe: "Imports Node Platform",
             type: "string",
-            choices: ['bun', 'node'],
+            choices: ["bun", "node"],
             // choices: ["node"],
             required: false,
           },
         },
         async (args) => {
-          const platformBun_ = () => import("@effect/platform-bun")
+          const platformBun_ = () => import("@effect/platform-bun");
           const platformNode_ = () => import("@effect/platform-node");
           const effect_ = () => import("effect");
 
-          const target = args.platform as 'bun' | 'node' | undefined
+          const target = args.platform as "bun" | "node" | undefined;
           // const target = args.platform as "node" | undefined;
 
           if (target === undefined) {
@@ -198,15 +199,16 @@ export const cmds: cli.Command[] = [
               effect.Effect.provide(platformNode.NodeContext.layer),
               platformNode.NodeRuntime.runMain(),
             );
+          } else if (target === "bun") {
+            const [effect, platformBun] = await Promise.all([
+              effect_(),
+              platformBun_(),
+            ]);
 
-            } else if (target === 'bun') {
-              const [effect, platformBun] =
-                await Promise.all([effect_(), platformBun_()])
-
-              effect.Effect.log("Hello World").pipe(
-                effect.Effect.provide(platformBun.BunContext.layer),
-                platformBun.BunRuntime.runMain()
-              )
+            effect.Effect.log("Hello World").pipe(
+              effect.Effect.provide(platformBun.BunContext.layer),
+              platformBun.BunRuntime.runMain(),
+            );
           } else {
             c.unreachable(target);
           }

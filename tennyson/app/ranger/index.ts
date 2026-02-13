@@ -1,6 +1,5 @@
 import * as blessed from "blessed";
 import type { Widgets } from "blessed";
-import * as fs from "fs";
 import * as fsSync from "fs";
 import * as xml from "fast-xml-parser";
 import * as common from "tennyson/lib/core/common";
