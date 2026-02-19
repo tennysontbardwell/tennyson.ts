@@ -11,6 +11,9 @@ import * as stream_chain from "stream-chain";
 import * as stream_json from "stream-json";
 import Assembler from "stream-json/Assembler.js";
 
+import * as exec_ from "tennyson/lib/core/exec";
+export const exec = exec_;
+
 export function resolveHome(path: string) {
   const filepath = path.split("/");
   if (filepath[0] === "~") {

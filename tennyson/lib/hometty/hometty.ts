@@ -71,6 +71,16 @@ async function scripts(
   });
 }
 
+export function vd(file: string, display?: string): fzf.FzfItem {
+  const display_ = display ?? file;
+  file = common_node.resolveHome(file);
+  return {
+    choice: display_,
+    preview: () => fzf.displayPath(file),
+    action: async () => common_node.passthru("vd", [file]),
+  };
+}
+
 async function zshExec(cmd: string) {
   const ssh = child_process.spawn("zsh", ["-ic", cmd], { detached: true });
   const stdoutPromise = execlib.readableToString(ssh.stdout);
@@ -164,8 +174,69 @@ interface HomettyOptions {
   };
 }
 
-export const hometty = (options: HomettyOptions = {}) =>
-  [
+export const hometty = (options: HomettyOptions = {}) => {
+  const websites = [
+    fzf.website("google.com"),
+    fzf.website("google.com/maps"),
+    fzf.website("old.reddit.com"),
+    fzf.website("xkcd.com"),
+    fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
+    fzf.website("lazamar.co.uk/nix-versions/"),
+    fzf.website("query.wikidata.org/"),
+    fzf.website("ucum.org/ucum", "Unified Code for Units of Measure")
+  ].concat(options.additions?.websites ?? []);
+
+  const datasets = [
+    vd("~/repos/datasets/harmonized-system/data/harmonized-system.csv"),
+    vd("~/repos/datasets/harmonized-system/data/sections.csv"),
+    vd("~/repos/datasets/emojis/data/emojis.csv"),
+    vd("~/repos/datasets/language-codes/data/language-codes-3b2.csv"),
+    vd("~/repos/datasets/airport-codes/data/airport-codes.csv"),
+    vd("~/repos/datasets/population/data/population.csv"),
+    vd("~/repos/datasets/nasdaq-listings/data/nasdaq-listed-symbols.csv"),
+  ];
+
+  const favFiles = [
+    fzf.cd("~/repos/tennysontbardwell/misc-projects"),
+    fzf.cd("~/projects/dotfiles/zsh"),
+    fzf.cd("~/repos/tennysontbardwell/misc-projects/scripts"),
+  ];
+
+  const webSearch = [
+    fzf.websearch("www.google.com/search?q={query}", "google"),
+    fzf.websearch("www.google.com/maps/search/{query}", "google maps"),
+    fzf.websearch(
+      "web.archive.org/web/20250000000000*/{query}",
+      "wayback machine",
+    ),
+    fzf.websearch(
+      "www.wolframalpha.com/input?i={query}",
+      "wra | wolfram alpha",
+    ),
+    fzf.websearch("kagi.com/search?q={query}", "kagi"),
+    fzf.websearch("wikipedia.org/w/index.php?search={query}", "wikipedia"),
+    fzf.websearch("www.packagetrackr.com/track/{query}", "packagetrackr"),
+    fzf.websearch("trakt.tv/search?query={query}", "trakt: media tracking"),
+    fzf.websearch(
+      "search.nixos.org/packages?query={query}",
+      "nixos package search",
+    ),
+    fzf.websearch("www.wikidata.org/w/index.php?search={query}", "wikidata"),
+    fzf.websearch(
+      "www.matweb.com/search/QuickText.aspx?SearchText={query}",
+      "material properties",
+    ),
+    fzf.websearch(
+      "fdc.nal.usda.gov/food-search?query={query}",
+      "FoodData Central",
+    ),
+    fzf.websearch(
+      "webbook.nist.gov/cgi/cbook.cgi?Name={query}",
+      "HIST Chemistry WebBook",
+    ),
+  ].concat(options.additions?.websearch ?? []);
+
+  return [
     fzf.lazySubtree("snippets", async () => {
       const more = await personalSnippets();
       return [
@@ -174,39 +245,9 @@ export const hometty = (options: HomettyOptions = {}) =>
         fzf.sh_snippet('date +"%Y-%m-%d %H:%M"', "datetime/now"),
       ].concat(more);
     }),
-    fzf.subtree(
-      "websites",
-      [
-        fzf.website("google.com"),
-        fzf.website("old.reddit.com"),
-        fzf.website("xkcd.com"),
-        fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
-        fzf.website("lazamar.co.uk/nix-versions/"),
-      ].concat(options.additions?.websites ?? []),
-    ),
-    fzf.subtree(
-      "web-search",
-      [
-        fzf.websearch("www.google.com/search?q={query}", "google"),
-        fzf.websearch(
-          "www.wolframalpha.com/input?i={query}",
-          "wra | wolfram alpha",
-        ),
-        fzf.websearch("kagi.com/search?q={query}", "kagi"),
-        fzf.websearch("wikipedia.org/w/index.php?search={query}", "wikipedia"),
-        fzf.websearch("www.packagetrackr.com/track/{query}", "packagetrackr"),
-        fzf.websearch("trakt.tv/search?query={query}", "trakt: media tracking"),
-        fzf.websearch(
-          "search.nixos.org/packages?query={query}",
-          "nixos package search",
-        ),
-      ].concat(options.additions?.websearch ?? []),
-    ),
-    fzf.subtree("ff | favorite files", [
-      fzf.cd("~/repos/tennysontbardwell/misc-projects"),
-      fzf.cd("~/projects/dotfiles/zsh"),
-      fzf.cd("~/repos/tennysontbardwell/misc-projects/scripts"),
-    ]),
+    fzf.subtree("websites", websites),
+    fzf.subtree("web-search", webSearch),
+    fzf.subtree("ff | favorite files", favFiles),
     fzf.lazySubtree("ss | scripts", async () => {
       const bash = await scripts(
         "~/repos/tennysontbardwell/misc-projects/scripts",
@@ -246,7 +287,13 @@ export const hometty = (options: HomettyOptions = {}) =>
         common_node.passthru("node", ["--enable-source-maps"]),
       ),
     ]),
-  ].concat(options?.additionalItems ?? []);
+    fzf.subtree("datasets", datasets),
+    ...(options?.additionalItems ?? []),
+    ...websites,
+    ...webSearch,
+    ...favFiles,
+  ];
+};
 
 export async function run(options?: HomettyOptions) {
   await fzf.richFzf(hometty(options));
