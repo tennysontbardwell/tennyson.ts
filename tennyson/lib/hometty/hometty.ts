@@ -8,6 +8,7 @@ import * as git from "tennyson/lib/unixplus/git";
 import * as common from "tennyson/lib/core/common";
 import * as common_node from "tennyson/lib/core/common-node";
 import * as child_process from "child_process";
+import * as wikidata from "tennyson/lib/random/wikidata";
 
 const c = common;
 
@@ -183,8 +184,17 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
     fzf.website("lazamar.co.uk/nix-versions/"),
     fzf.website("query.wikidata.org/"),
-    fzf.website("ucum.org/ucum", "Unified Code for Units of Measure")
+    fzf.website("ucum.org/ucum", "Unified Code for Units of Measure"),
+    fzf.website("www.worldatlas.com/"),
+    fzf.website("www.allareacodes.com/"),
   ].concat(options.additions?.websites ?? []);
+
+  const vdWikidata = (name: string, query: string) =>
+    common.id({
+      choice: name,
+      preview: query,
+      action: async () => wikidata.wikidataQueryAndView(query),
+    });
 
   const datasets = [
     vd("~/repos/datasets/harmonized-system/data/harmonized-system.csv"),
@@ -194,6 +204,13 @@ export const hometty = (options: HomettyOptions = {}) => {
     vd("~/repos/datasets/airport-codes/data/airport-codes.csv"),
     vd("~/repos/datasets/population/data/population.csv"),
     vd("~/repos/datasets/nasdaq-listings/data/nasdaq-listed-symbols.csv"),
+    vd("~/repos/tennysontbardwell/public/ref/ascii.csv"),
+    vd("~/repos/tennysontbardwell/public/ref/greek-alpha.csv"),
+    vdWikidata("US ISO-3166-2 Codes", wikidata.US_ISO_3166_2_Codes),
+    vdWikidata("ISO-3166-2 Codes", wikidata.ISO_3166_2_Codes),
+    vdWikidata("ISO-3166-1 Codes", wikidata.ISO_3166_1_Codes),
+    vdWikidata("ISO-9362 SWIFT/BIC Codes", wikidata.ISO_9362_SWIFT_BIC),
+    vdWikidata("Telephone Country Code", wikidata.PHONE),
   ];
 
   const favFiles = [
@@ -207,7 +224,7 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.websearch("www.google.com/maps/search/{query}", "google maps"),
     fzf.websearch(
       "web.archive.org/web/20250000000000*/{query}",
-      "wayback machine",
+      "wb - wayback machine",
     ),
     fzf.websearch(
       "www.wolframalpha.com/input?i={query}",
@@ -234,6 +251,8 @@ export const hometty = (options: HomettyOptions = {}) => {
       "webbook.nist.gov/cgi/cbook.cgi?Name={query}",
       "HIST Chemistry WebBook",
     ),
+    fzf.websearch("howjsay.com/how-to-pronounce-{query}", "howjsay"),
+    fzf.websearch("en.wiktionary.org/wiki/{query}"),
   ].concat(options.additions?.websearch ?? []);
 
   return [

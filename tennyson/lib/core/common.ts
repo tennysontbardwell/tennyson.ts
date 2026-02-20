@@ -534,6 +534,17 @@ export function stripUndefined<T extends Record<string, any>>(
   ) as NonUndefined<StripUndefined<T>>;
 }
 
+export function mapEntries<A, B>(
+  obj: Record<string, A>,
+  map: (v: [string, A]) => [string, B] | undefined,
+): Record<string, B> {
+  return Object.fromEntries(
+    Object.entries(obj)
+      .map(map)
+      .filter((x) => x !== undefined),
+  );
+}
+
 export function toArray<T>(input: T[] | T): T[] {
   if (Array.isArray(input)) {
     return input; // It's already an array
