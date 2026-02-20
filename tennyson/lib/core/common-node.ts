@@ -10,6 +10,7 @@ import * as stream from "stream";
 import * as stream_chain from "stream-chain";
 import * as stream_json from "stream-json";
 import Assembler from "stream-json/Assembler.js";
+import { finished } from "node:stream/promises";
 
 import * as exec_ from "tennyson/lib/core/exec";
 export const exec = exec_;
@@ -156,7 +157,9 @@ export async function recursivelyWriteObjectToStream(
 
 export async function writeBigJson(path: string, data: any) {
   const writeStream = fsSync.createWriteStream(path);
-  return await recursivelyWriteObjectToStream(data, writeStream);
+  await recursivelyWriteObjectToStream(data, writeStream);
+  writeStream.end();
+  await finished(writeStream);
 }
 
 export async function fsCacheResult<T extends NonNullable<any>>(
