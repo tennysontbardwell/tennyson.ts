@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { JSX, ReactNode } from "react";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useLayoutEffect, useEffect, useMemo } from "react";
 import * as c from "tennyson/lib/core/common";
 
 import * as rx from "rxjs";
@@ -117,7 +117,7 @@ export function useObservable<T>(
 ): T {
   const [value, setValue] = useState<T>(initialValue);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const subscription = source$.subscribe({
       next: (x) => {
         setValue(x);
