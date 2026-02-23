@@ -196,6 +196,12 @@ export async function withTempDir(f: (dir: string) => Promise<void>) {
   }
 }
 
+export async function durableTempFile(filename: string) {
+  const tempDir = path.join(os.tmpdir(), uuid.v4());
+  await fs.mkdir(tempDir);
+  return path.join(tempDir, filename);
+}
+
 export async function withTempFile(
   filename: string,
   f: (file: string) => Promise<void>,
