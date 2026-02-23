@@ -1,13 +1,33 @@
-# temp workarounds
-- `export NODE_OPTIONS=--no-experimental-fetch`
-  - https://github.com/parcel-bundler/parcel/issues/8005
-- locales-all
-- must run `yarn run playwright install`
-- eslint from
-  - https://github.com/nkzw-tech/expo-app-template?tab=readme-ov-file
-    - which uses https://github.com/nkzw-tech/eslint-config?tab=readme-ov-file
-- auth: https://www.better-auth.com/docs/introduction
-- graphql and https://pothos-graphql.dev/
-
 # todo
 - [x] Migrate to `tsup` https://kagi.com/assistant/3dd0a185-dfa8-407a-8219-51e5638fe39e
+- [ ] remove unused
+  - [ ] `yup`
+  - [ ] `@sodaru/yup-to-json-schema`
+  - [ ] `csstype`
+  - [ ] `tiny-invariant`
+  - [ ] `@types/shell-quote`
+- [ ] rewrite to remove
+  - [ ] `@sinclair/typebox`: used for old ai tool call style
+  - [ ] `axios`: probably not necessary, a few requests calls
+  - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
+  - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`
+  - [ ] `url-parse`: used for git in hometty, small place
+  - [ ] `zod` (used in a small place)
+- [ ] audit deps
+  - [ ] `blessed`
+  - [ ] `constructs`
+  - [ ] `electron`
+  - [ ] `gcn-kafka`
+  - [ ] `fast-xml-parser`
+  - [ ] `papaparse`
+  - [ ] `rxjs`
+  - [ ] `shell-escape`
+  - [ ] `solid-js` (should i be using this one in particular?)
+  - [ ] `yaml`
+  - [ ] `vvard-ts`
+  - [ ] `ws`
+- [ ] eslint from
+  - https://github.com/nkzw-tech/expo-app-template?tab=readme-ov-file
+    - which uses https://github.com/nkzw-tech/eslint-config?tab=readme-ov-file
+- [ ] auth: https://www.better-auth.com/docs/introduction
+- [ ] graphql and https://pothos-graphql.dev/
