@@ -5,4 +5,4 @@ import * as common from "tennyson/lib/core/common";
 
 import { cmds } from "tennyson/app/cli";
 
-cli.execute(cmds);
+cli.execute(cmds());

@@ -41,7 +41,7 @@ export async function fzf(menu: FzfMenu) {
       throw "no port on server: " + address;
     }
     const port = address.port;
-    await execlib.ExecHelpers.withTempDir(execlib.exec, async (path) => {
+    return await execlib.ExecHelpers.withTempDir(execlib.exec, async (path) => {
       const in_ = path + "/in";
       const out = path + "/out";
 
@@ -60,6 +60,7 @@ export async function fzf(menu: FzfMenu) {
       if (data != "") {
         action(data);
       }
+      return data
     });
   } finally {
     server.close();
@@ -101,7 +102,7 @@ export async function richFzf(choices: Array<FzfItem>) {
       throw e;
     }
   };
-  await fzf({ choices: [...choices_.keys()], preview, action });
+  return await fzf({ choices: [...choices_.keys()], preview, action });
 }
 
 export function website(url: string, name?: string): FzfItem {

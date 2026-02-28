@@ -1,7 +1,8 @@
 import * as common from "tennyson/lib/core/common";
+const c = common;
 
 import * as os from "os";
-import * as path from "path";
+import * as path_ from "path";
 import { promises as fs } from "fs";
 import * as fsSync from "fs";
 import * as uuid from "uuid";
@@ -13,7 +14,9 @@ import Assembler from "stream-json/Assembler.js";
 import { finished } from "node:stream/promises";
 
 import * as exec_ from "tennyson/lib/core/exec";
+import * as process from "process";
 export const exec = exec_;
+export const path = path_;
 
 export function resolveHome(path: string) {
   const filepath = path.split("/");
@@ -59,7 +62,7 @@ export async function fsExists(path: string) {
 }
 
 // https://kagi.com/assistant/92b7ca63-6a36-4458-9bd5-c9e53332c470
-export async function parseBigJson(filePath: string): Promise<any> {
+export async function parseBigJson<T = any>(filePath: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const pipeline = stream_chain.chain([
       fsSync.createReadStream(filePath, { encoding: "utf8" }),
@@ -67,7 +70,7 @@ export async function parseBigJson(filePath: string): Promise<any> {
     ]);
 
     const asm = Assembler.connectTo(pipeline);
-    asm.on("done", (asm) => resolve(asm.current));
+    asm.on("done", (asm) => resolve(asm.current as T));
   });
 }
 
@@ -183,14 +186,15 @@ export function mkCachable<T extends NonNullable<any>>(
   return common.lazy(() => fsCacheResult(path, f));
 }
 
-export async function withTempDir(f: (dir: string) => Promise<void>) {
+export async function withTempDir<T>(f: (dir: string) => Promise<T>) {
   const tempDir = path.join(os.tmpdir(), uuid.v4());
 
   try {
     await fs.mkdir(tempDir);
-    await f(tempDir);
+    return await f(tempDir);
   } catch (error) {
     console.error("Error occurred:", error);
+    throw error;
   } finally {
     await fs.rm(tempDir, { recursive: true });
   }
@@ -202,10 +206,10 @@ export async function durableTempFile(filename: string) {
   return path.join(tempDir, filename);
 }
 
-export async function withTempFile(
+export async function withTempFile<T>(
   filename: string,
-  f: (file: string) => Promise<void>,
-) {
+  f: (file: string) => Promise<T>,
+): Promise<T> {
   return await withTempDir(async (dir: string) => {
     const file = path.join(dir, filename);
     await fs.writeFile(file, "");
@@ -231,4 +235,46 @@ export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
     .split("\n")
     .filter((line) => line.trim() !== "")
     .map((line) => JSON.parse(line));
+}
+
+export async function editorInput() {
+  return await withTempFile("input.txt", async (f) => {
+    await passthru(process.env["EDITOR"] ?? "vi", [f]);
+    const content = (await fs.readFile(f)).toString();
+    c.assert(content !== "" && content !== "\n");
+    return content;
+  });
+}
+
+export async function plotEchartCDN(options: any, extra?: string) {
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Plot</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      #chart { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script>
+      const options = ${JSON.stringify(options)};
+      ${extra ?? ""};
+      const el = document.getElementById("chart");
+      const chart = echarts.init(el);
+      chart.setOption(options);
+      window.addEventListener("resize", () => chart.resize());
+    </script>
+  </body>
+</html>
+`;
+
+  const filename = await durableTempFile("plot.html");
+  await fs.writeFile(filename, html, "utf8");
+  await exec.exec("open", [filename]);
+  c.log.info("Wrote plot.html (open it in your browser).");
 }
