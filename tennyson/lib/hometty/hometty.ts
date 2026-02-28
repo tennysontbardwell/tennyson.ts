@@ -206,11 +206,9 @@ export const hometty = (options: HomettyOptions = {}) => {
     vd("~/repos/datasets/nasdaq-listings/data/nasdaq-listed-symbols.csv"),
     vd("~/repos/tennysontbardwell/public/ref/ascii.csv"),
     vd("~/repos/tennysontbardwell/public/ref/greek-alpha.csv"),
-    vdWikidata("US ISO-3166-2 Codes", wikidata.US_ISO_3166_2_Codes),
-    vdWikidata("ISO-3166-2 Codes", wikidata.ISO_3166_2_Codes),
-    vdWikidata("ISO-3166-1 Codes", wikidata.ISO_3166_1_Codes),
-    vdWikidata("ISO-9362 SWIFT/BIC Codes", wikidata.ISO_9362_SWIFT_BIC),
-    vdWikidata("Telephone Country Code", wikidata.PHONE),
+    ...Object.entries(wikidata.QUERIES).map(([k, v]) =>
+      vdWikidata(k, v),
+    )
   ];
 
   const favFiles = [

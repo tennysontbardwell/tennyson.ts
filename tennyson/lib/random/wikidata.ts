@@ -20,7 +20,56 @@ export async function wikidataQueryAndView(sparql: string) {
   await common_node.vdJson(processedData);
 }
 
-export const US_ISO_3166_2_Codes = `
+// type Prop = { propId: string; propDisplayName: string };
+// function allInstancesOf(
+//   all: Prop[],
+//   oneOf: Prop[],
+//   optional: Prop[],
+//   orderBy: string[],
+// ) {
+//   const selectStm = (() => {
+//     const names = [all, oneOf, optional]
+//       .flat()
+//       .map((x) => `?${x.propDisplayName}`)
+//       .join(" ");
+//     return `SELECT DISTINCT ?item ?itemLabel ${names} WHERE {`;
+//   })();
+//   const allStms = all.map(
+//     ({ propId, propDisplayName }) => `?item wdt:${propId} ?${propDisplayName}.`,
+//   );
+
+//   const oneOfHead = (() => {
+//     const lst = oneOf.map((x) => `wdt:${x.propId}`).join("|");
+//     return oneOf.length > 0 ? [`?item (${lst}) ?any .`] : [];
+//   })();
+
+//   const oneOfStms = [...oneOf, ...optional].map(
+//     ({ propId, propDisplayName }) =>
+//       `OPTIONAL { ?item wdt:${propId} ?${propDisplayName}. }`,
+//   );
+
+//   const tail = [
+//     'SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }',
+//     "}",
+//   ];
+
+//   const orderByStm = (() => {
+//     const names = orderBy.map((x) => `?${x}`).join(" ");
+//     return orderBy.length > 0 ? [`ORDER BY ${names}`] : [];
+//   })();
+
+//   return [
+//     selectStm,
+//     ...allStms,
+//     ...oneOfHead,
+//     ...oneOfStms,
+//     ...tail,
+//     ...orderByStm,
+//   ].join("\n");
+// }
+
+export const QUERIES = {
+  US_ISO_3166_2_Codes: `
 SELECT ?item ?itemLabel ?code ?pop WHERE {
   ?item wdt:P300 ?code.
   OPTIONAL {
@@ -32,17 +81,23 @@ SELECT ?item ?itemLabel ?code ?pop WHERE {
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?code
-`;
+`,
 
-export const ISO_3166_2_Codes = `
+  ISO_3166_2_Codes: `
 SELECT ?item ?itemLabel ?code WHERE {
   ?item wdt:P300 ?code.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?code
-`;
+`,
+  // export const ISO_3166_2_Codes = allInstancesOf(
+  //   [{ propId: "P300", propDisplayName: "code" }],
+  //   [],
+  //   [],
+  //   ["code"],
+  // );
 
-export const ISO_3166_1_Codes = `
+  ISO_3166_1_Codes: `
 SELECT DISTINCT ?item ?itemLabel ?alpha2Code ?alpha3Code ?numericCode WHERE {
   # Restrict to items that have at least one of the three properties
   ?item (wdt:P297|wdt:P298|wdt:P299) ?any .
@@ -55,20 +110,21 @@ SELECT DISTINCT ?item ?itemLabel ?alpha2Code ?alpha3Code ?numericCode WHERE {
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?alpha2Code ?alpha3Code ?numericCode
-`;
+`,
 
-export const ISO_9362_SWIFT_BIC = `
+  ISO_9362_SWIFT_BIC: `
 SELECT ?item ?itemLabel ?code WHERE {
   ?item wdt:P2627 ?code.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?code
-`
+`,
 
-export const PHONE = `
+  PHONE: `
 SELECT ?item ?itemLabel ?code WHERE {
   ?item wdt:P474 ?code; wdt:P31 wd:Q6256.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?code
-`
+`,
+};
