@@ -13,6 +13,7 @@
   - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`
   - [ ] `url-parse`: used for git in hometty, small place
   - [ ] `zod` (used in a small place)
+  - [ ] `shell-escape` (single function)
 - [ ] audit deps
   - [ ] `blessed`
   - [ ] `constructs`
@@ -21,9 +22,9 @@
   - [ ] `fast-xml-parser`
   - [ ] `papaparse`
   - [ ] `rxjs`
-  - [ ] `shell-escape`
   - [ ] `solid-js` (should i be using this one in particular?)
-  - [ ] `yaml`
+  - [ ] `sqlite3`
+  - [X] `yaml`
   - [ ] `vvard-ts`
   - [ ] `ws`
 - [ ] eslint from
@@ -31,3 +32,7 @@
     - which uses https://github.com/nkzw-tech/eslint-config?tab=readme-ov-file
 - [ ] auth: https://www.better-auth.com/docs/introduction
 - [ ] graphql and https://pothos-graphql.dev/
+
+# dependencies
+- yaml: no dep, seems fine
+- solid-js: 3 dep (3 total)
