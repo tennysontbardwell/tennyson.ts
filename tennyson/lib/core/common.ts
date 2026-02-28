@@ -515,6 +515,25 @@ export namespace AlphaNumeric {
     "z",
   ] as const;
 
+  export const numeric = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+  ] as const;
+
+  // export const alphaMathBlackboardUpperCase = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
+  export const alphaMathBlackboardUpperCase = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
+  export const alphaMathBlackboardLowerCase = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫";
+  export const numericMathBlackboard = "𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡";
+  export const alphaMathCal = "𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵";
+
   export type AlphaLower = (typeof alphaLower)[number];
 }
 
@@ -551,4 +570,37 @@ export function toArray<T>(input: T[] | T): T[] {
   } else {
     return [input]; // Wrap the object in an array
   }
+}
+
+type Unary<I, O> = (input: I) => O;
+
+type PipeOutput<
+  Input,
+  Fns extends readonly Unary<any, any>[],
+> = Fns extends readonly []
+  ? Input
+  : Fns extends readonly [Unary<infer A, infer B>, ...infer Rest]
+    ? Input extends A
+      ? PipeOutput<B, Extract<Rest, readonly Unary<any, any>[]>>
+      : never
+    : Input;
+
+export function pipe<Input, Fns extends readonly Unary<any, any>[]>(
+  input: Input,
+  ...fns: Fns
+): PipeOutput<Input, Fns> {
+  return (fns as readonly Unary<any, any>[]).reduce(
+    (acc, fn) => fn(acc),
+    input,
+  ) as any;
+}
+
+export function zip<T extends readonly (readonly unknown[])[]>(
+  ...arrays: { [K in keyof T]: T[K] }
+): { [K in keyof T]: T[K] extends (infer U)[] ? U : never }[] {
+  const minLength = Math.min(...arrays.map((a) => a.length));
+
+  return Array.from({ length: minLength }, (_, i) =>
+    arrays.map((a) => a[i]),
+  ) as { [K in keyof T]: T[K] extends (infer U)[] ? U : never }[];
 }
