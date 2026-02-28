@@ -21,6 +21,7 @@ import React, {
   useRef,
   useState,
   useEffect,
+  useLayoutEffect,
   useContext,
   createContext,
   Fragment,
@@ -51,6 +52,7 @@ interface Controller {
   toggleMaximize: () => void;
   setMark: (a: c.AlphaNumeric.AlphaLower) => void;
   gotoMark: (a: c.AlphaNumeric.AlphaLower) => void;
+  moveParent: (delta: number) => void;
 }
 
 const dummyController: Controller = (() => {
@@ -63,10 +65,31 @@ const dummyController: Controller = (() => {
     toggleMaximize: error,
     setMark: error,
     gotoMark: error,
+    moveParent: error,
   };
 })();
 
 const RangerContext = createContext(dummyController);
+
+function scrollToKeepInBand(
+  container: HTMLElement,
+  element: HTMLElement,
+  low = 0.2,
+  high = 0.8,
+) {
+  const cRect = container.getBoundingClientRect();
+  const eRect = element.getBoundingClientRect();
+  const relTop = eRect.top - cRect.top; // element's position relative to container viewport
+
+  const lowPx = cRect.height * low;
+  const highPx = cRect.height * high;
+
+  if (relTop < lowPx) {
+    container.scrollTop += relTop - lowPx;
+  } else if (relTop + eRect.height > highPx) {
+    container.scrollTop += relTop + eRect.height - highPx;
+  }
+}
 
 namespace KeyStack {
   export function keystrokeToString(e: React.KeyboardEvent): string {
@@ -146,8 +169,9 @@ function RangerCol({
   const cmd = KeyStack.command;
   const ref_ = useRef(null as HTMLDivElement | null);
   const controller = useContext(RangerContext);
+  const selectedItemRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focus && ref_.current !== null) ref_.current.focus();
   }, [focus]);
 
@@ -179,10 +203,16 @@ function RangerCol({
   )
     setIdx(0);
 
+  useLayoutEffect(() => {
+    if (selectedItemRef.current && ref_.current) {
+      scrollToKeepInBand(ref_.current, selectedItemRef.current);
+    }
+  }, [idx]);
+
   const [key$] = useState(() => new rx.Subject<React.KeyboardEvent>());
   const onKey = (e: React.KeyboardEvent) => key$.next(e);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const commands = (() => {
       const setMarks = c.AlphaNumeric.alphaLower.map((l) =>
         cmd(["m", l], () => controller.setMark(l)),
@@ -203,6 +233,8 @@ function RangerCol({
                 if (curItem.subitems === undefined) return;
                 controller.jumpTo(path_);
               }),
+              cmd("[", () => controller.moveParent(-1)),
+              cmd("]", () => controller.moveParent(1)),
             ];
       return [
         cmd([["ArrowLeft"], ["h"]], () =>
@@ -241,6 +273,7 @@ function RangerCol({
         items_.map((it, j) => (
           <div
             key={j}
+            ref={idx === j ? selectedItemRef : undefined}
             onClick={() => setIdx(j)}
             style={{
               background: idx === j ? "#0070f3" : undefined,
@@ -302,14 +335,21 @@ interface DriverOptions {
 export function RangerOfDriver({
   driver,
   initPath,
+  resolveItems,
 }: {
   driver: (path: string[], options?: DriverOptions) => JSX.Element;
   initPath: readonly string[];
+  resolveItems?: (
+    path: readonly string[],
+  ) => Option.Option<readonly RangerItem[]>;
 }) {
   const [path, setPath] = useState(initPath);
   const [maximized, setMaximized] = useState(false);
   const marks = useRef(
-    MutableHashMap.empty<c.AlphaNumeric.AlphaLower, string[]>(),
+    MutableHashMap.empty<
+      c.AlphaNumeric.AlphaLower,
+      { path: string[]; selected: Option.Option<string> }
+    >(),
   );
 
   const allPaths = [[] as string[]].concat(
@@ -357,14 +397,41 @@ export function RangerOfDriver({
     focus,
     toggleMaximize: () => setMaximized(!maximized),
     setMark: (a: c.AlphaNumeric.AlphaLower) =>
-      MutableHashMap.set(marks.current, a, path),
+      MutableHashMap.set(marks.current, a, {
+        path: [...path],
+        selected: HashMap.get(focusedItems, JSON.stringify(path)),
+      }),
     gotoMark: (a: c.AlphaNumeric.AlphaLower) =>
       Option.match(MutableHashMap.get(marks.current, a), {
         onNone: () => {
           c.log.warn(`Mark ${a} not set`);
         },
-        onSome: jumpTo,
+        onSome: ({ path: markPath, selected }) =>
+          Option.match(selected, {
+            onNone: () => jumpTo(markPath),
+            onSome: (name) => focus(markPath, name),
+          }),
       }),
+    moveParent: (delta: number) => {
+      c.log.info("moveparents", delta, path, resolveItems);
+      if (path.length === 0 || !resolveItems) return;
+      const parentPath = path.slice(0, -1);
+      pipe(
+        resolveItems(parentPath),
+        Option.match({
+          onNone: () => {},
+          onSome: (siblings) => {
+            const currentName = path[path.length - 1];
+            const currentIdx = siblings.findIndex(
+              (x) => x.name === currentName,
+            );
+            if (currentIdx === -1) return;
+            const newIdx = c.clamp(currentIdx + delta, 0, siblings.length - 1);
+            jumpTo(parentPath.concat(siblings[newIdx].name));
+          },
+        }),
+      );
+    },
   };
 
   return (
@@ -468,7 +535,17 @@ export function RangerOfItems({
     return <RangerColOrPreview {...props} />;
   }
 
-  return <RangerOfDriver driver={driver} initPath={initPath} />;
+  const resolveItems = (
+    path: readonly string[],
+  ): Option.Option<readonly RangerItem[]> => Effect.runSync(getItems(path));
+
+  return (
+    <RangerOfDriver
+      driver={driver}
+      initPath={initPath}
+      resolveItems={resolveItems}
+    />
+  );
 }
 
 export function Ranger({ items }: { items: RangerItem[] }) {
@@ -577,7 +654,7 @@ export function Ranger({ items }: { items: RangerItem[] }) {
   const [key$] = useState(() => new rx.Subject<React.KeyboardEvent>());
   const onKey = (e: React.KeyboardEvent) => key$.next(e);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const command$ = KeyStack.commandsOfStrokes(commands, key$)
       .pipe(
         tpipe.tapDebug({ name: "key$" }),
@@ -590,29 +667,14 @@ export function Ranger({ items }: { items: RangerItem[] }) {
 
   const colRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // keep focus for key events
-  // Add useEffect for auto-scrolling
-  useEffect(() => {
+  const selectedItemRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
     document.getElementById("ranger-root")?.focus();
-    const colIdx = cols.length - 1;
-    const container = colRefs.current[Math.min(colIdx, 2)]; // last visible column
-    if (!container) return;
-
-    const itemHeight = 21; // approximate height
-    const containerHeight = container.clientHeight;
-    const scrollTop = container.scrollTop;
-    const selectedPos = curCol.idx * itemHeight;
-    const visibleTop = scrollTop;
-    const _visibleBottom = scrollTop + containerHeight;
-    c.ignore(_visibleBottom);
-
-    const p20 = visibleTop + containerHeight * 0.2;
-    const p80 = visibleTop + containerHeight * 0.8;
-
-    if (selectedPos < p20) {
-      container.scrollTop = selectedPos - containerHeight * 0.2;
-    } else if (selectedPos > p80) {
-      container.scrollTop = selectedPos - containerHeight * 0.8;
+    const colIdx = Math.min(cols.length - 1, 2);
+    const container = colRefs.current[colIdx];
+    if (container && selectedItemRef.current) {
+      scrollToKeepInBand(container, selectedItemRef.current);
     }
   }, [cols, curCol.idx]);
 
@@ -660,23 +722,27 @@ export function Ranger({ items }: { items: RangerItem[] }) {
               padding: 4,
             }}
           >
-            {col.items.map((it, j) => (
-              <div
-                key={j}
-                onClick={() => setIdx(Math.max(0, cols.length - 3) + i, j)}
-                style={{
-                  background: col.idx === j ? "#0070f3" : undefined,
-                  height: 17,
-                  color: col.idx === j ? "white" : undefined,
-                  padding: "2px 4px",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {it.name}
-              </div>
-            ))}
+            {col.items.map((it, j) => {
+              const isLastCol = i === Math.min(cols.length, 3) - 1;
+              return (
+                <div
+                  key={j}
+                  ref={isLastCol && col.idx === j ? selectedItemRef : undefined}
+                  onClick={() => setIdx(Math.max(0, cols.length - 3) + i, j)}
+                  style={{
+                    background: col.idx === j ? "#0070f3" : undefined,
+                    height: 17,
+                    color: col.idx === j ? "white" : undefined,
+                    padding: "2px 4px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {it.name}
+                </div>
+              );
+            })}
           </div>
         ))}
         <div style={{ maxHeight: "100%", overflow: "scroll", flex: 1 }}>

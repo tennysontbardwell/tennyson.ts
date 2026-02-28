@@ -1,6 +1,7 @@
 import React from "react";
 import type { JSX } from "react";
 import type { RangerItem } from "./Ranger";
+import ReactJson from 'react-json-view';
 
 import * as c from "tennyson/lib/core/common";
 
@@ -117,6 +118,11 @@ function ItemDisplay({ url }: { url: string }) {
                 />
               </div>
             </div>,
+          );
+        } else if (contentType.startsWith("application/json")) {
+          const obj = await response.json()
+          setContent(
+            <ReactJson src={obj} />
           );
         } else {
           setContent(<div></div>);
