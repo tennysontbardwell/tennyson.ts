@@ -30,6 +30,8 @@ const priceRatio = (
   });
 
 export const openAIModels = {
+  "gpt-5.2": { price: priceRatio(1.75, 0.1, 8) },
+  "gpt-5-mini": { price: priceRatio(0.25, 0.1, 8) },
   "gpt-4.1": { price: priceRatio(2.0, 0.25, 4) },
   "gpt-4.1-mini": { price: priceRatio(0.4, 0.25, 4) },
   "gpt-4.1-nano": { price: priceRatio(0.1, 0.25, 4) },

@@ -1,5 +1,7 @@
 import * as cli from "tennyson/lib/core/cli";
 import * as common from "tennyson/lib/core/common";
+const c = common;
+import * as cn from "tennyson/lib/core/common-node";
 
 import type { Attachment, Tool2 } from "./aichat";
 import { models, openAIModels } from "./const";
@@ -9,7 +11,8 @@ export const cmd = cli.flagsCommand(
   {
     file: {
       alias: "f",
-      describe: "Attach a file to the query",
+      describe:
+        "Attach a file to the query. For pdf files, `pdftotext` is called",
       type: "string",
       array: true,
       default: [],
@@ -41,14 +44,15 @@ export const cmd = cli.flagsCommand(
       alias: "m",
       describe: "",
       type: "string",
-      default: "gpt-4.1-mini",
+      default: "gpt-5.2",
       choices: Object.keys(models),
     },
     prompt: {
       alias: "p",
-      describe: "",
+      describe:
+        "The user prompt. If omitted, the default editor will be opened to write the prompt",
       type: "string",
-      required: true,
+      required: false,
     },
     webpageTool: {
       alias: "W",
@@ -112,10 +116,13 @@ export const cmd = cli.flagsCommand(
     }
     // await writeBigJson("/tmp/aiattach.json", attachments)
 
+    const userText = args.prompt ?? (await cn.editorInput());
+    c.log.info(userText)
+
     try {
       const response = await aichat
         .query({
-          userText: <string>args.prompt,
+          userText,
           attachments: attachments,
           model: args.model as keyof typeof openAIModels,
           tools: tools_,

@@ -3,6 +3,7 @@ import type { Attachment, Tool, Tool2 } from "./aichat";
 import { query } from "./aichat";
 import { Schema, Effect, Either } from "effect";
 import * as c from "tennyson/lib/core/common";
+import * as cn from "tennyson/lib/core/common-node";
 
 const regex = {
   title: / <title[^>]*> ([^ <] *) <\/title>/i,
@@ -105,11 +106,18 @@ export async function file(
   path: string,
   fullPathInTitle = false,
 ): Promise<Attachment> {
-  const fs = await import("fs/promises");
   const pathModule = await import("path");
-
-  const contents = await fs.readFile(path, "utf-8");
   const title = fullPathInTitle ? path : pathModule.basename(path);
+
+  const contents = await (async () => {
+    if (path.endsWith(".pdf")) {
+      const res = await cn.exec.exec("pdftotext", [path, "/dev/stdout"]);
+      return res.stdout;
+    } else {
+      const fs = await import("fs/promises");
+      return await fs.readFile(path, "utf-8");
+    }
+  })();
 
   return {
     title,
