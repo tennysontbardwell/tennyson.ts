@@ -1,90 +1,37 @@
 import * as ec2 from "tennyson/lib/infra/ec2";
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import * as host from "tennyson/lib/infra/host";
 import * as execlib from "tennyson/lib/core/exec";
 import dns from "dns";
 import * as path from "path";
 import Papa from "papaparse";
 import * as fs from "fs";
+import { PYTHON_SCRIPT } from "./python-script";
+import * as util from "./util";
 
-const iterations = 10;
+const iterations = 150;
 const jitterDelay = 0.01;
 const delay = 0.1;
-const fleetSize = 20;
+// const fleetSize = 36;
+// const zones = (() => {
+//   const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
+//   const zones = ["a", "b", "c"] as const;
+//   const per = 3;
+//   return new Map(
+//     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
+//   );
+// })();
+const fleetSize = 12;
+const zones = (() => {
+  const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
+  const zones = ["a", "b", "c"] as const;
+  const per = 1;
+  return new Map(
+    regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
+  );
+})();
 const totalDelay = Math.ceil(iterations * fleetSize * (delay + jitterDelay));
-
-const PYTHON_SCRIPT = `
-#!/usr/bin/env python3
-import json
-import socket
-import uuid
-import sys
-import time
-import random
-
-FLEET_FILE = '/tmp/fleet.json'
-PORT = 8000
-
-with open(FLEET_FILE, 'r') as f:
-    fleet = json.load(f)
-my_name = fleet['self']['name']
-my_ip = fleet['self']['ip']
-
-def send_udp_packet(host, message):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        sent = sock.sendto(message.encode(), (host, PORT))
-        print(f"Sent {sent} bytes")
-    finally:
-        sock.close()
-
-ping_count = 0
-def send_ping(host):
-    global ping_count
-    send_udp_packet(host, f'ping {ping_count} {my_ip} {host} null')
-    ping_count += 1
-
-ping_pong_count = 0
-def send_ping_pong(h1, h2):
-    global ping_pong_count
-    send_udp_packet(h1, f'ping2 {ping_count} {my_ip} {h1} {h2}')
-    ping_pong_count += 1
-
-def receive_udp_packets():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("0.0.0.0", PORT))
-
-    while True:
-        data, address = sock.recvfrom(4096)
-        cmd, id, host1, host2, host3 = data.decode().split(' ')
-        if cmd == 'ping' and host3 == 'null':
-            send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
-        if cmd == 'ping2' and host3 != 'null':
-            send_udp_packet(host3, f'pong {id} {host1} {host2} {host3}')
-        if cmd == 'pong':
-            send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
-        print(f"Received one complete packet: {data.decode()}, From: {address}")
-
-def ping_bot():
-    time.sleep(5)
-    others = [node for node in fleet['nodes'] if node['name'] != my_name]
-    for _ in range(${iterations}):
-        for node in others:
-            host = node['ip']
-            send_ping(host);
-            time.sleep(${jitterDelay})
-            send_ping(host);
-            time.sleep(${jitterDelay})
-            h1, h2 = random.sample(others, 2)
-            send_ping_pong(h1['ip'], h2['ip']);
-            time.sleep(${delay} - ${jitterDelay} * 2)
-
-if __name__ == "__main__":
-    if sys.argv[1] == "server":
-        receive_udp_packets()
-    elif sys.argv[1] == 'client':
-        ping_bot()
-`;
 
 // frame.number,frame.time,eth.src,eth.dst,ip.src,ip.dst,ip.proto,udp.payload,data
 type CsvRow = {
@@ -102,7 +49,8 @@ class Node {
   readonly name: string;
   box: host.Host | undefined;
 
-  constructor() {
+  constructor(readonly availabilityZone?: ec2.AvailabilityZone) {
+    this.availabilityZone = availabilityZone;
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let rnd = Array.from({ length: 5 }, (_) =>
       chars.charAt(Math.floor(Math.random() * chars.length)),
@@ -114,12 +62,18 @@ class Node {
     common.log.info(`Starting ${this.name}`);
     this.box = await ec2.createNewSmall(this.name, {
       additionalSecurityGroups: ["default"],
+      ...(this.availabilityZone !== undefined
+        ? {
+            region: this.availabilityZone.region,
+            availabityZone: this.availabilityZone,
+          }
+        : {}),
     });
   }
 
   async cleanup() {
     common.log.info(`Cleaning ${this.name}`);
-    await ec2.purgeByName(this.name);
+    await ec2.purgeByName(this.name, this.availabilityZone?.region);
   }
 
   async withLive(f: (node: Node) => Promise<void>) {
@@ -133,12 +87,25 @@ class Node {
 
 class Fleet {
   readonly nodes: Node[];
-  ips: Record<string, string>;
+  ips: Record<string, string> = {};
   directory: string;
 
-  constructor(n: number) {
-    this.nodes = Array.from({ length: n }, (_) => new Node());
-    this.ips = {};
+  constructor(
+    n: number,
+    options?: {
+      availabilityZones?: Map<ec2.AvailabilityZone, number>;
+    },
+  ) {
+    this.nodes = (() => {
+      const zones = options?.availabilityZones;
+      if (zones !== undefined) {
+        c.assert(Array.from(zones.values()).reduce(c.add, 0) === n);
+        return Array.from(zones.entries()).flatMap(([k, v]) =>
+          c.range(v).map((_) => new Node(k)),
+        );
+      } else return Array.from({ length: n }, (_) => new Node());
+    })();
+
     this.directory = `/tmp/fleet-results/${new Date().toISOString()}`;
   }
 
@@ -154,7 +121,7 @@ class Fleet {
   async runTest() {
     const fleet = this;
 
-    const fleetFile = (node: Node) =>
+    const configFile = (node: Node) =>
       JSON.stringify({
         nodes: this.nodes.map((node) => ({
           name: node.name,
@@ -165,6 +132,9 @@ class Fleet {
           name: node.name,
           ip: this.ips[node.name],
         },
+        jitterDelay,
+        iterations,
+        delay,
       });
 
     const bg_cmd = (node: Node, cmd: string) =>
@@ -175,11 +145,12 @@ class Fleet {
       // const apt = box!.apt();
       await node.box!.exec("mkdir", ["/tmp/results"]);
       await Promise.all([
-        node.box!.putFile("/tmp/fleet.json", fleetFile(node)),
+        node.box!.putFile("/tmp/config.json", configFile(node)),
         node.box!.putFile("/tmp/script.py", PYTHON_SCRIPT),
-        node.box!.exec("bash", ["-c", "sudo systemctl stop chrony"]),
+        node.box!.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
         // apt?.upgrade().then(() => apt.install(["python3-websockets", "python3-aiottp"]))
       ]);
+      // common.log.info(`Node ${node.name} setup almost complete`);
       await Promise.all([
         bg_cmd(
           node,
@@ -228,21 +199,17 @@ class Fleet {
   }
 
   async processResults() {
-    function parseHex(hex: String) {
-      try {
-        const cleanedHex = hex.replace(/\s+/g, "").replace(/^0x/, "");
-        const byteArray = new Uint8Array(
-          cleanedHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-        );
-        return new TextDecoder("utf-8").decode(byteArray);
-      } catch (e) {
-        common.log.error({ message: "error parsing hex", hex: hex });
-        throw e;
-      }
-    }
-
     async function parseCsv(file: string) {
-      const cmd = `tshark -r ${file} -T fields -e frame.number -e frame.time -e eth.src -e eth.dst -e ip.src -e ip.dst -e ip.proto -e udp.payload -E header=y -E separator=, -E quote=d -E occurrence=f`;
+      const fields = [
+        "frame.number",
+        "frame.time_epoch",
+        "frame.time_relative",
+        "ip.src",
+        "ip.dst",
+        "data.data",
+      ];
+      const fields_args = fields.flatMap((x) => ["-e", x]).join(" ");
+      const cmd = `tshark -r ${file} -T json ${fields_args} | jq -c '.[]'`;
       const res = await execlib.sh(`${cmd}`);
       return Papa.parse<CsvRow>(res.stdout, {
         header: true,
@@ -253,7 +220,7 @@ class Fleet {
           const payloadStr = x["udp.payload"]?.toString();
           if (payloadStr === undefined || payloadStr.length === 0) return null;
           else {
-            const payload = parseHex(payloadStr);
+            const payload = util.parseHex(payloadStr);
             const allowlist = new Set(["resp", "ping", "pong"]);
             const words = payload.split(" ");
             if (allowlist.has(words[0]))
@@ -298,28 +265,51 @@ class Fleet {
 
   async withLive(f: (nodes: Node[]) => Promise<void>) {
     const nodes = this.nodes;
-    process.on("SIGINT", async () => {
-      common.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
+
+    const withSiginTrap = async (
+      f: () => Promise<void>,
+      cleanup: () => Promise<void>,
+    ) => {
+      const wrappedCleanup = async () => {
+        try {
+          await cleanup();
+        } catch (error) {
+          common.log.error(["Error during cleanup:", error]);
+        }
+      };
+
       try {
-        await Promise.all(nodes.map((x) => x.cleanup()));
-        common.log.info("Cleanup completed successfully.");
-      } catch (error) {
-        common.log.error(["Error during cleanup:", error]);
+        let onSigint: () => void;
+        const sigintTrap = new Promise<never>((_, reject) => {
+          onSigint = () => {
+            common.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
+            reject(new Error("SIGINT"));
+          };
+        });
+        process.on("SIGINT", onSigint!);
+        await Promise.race([f(), sigintTrap]);
       } finally {
-        process.exit(0);
+        await wrappedCleanup();
       }
-    });
+    };
+
+    const cleanup = async () => {
+      await Promise.all(nodes.map((x) => x.cleanup()));
+      common.log.info("Cleanup completed successfully.");
+    };
+
     async function run() {
       await Promise.all(nodes.map((x) => x.expertStart()));
       await f(nodes);
     }
-    await run().finally(() => Promise.all(nodes.map((x) => x.cleanup())));
+
+    await withSiginTrap(run, cleanup);
   }
 }
 
 async function main() {
   common.log.info("main");
-  let fleet = new Fleet(fleetSize);
+  let fleet = new Fleet(fleetSize, { availabilityZones: zones });
   await fleet.withLive(async () => {
     common.log.info("Fleet start-up complete");
     await fleet.runTest();

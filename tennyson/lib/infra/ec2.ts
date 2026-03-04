@@ -1,5 +1,6 @@
 import * as host from "tennyson/lib/infra/host";
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import { _InstanceType } from "@aws-sdk/client-ec2";
 
 const debAMIs = {
@@ -84,6 +85,25 @@ const debAMIs = {
 
 export type Region = keyof typeof debAMIs;
 
+export type AvailabilityZone = {
+  region: Region;
+  zone: common.AlphaNumeric.AlphaLower;
+};
+
+export namespace AvailabilityZone {
+  export const toString = ({ region, zone }: AvailabilityZone) =>
+    [region, zone].join("");
+
+  // declare const brand: unique symbol;
+  // export type key = common.BrandedString<typeof brand>;
+
+  // export const toKey = ({ region, zone }: AvailabilityZone) =>
+  //   [region, zone].join("") as key;
+
+  // export const ofKey = (key: key) =>
+  //   c.id({ region: key.slice(0, -1), zone: key.slice(-1) }) as AvailabilityZone;
+}
+
 export const sizes = {
   small: _InstanceType.t4g_small,
   big: _InstanceType.t4g_2xlarge,
@@ -97,11 +117,12 @@ type Params = {
   diskSizeGb: number;
   instance: _InstanceType;
   region: Region;
+  availabityZone?: AvailabilityZone;
   additionalSecurityGroups: string[];
   terminateOnShutdown: Boolean;
 };
 
-const defaultParams: Params = {
+export const defaultParams: Params = {
   onExisting: "fail",
   diskSizeGb: 8,
   instance: "t4g.small",
@@ -156,10 +177,17 @@ async function createNewFromParams(name: string, params: Params) {
     if (params.terminateOnShutdown) return "terminate";
     else "stop";
   })();
+  if (params.availabityZone)
+    c.assert(params.availabityZone.region === params.region);
   const cmd = new client_ec2.RunInstancesCommand({
     ImageId: debAMIs[params.region]["arm"],
     InstanceType: params.instance,
     KeyName: "tennyson@onyx",
+    Placement: {
+      AvailabilityZone: params.availabityZone
+        ? AvailabilityZone.toString(params.availabityZone)
+        : undefined,
+    },
     SecurityGroups: ["public-ssh", "web-ingress"].concat(
       params.additionalSecurityGroups,
     ),
@@ -219,10 +247,9 @@ async function createNewFromParams(name: string, params: Params) {
   }
   await common.retryExn(3000, 10, isRunning);
   const instance = await getInstance();
-  common.log.info(newId);
   if (instance) {
     const name = instance.PublicDnsName;
-    common.log.info(name);
+    common.log.info(`EC2 Instance ${name} with id ${newId} started`);
     if (name) {
       const host_ = new host.Host(name, "admin");
       await common.retryExn(3000, 10, () =>
@@ -249,5 +276,8 @@ export async function createNewSmall(
   name: string,
   params: Partial<Params> = {},
 ) {
-  return createNew(name, { instance: sizes.small });
+  return createNew(name, {
+    ...params,
+    instance: sizes.small,
+  });
 }
