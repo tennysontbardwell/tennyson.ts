@@ -5,6 +5,8 @@ import type { NotFunction } from "effect/Types";
 
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
+export type KeyType = string | number | symbol;
+
 export function notEmpty<TValue>(
   value: TValue | null | undefined,
 ): value is TValue {
@@ -383,6 +385,7 @@ export function getRandomElement<T>(array: T[]): T | undefined {
 declare const __brand: unique symbol;
 type Brand<B> = { [__brand]: B };
 export type Branded<T, B> = T & Brand<B>;
+export type BrandedString<B> = Branded<string, B>;
 
 export function objOfKeys<T, K extends string | number | symbol, D>(
   lst: readonly T[],
@@ -528,6 +531,108 @@ export namespace AlphaNumeric {
     "9",
   ] as const;
 
+  export const latinSuperscript = {
+    "(": "⁽",
+    ")": "⁾",
+    "+": "⁺",
+    "-": "⁻",
+    "0": "⁰",
+    "1": "¹",
+    "2": "²",
+    "3": "³",
+    "4": "⁴",
+    "5": "⁵",
+    "6": "⁶",
+    "7": "⁷",
+    "8": "⁸",
+    "9": "⁹",
+    "=": "⁼",
+    A: "ᴬ",
+    B: "ᴮ",
+    C: "ꟲ",
+    D: "ᴰ",
+    E: "ᴱ",
+    F: "ꟳ",
+    G: "ᴳ",
+    H: "ᴴ",
+    I: "ᴵ",
+    J: "ᴶ",
+    K: "ᴷ",
+    L: "ᴸ",
+    M: "ᴹ",
+    N: "ᴺ",
+    O: "ᴼ",
+    P: "ᴾ",
+    Q: "ꟴ",
+    R: "ᴿ",
+    S: "꟱",
+    T: "ᵀ",
+    U: "ᵁ",
+    V: "ⱽ",
+    W: "ᵂ",
+    a: "ᵃ",
+    b: "ᵇ",
+    c: "ᶜ",
+    d: "ᵈ",
+    e: "ᵉ",
+    f: "ᶠ",
+    g: "ᵍ",
+    h: "ʰ",
+    i: "ⁱ",
+    j: "ʲ",
+    k: "ᵏ",
+    l: "ˡ",
+    m: "ᵐ",
+    n: "ⁿ",
+    o: "ᵒ",
+    p: "ᵖ",
+    q: "𐞥",
+    r: "ʳ",
+    s: "ˢ",
+    t: "ᵗ",
+    u: "ᵘ",
+    v: "ᵛ",
+    w: "ʷ",
+    x: "ˣ",
+    y: "ʸ",
+    z: "ᶻ",
+  };
+
+  export const latinSubscript = {
+    "(": "₍",
+    ")": "₎",
+    "+": "₊",
+    "-": "₋",
+    "0": "₀",
+    "1": "₁",
+    "2": "₂",
+    "3": "₃",
+    "4": "₄",
+    "5": "₅",
+    "6": "₆",
+    "7": "₇",
+    "8": "₈",
+    "9": "₉",
+    "=": "₌",
+    a: "ₐ",
+    e: "ₑ",
+    h: "ₕ",
+    i: "ᵢ",
+    j: "ⱼ",
+    k: "ₖ",
+    l: "ₗ",
+    m: "ₘ",
+    n: "ₙ",
+    o: "ₒ",
+    p: "ₚ",
+    r: "ᵣ",
+    s: "ₛ",
+    t: "ₜ",
+    u: "ᵤ",
+    v: "ᵥ",
+    x: "ₓ",
+  };
+
   // export const alphaMathBlackboardUpperCase = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
   export const alphaMathBlackboardUpperCase = "𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ";
   export const alphaMathBlackboardLowerCase = "𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫";
@@ -553,15 +658,25 @@ export function stripUndefined<T extends Record<string, any>>(
   ) as NonUndefined<StripUndefined<T>>;
 }
 
-export function mapEntries<A, B>(
-  obj: Record<string, A>,
-  map: (v: [string, A]) => [string, B] | undefined,
-): Record<string, B> {
+export function mapEntries<A, B, KIn extends KeyType, KOut extends KeyType>(
+  obj: Record<KIn, A>,
+  map: (v: [KIn, A]) => [KOut, B] | undefined,
+): Record<KOut, B> {
   return Object.fromEntries(
     Object.entries(obj)
-      .map(map)
+      .map((v: [string, unknown]) => map(v as [KIn, A]))
       .filter((x) => x !== undefined),
-  );
+  ) as Record<KOut, B>;
+}
+
+export function mapValues<A, B, K extends KeyType>(
+  obj: Record<K, A>,
+  map: (v: A, k: K) => B | undefined,
+): Record<K, B> {
+  return mapEntries<A, B, K, K>(obj, ([k, v]) => {
+    const v_ = map(v, k);
+    return v_ !== undefined ? [k, v_] : undefined;
+  });
 }
 
 export function toArray<T>(input: T[] | T): T[] {
@@ -603,4 +718,49 @@ export function zip<T extends readonly (readonly unknown[])[]>(
   return Array.from({ length: minLength }, (_, i) =>
     arrays.map((a) => a[i]),
   ) as { [K in keyof T]: T[K] extends (infer U)[] ? U : never }[];
+}
+// export type BrandedString<B extends symbol> = string & { readonly [brand]: B };
+
+export const add = (a: number, b: number) => a + b;
+
+// export type BrandedString<B extends symbol> = string & { readonly __brand: B };
+
+// export const StrKey = <T, B extends symbol>(input: {
+//   fromString: (a: string) => T;
+//   toString: (t: T) => string;
+//   brand: B;
+// }) =>
+//   id({
+//     toKey: (t: T) => input.toString(t) as BrandedString<B>,
+//     fromKey: (s: BrandedString<B>) => input.fromString(s),
+//   });
+// export const MyMap = <T>(input: {
+//   fromString: (a: string) => T;
+//   toString: (t: T) => string;
+// }) =>
+//   id({
+//     ofEntries: <V>(entries: [T, V][]) =>
+//       Object.fromEntries(entries.map(([k, v]) => [input.toString(k), v])),
+//   });
+
+export type Option<A> = { _tag: "None" } | { _tag: "Some"; value: A };
+
+export namespace Option {
+  export const none: Option<never> = { _tag: "None" };
+
+  export function some<A>(value: A): Option<A> {
+    return { _tag: "Some", value };
+  }
+
+  export function map<A, B>(fa: Option<A>, f: (a: A) => B): Option<B> {
+    return fa._tag === "Some" ? some(f(fa.value)) : none;
+  }
+
+  export const ofUndefined = <T>(value: T | undefined) =>
+    value === undefined ? none : some(value);
+
+  export const match = <A, B>(
+    match: { none: () => B; some: (value: A) => B },
+    data: Option<A>,
+  ) => (data._tag === "None" ? match.none() : match.some(data.value));
 }

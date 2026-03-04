@@ -69,7 +69,7 @@ export async function wikidataQueryAndView(sparql: string) {
 // }
 
 export const QUERIES = {
-  US_ISO_3166_2_Codes: `
+  ISO_3166_2_US_States: `
 SELECT ?item ?itemLabel ?code ?pop WHERE {
   ?item wdt:P300 ?code.
   OPTIONAL {
@@ -83,7 +83,7 @@ SELECT ?item ?itemLabel ?code ?pop WHERE {
 ORDER BY ?code
 `,
 
-  ISO_3166_2_Codes: `
+  ISO_3166_2_Country_Subdivision_Codes: `
 SELECT ?item ?itemLabel ?code WHERE {
   ?item wdt:P300 ?code.
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
@@ -97,7 +97,7 @@ ORDER BY ?code
   //   ["code"],
   // );
 
-  ISO_3166_1_Codes: `
+  ISO_3166_1_Country_Codes: `
 SELECT DISTINCT ?item ?itemLabel ?alpha2Code ?alpha3Code ?numericCode WHERE {
   # Restrict to items that have at least one of the three properties
   ?item (wdt:P297|wdt:P298|wdt:P299) ?any .
@@ -120,9 +120,18 @@ SELECT ?item ?itemLabel ?code WHERE {
 ORDER BY ?code
 `,
 
-  PHONE: `
+  US_Phone_Area_Codes: `
 SELECT ?item ?itemLabel ?code WHERE {
   ?item wdt:P474 ?code; wdt:P31 wd:Q6256.
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
+}
+ORDER BY ?code
+`,
+  ISO_4217_Currency_Codes: `
+SELECT ?item ?itemLabel ?code ?issuerLabel WHERE {
+  ?item wdt:P498 ?code.
+  OPTIONAL { ?item wdt:P562 ?issuer. }
+  # ?item p:P498 [ ps:P498 ?code; wikibase:rank wikibase:PreferredRank ].
   SERVICE wikibase:label { bd:serviceParam wikibase:language "en,mul". }
 }
 ORDER BY ?code

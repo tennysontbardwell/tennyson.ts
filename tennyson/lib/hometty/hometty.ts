@@ -186,7 +186,8 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.website("query.wikidata.org/"),
     fzf.website("ucum.org/ucum", "Unified Code for Units of Measure"),
     fzf.website("www.worldatlas.com/"),
-    fzf.website("www.allareacodes.com/"),
+    fzf.website("www.allareacodes.com/", "phone area codes"),
+    fzf.website("detexify.kirelabs.org/classify.html", "draw latex"),
   ].concat(options.additions?.websites ?? []);
 
   const vdWikidata = (name: string, query: string) =>
@@ -206,9 +207,7 @@ export const hometty = (options: HomettyOptions = {}) => {
     vd("~/repos/datasets/nasdaq-listings/data/nasdaq-listed-symbols.csv"),
     vd("~/repos/tennysontbardwell/public/ref/ascii.csv"),
     vd("~/repos/tennysontbardwell/public/ref/greek-alpha.csv"),
-    ...Object.entries(wikidata.QUERIES).map(([k, v]) =>
-      vdWikidata(k, v),
-    )
+    ...Object.entries(wikidata.QUERIES).map(([k, v]) => vdWikidata(k, v)),
   ];
 
   const favFiles = [
@@ -249,6 +248,7 @@ export const hometty = (options: HomettyOptions = {}) => {
       "webbook.nist.gov/cgi/cbook.cgi?Name={query}",
       "HIST Chemistry WebBook",
     ),
+    fzf.websearch("emojidb.org/{query}-emojis", "emoji/emoticon"),
     fzf.websearch("howjsay.com/how-to-pronounce-{query}", "howjsay"),
     fzf.websearch("en.wiktionary.org/wiki/{query}"),
   ].concat(options.additions?.websearch ?? []);
