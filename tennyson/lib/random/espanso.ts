@@ -33,6 +33,7 @@ const matches = () => [
   m("🎉🥳", ["party"]),
   m("❤️", ["heart", "<3"]),
   m("🎂️", ["birthday", "bday"]),
+  m("🫡️", ["yessir", "sir"]),
 
   m("ℹ️", ["info"]),
   m("⚠️", ["warn"]),
