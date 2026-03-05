@@ -1,13 +1,13 @@
-import shellescape from "shell-escape";
 import * as http from "http";
 import * as path from "path";
-import * as uuid from "uuid";
 import * as os from "os";
 
 import * as net_util from "tennyson/lib/core/net-util";
 import * as ec2 from "tennyson/lib/infra/ec2";
 import * as common from "tennyson/lib/core/common";
 import * as common_node from "tennyson/lib/core/common-node";
+const c = common;
+const cn = common_node;
 import * as exec from "tennyson/lib/core/exec";
 import * as host from "tennyson/lib/infra/host";
 
@@ -86,8 +86,8 @@ export class Member {
     await common_node.withTempDir(async (dir) => {
       const tarPath = path.join(dir, "repo.tar.gz");
       await exec.sh(
-        `cd ${shellescape([localPath])}; ` +
-          `git archive --format=tar.gz -o ${shellescape([tarPath])} HEAD`,
+        `cd ${c.shellescape(localPath)}; ` +
+          `git archive --format=tar.gz -o ${c.shellescape(tarPath)} HEAD`,
       );
       await this.host.scpTo(tarPath, remoteTarPath);
       await this.host.exec("mkdir", ["-p", remotePath]);

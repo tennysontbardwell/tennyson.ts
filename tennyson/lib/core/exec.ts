@@ -1,6 +1,6 @@
-import shellescape from "shell-escape";
 import Path from "path";
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import { spawn } from "child_process";
 
 export type ExecLike = (
@@ -69,14 +69,14 @@ export class ExecHelpers {
     // https://github.com/nodejs/node/issues/21941
     return this.map(exec, (cmd, args) => [
       "bash",
-      ["-c", "tee /dev/null | " + shellescape([cmd].concat(args))],
+      ["-c", "tee /dev/null | " + c.shellescape([cmd].concat(args))],
     ]);
   }
 
   // TODO fix, 560 line limit?
   static async appendFile(exec: ExecLike, path: string, contents: string) {
     await exec("mkdir", ["-p", Path.dirname(path)]);
-    await exec("bash", ["-c", "tee /dev/null >> " + shellescape([path])], {
+    await exec("bash", ["-c", "tee /dev/null >> " + c.shellescape([path])], {
       stdin: contents,
     });
   }

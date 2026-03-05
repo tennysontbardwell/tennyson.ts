@@ -1,5 +1,4 @@
 import * as path from "path";
-import shellescape from "shell-escape";
 import * as fs from "fs/promises";
 
 import * as fzf from "tennyson/lib/core/fzf";
@@ -64,7 +63,7 @@ async function scripts(
     const choice = path.relative(dir, name);
     const action = async () => {
       await preActionHook(name);
-      const toType = shellescape([`${prefix}${name}`]);
+      const toType = c.shellescape([`${prefix}${name}`]);
       await fzf.evalAfterExit(`LBUFFER=\${LBUFFER}${toType}`);
     };
     const preview = () => fzf.displayPath(name);
@@ -120,7 +119,7 @@ async function functions() {
   const funs = await zshExec("print -rl -- ${(k)aliases} ${(k)functions}");
   return funs.split("\n").map((choice) => {
     const action = () => fzf.evalAfterExit(`LBUFFER=\${LBUFFER}${choice}`);
-    const preview = () => zshExec(shellescape(["which", choice]));
+    const preview = () => zshExec(c.shellescape(["which", choice]));
     return { choice: `[zsh] ${choice}`, preview: preview, action: action };
   });
 }

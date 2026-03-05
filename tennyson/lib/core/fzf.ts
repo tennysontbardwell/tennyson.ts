@@ -1,11 +1,10 @@
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import * as common_node from "tennyson/lib/core/common-node";
 import * as execlib from "tennyson/lib/core/exec";
 import * as fs from "fs/promises";
 import * as http from "http";
-import * as path from "path";
 import process from "process";
-import shellescape from "shell-escape";
 
 interface FzfMenu {
   choices: Array<string>;
@@ -60,7 +59,7 @@ export async function fzf(menu: FzfMenu) {
       if (data != "") {
         action(data);
       }
-      return data
+      return data;
     });
   } finally {
     server.close();
@@ -220,7 +219,7 @@ export function cd(dir: string, display?: string): FzfItem {
   return {
     choice: display_,
     preview: () => displayPath(dir),
-    action: async () => evalAfterExit(shellescape(["cd", dir])),
+    action: async () => evalAfterExit(c.shellescape(["cd", dir])),
   };
 }
 

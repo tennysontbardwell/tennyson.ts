@@ -3,10 +3,10 @@ import Path from "path";
 import process from "process";
 import dns from "dns";
 
-import shellescape from "shell-escape";
 import axios from "axios";
 
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import * as common_node from "tennyson/lib/core/common-node";
 import * as net_util from "tennyson/lib/core/net-util";
 import * as execlib from "tennyson/lib/core/exec";
@@ -38,7 +38,7 @@ export class Apt {
   async install(packages: string[]) {
     const command =
       "DEBIAN_FRONTEND=noninteractive " +
-      shellescape(
+      c.shellescape(
         ["apt-get", "install", "-y", "-q", "--force-yes"].concat(packages),
       );
     await this.exec("bash", ["-c", command]);
@@ -108,16 +108,16 @@ export class Host {
   }
 
   exec(command: string, args: string[], options: execlib.ExecOptions = {}) {
-    const remoteCommand = shellescape([command].concat(args));
+    const remoteCommand = c.shellescape([command].concat(args));
     const target = this.sshTarget();
-    // const sshArgs = [target, "/bin/bash", "-c", shellescape([remoteCommand])];
+    // const sshArgs = [target, "/bin/bash", "-c", c.shellescape([remoteCommand])];
     const sshArgs = [
       target,
       "/usr/bin/env",
       "-S",
       "bash",
       "-c",
-      shellescape([remoteCommand]),
+      c.shellescape([remoteCommand]),
     ];
     return execlib.exec("ssh", sshArgs, options);
   }
@@ -161,7 +161,7 @@ export class Host {
     await this.exec("mkdir", ["-p", Path.dirname(path)]);
     await this.exec(
       "bash",
-      ["-c", "base64 -d | dd status=none of=" + shellescape([path])],
+      ["-c", "base64 -d | dd status=none of=" + c.shellescape(path)],
       {
         stdin: contents,
       },

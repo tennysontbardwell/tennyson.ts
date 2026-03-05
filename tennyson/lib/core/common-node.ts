@@ -278,3 +278,5 @@ export async function plotEchartCDN(options: any, extra?: string) {
   await exec.exec("open", [filename]);
   c.log.info("Wrote plot.html (open it in your browser).");
 }
+
+export const pathjoin = path.join

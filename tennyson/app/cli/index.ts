@@ -111,7 +111,6 @@ export function cmds(
     cli.lazyGroup("viewer", async () => {
       const cn = await import("tennyson/lib/core/common-node");
       const exec = await import("tennyson/lib/core/exec");
-      const shellescape = (await import("shell-escape")).default;
       const path = (await import("path")).default;
       const fs = await import("fs");
       const os = (await import("os")).default;
@@ -141,7 +140,7 @@ export function cmds(
               ]);
             }
             const view = async (f: string) =>
-              cmdInTmux(`nvim ${shellescape([f])}`, "/");
+              cmdInTmux(`nvim ${c.shellescape(f)}`, "/");
             if (args.path === undefined) {
               const tempDir = path.join(os.tmpdir(), uuid.v4());
               await fs.promises.mkdir(tempDir);

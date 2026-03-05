@@ -764,3 +764,19 @@ export namespace Option {
     data: Option<A>,
   ) => (data._tag === "None" ? match.none() : match.some(data.value));
 }
+
+// modified from https://www.npmjs.com/package/shell-escape
+export function shellescape(a: string[] | string) {
+  var ret: string[] = [];
+
+  toArray(a).forEach(function(s) {
+    if (!/^[A-Za-z0-9_\/-]+$/.test(s)) {
+      s = "'"+s.replace(/'/g,"'\\''")+"'";
+      s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
+        .replace(/\\'''/g, "\\'" ); // remove non-escaped single-quote if there are enclosed between 2 escaped
+    }
+    ret.push(s);
+  });
+
+  return ret.join(' ');
+}

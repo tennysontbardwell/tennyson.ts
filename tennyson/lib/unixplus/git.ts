@@ -1,4 +1,5 @@
 import * as common from "tennyson/lib/core/common";
+const c = common;
 import * as common_node from "tennyson/lib/core/common-node";
 import * as process from "process";
 import * as execlib from "tennyson/lib/core/exec";
@@ -7,7 +8,6 @@ import * as readline from "readline";
 import { default as urlparse } from "url-parse";
 import * as fs from "fs/promises";
 import * as os from "os";
-import shellescape from "shell-escape";
 import Path from "path";
 
 export namespace GithubRepo {
@@ -85,7 +85,7 @@ export namespace GithubRepo {
           const t = ofURL(answer);
           const useSSH = t.user == process.env["GITHUB_USERNAME"];
           await clone(t, useSSH);
-          await fzf.evalAfterExit(shellescape(["cd", localPath(t)]));
+          await fzf.evalAfterExit(c.shellescape(["cd", localPath(t)]));
         },
       },
     ];

@@ -2,8 +2,7 @@ import * as prox from "tennyson/lib/infra/prox";
 import * as infraBuilder from "tennyson/lib/infra/infra-builder";
 import * as host from "tennyson/lib/infra/host";
 import * as common from "tennyson/lib/core/common";
-
-import shellEscape from "shell-escape";
+const c = common;
 
 const krb5_conf = {
   path: "/etc/krb5.conf",
@@ -124,7 +123,7 @@ export async function registerPrincipal(host_: host.Host) {
     principals
       .map(
         (principal: string) =>
-          "0 * * * * root kinit " + shellEscape(kinitArgs(principal)),
+          "0 * * * * root kinit " + c.shellescape(kinitArgs(principal)),
       )
       .join("\n") + "\n",
   );
