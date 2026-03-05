@@ -1,18 +1,22 @@
+import * as c from "tennyson/lib/core/common";
+import * as cn from "tennyson/lib/core/common-node";
+
 import * as ec2 from "tennyson/lib/infra/ec2";
-import * as common from "tennyson/lib/core/common";
-const c = common;
 import * as host from "tennyson/lib/infra/host";
 import * as execlib from "tennyson/lib/core/exec";
-import dns from "dns";
+
 import * as path from "path";
-import Papa from "papaparse";
+import * as pl from "nodejs-polars";
+import dns from "dns";
 import * as fs from "fs";
+
 import { PYTHON_SCRIPT } from "./python-script";
 import * as util from "./util";
 
 const iterations = 150;
 const jitterDelay = 0.01;
 const delay = 0.1;
+
 // const fleetSize = 36;
 // const zones = (() => {
 //   const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
@@ -22,11 +26,23 @@ const delay = 0.1;
 //     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
 //   );
 // })();
-const fleetSize = 12;
+
+// const fleetSize = 12;
+// const zones = (() => {
+//   const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
+//   const zones = ["a", "b", "c"] as const;
+//   const per = 1;
+//   return new Map(
+//     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
+//   );
+// })();
+// const totalDelay = Math.ceil(iterations * fleetSize * (delay + jitterDelay));
+
+const fleetSize = 2;
 const zones = (() => {
-  const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
-  const zones = ["a", "b", "c"] as const;
-  const per = 1;
+  const regions = ["us-east-1"] as const;
+  const zones = ["a"] as const;
+  const per = 2;
   return new Map(
     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
   );
@@ -59,9 +75,9 @@ class Node {
   }
 
   async expertStart() {
-    common.log.info(`Starting ${this.name}`);
+    c.info(`Starting ${this.name}`);
     this.box = await ec2.createNewSmall(this.name, {
-      additionalSecurityGroups: ["default"],
+      additionalSecurityGroups: ["default", "all-8000s"],
       ...(this.availabilityZone !== undefined
         ? {
             region: this.availabilityZone.region,
@@ -72,7 +88,7 @@ class Node {
   }
 
   async cleanup() {
-    common.log.info(`Cleaning ${this.name}`);
+    c.info(`Cleaning ${this.name}`);
     await ec2.purgeByName(this.name, this.availabilityZone?.region);
   }
 
@@ -150,11 +166,11 @@ class Fleet {
         node.box!.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
         // apt?.upgrade().then(() => apt.install(["python3-websockets", "python3-aiottp"]))
       ]);
-      // common.log.info(`Node ${node.name} setup almost complete`);
+      // c.info(`Node ${node.name} setup almost complete`);
       await Promise.all([
         bg_cmd(
           node,
-          `sudo timeout ${totalDelay + 5} tcpdump -U -n inbound -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
+          `sudo timeout ${totalDelay + 5} tcpdump -U -s 0 -i any -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
         ),
         bg_cmd(
           node,
@@ -171,7 +187,7 @@ class Fleet {
         ),
         bg_cmd(
           node,
-          "python3 /tmp/script.py client &> /tmp/results/client.stdout",
+          "sudo python3 /tmp/script.py client &> /tmp/results/client.stdout",
         ),
       ]);
     }
@@ -188,57 +204,17 @@ class Fleet {
 
     await this.fetchIps();
     await Promise.all(this.nodes.map(setupNode));
-    common.log.info("Fleet setup complete. Beginning Test");
+    c.info("Fleet setup complete. Beginning Test");
     await Promise.all(this.nodes.map(runNode));
-    common.log.info(`Waiting ${totalDelay + 15} seconds for completion`);
-    await common.sleep((totalDelay + 15) * 1000);
-    common.log.info("Test complete. Retrieving results");
+    c.info(`Waiting ${totalDelay + 15} seconds for completion`);
+    await c.sleep((totalDelay + 15) * 1000);
+    c.info("Test complete. Retrieving results");
     await Promise.all(this.nodes.map(finNode));
-    common.log.info("Processing results");
+    c.info("Processing results");
     await this.processResults();
   }
 
   async processResults() {
-    async function parseCsv(file: string) {
-      const fields = [
-        "frame.number",
-        "frame.time_epoch",
-        "frame.time_relative",
-        "ip.src",
-        "ip.dst",
-        "data.data",
-      ];
-      const fields_args = fields.flatMap((x) => ["-e", x]).join(" ");
-      const cmd = `tshark -r ${file} -T json ${fields_args} | jq -c '.[]'`;
-      const res = await execlib.sh(`${cmd}`);
-      return Papa.parse<CsvRow>(res.stdout, {
-        header: true,
-        skipEmptyLines: true,
-        dynamicTyping: true,
-      })
-        .data.map((x) => {
-          const payloadStr = x["udp.payload"]?.toString();
-          if (payloadStr === undefined || payloadStr.length === 0) return null;
-          else {
-            const payload = util.parseHex(payloadStr);
-            const allowlist = new Set(["resp", "ping", "pong"]);
-            const words = payload.split(" ");
-            if (allowlist.has(words[0]))
-              return {
-                ...x,
-                cmd: words[0],
-                host_id: words[1],
-                host1: words[2],
-                host2: words[3],
-                host3: words[4],
-                "udp.payload": payload,
-              };
-            else return null;
-          }
-        })
-        .filter((x) => x !== null);
-    }
-
     const results = await Promise.all(
       this.nodes.flatMap((node) =>
         ["inbound", "outbound"].map(async (dir) => {
@@ -248,7 +224,7 @@ class Fleet {
             "results",
             dir + ".pcap",
           );
-          const data = await parseCsv(file);
+          const data = await util.parsePcap(file);
           return data.map((d) => ({
             ...d!,
             dir: dir,
@@ -274,7 +250,7 @@ class Fleet {
         try {
           await cleanup();
         } catch (error) {
-          common.log.error(["Error during cleanup:", error]);
+          c.log.error(["Error during cleanup:", error]);
         }
       };
 
@@ -282,7 +258,7 @@ class Fleet {
         let onSigint: () => void;
         const sigintTrap = new Promise<never>((_, reject) => {
           onSigint = () => {
-            common.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
+            c.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
             reject(new Error("SIGINT"));
           };
         });
@@ -295,7 +271,7 @@ class Fleet {
 
     const cleanup = async () => {
       await Promise.all(nodes.map((x) => x.cleanup()));
-      common.log.info("Cleanup completed successfully.");
+      c.info("Cleanup completed successfully.");
     };
 
     async function run() {
@@ -308,16 +284,16 @@ class Fleet {
 }
 
 async function main() {
-  common.log.info("main");
+  c.info("main");
   let fleet = new Fleet(fleetSize, { availabilityZones: zones });
   await fleet.withLive(async () => {
-    common.log.info("Fleet start-up complete");
+    c.info("Fleet start-up complete");
     await fleet.runTest();
   });
-  common.log.info("Cleaned up");
+  c.info("Cleaned up");
 }
 
 main().catch((error) => {
-  common.log.error("error in main");
-  common.log.error("error in main", error);
+  c.log.error("error in main");
+  c.log.error("error in main", error);
 });

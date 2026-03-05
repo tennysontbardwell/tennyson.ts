@@ -8,7 +8,7 @@ import time
 import random
 
 CONFIG_PATH = '/tmp/config.json'
-PORT = 8000
+PORT = 80
 
 with open(CONFIG_PATH, 'r') as f:
     config = json.load(f)
@@ -60,8 +60,8 @@ def ping_bot():
             time.sleep(config['jitterDelay'])
             send_ping(host);
             time.sleep(config['jitterDelay'])
-            h1, h2 = random.sample(others, 2)
-            send_ping_pong(h1['ip'], h2['ip']);
+            # h1, h2 = random.sample(others, 2)
+            # send_ping_pong(h1['ip'], h2['ip']);
             time.sleep(config['delay'] - config['jitterDelay'] * 2)
 
 if __name__ == "__main__":

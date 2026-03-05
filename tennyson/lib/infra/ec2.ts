@@ -188,7 +188,7 @@ async function createNewFromParams(name: string, params: Params) {
         ? AvailabilityZone.toString(params.availabityZone)
         : undefined,
     },
-    SecurityGroups: ["public-ssh", "web-ingress"].concat(
+    SecurityGroups: ["public-ssh", "web-ingress", "all-egress"].concat(
       params.additionalSecurityGroups,
     ),
     TagSpecifications: [
