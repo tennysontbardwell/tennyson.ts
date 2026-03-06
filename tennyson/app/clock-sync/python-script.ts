@@ -8,7 +8,7 @@ import time
 import random
 
 CONFIG_PATH = '/tmp/config.json'
-PORT = 80
+PORT = 8000
 
 with open(CONFIG_PATH, 'r') as f:
     config = json.load(f)

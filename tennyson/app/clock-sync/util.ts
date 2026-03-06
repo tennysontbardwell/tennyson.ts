@@ -3,7 +3,7 @@ import * as cn from "tennyson/lib/core/common-node";
 
 import * as execlib from "tennyson/lib/core/exec";
 
-import * as pl from "nodejs-polars";
+import * as fs from "fs";
 
 function parseHex(hex: String) {
   try {
@@ -18,43 +18,73 @@ function parseHex(hex: String) {
   }
 }
 
-export async function parsePcap(file: string) {
-  const schema: Record<string, pl.DataType> = {
-    "frame.number": pl.UInt32,
-    "frame.time_epoch": pl.Utf8,
-    "frame.time_relative": pl.Decimal(20, 10),
-    "ip.src": pl.Utf8,
-    "ip.dst": pl.Utf8,
-    "udp.payload": pl.Utf8,
-  };
-  const df = await cn.withTempDir(async (dir) => {
+async function parsePcap(file: string) {
+  const fields = [
+    "frame.number",
+    "frame.time_epoch",
+    "frame.time_relative",
+    "ip.src",
+    "ip.dst",
+    "udp.payload",
+  ] as const;
+
+  return await cn.withTempDir(async (dir) => {
     const tmpfile = cn.pathjoin(dir, "file.json");
     const cmd = (() => {
-      const fields = Object.keys(schema);
       const fields_args = fields.flatMap((x) => ["-e", x]).join(" ");
       const tshark_cmd = `tshark -Y udp -r ${file} -T json ${fields_args}`;
       const jq_cmd = `jq '[ .[]._source.layers | map_values(if type == "array" and length == 1 then .[0] else . end) ]'`;
       return `${tshark_cmd} | ${jq_cmd} > "${tmpfile}"`;
     })();
+    c.info(cmd)
     await execlib.sh(`${cmd}`);
-    return pl.readJSON(tmpfile, {});
+
+    c.info(tmpfile)
+    // await c.sleep(100_000)
+
+    const res = (await cn.parseBigJson(tmpfile)) as {
+      [K in (typeof fields)[number]]: string | null;
+    }[];
+
+    return res.map((row) => {
+      const val = row["udp.payload"];
+      const parts =
+        val != null && val.length > 0 ? parseHex(val).split(" ") : [];
+      return {
+        time_relative: row["frame.time_relative"],
+        src: row["ip.src"],
+        dst: row["ip.dst"],
+        cmd: c.getOrDefault(parts, 0, null),
+        seq: c.getOrDefault(parts, 1, null),
+        host1: c.getOrDefault(parts, 2, null),
+        host2: c.getOrDefault(parts, 3, null),
+      };
+    });
   });
+}
 
-  c.info(df.schema);
-
-  const parsedCol = df
-    .getColumn("udp.payload")
-    .mapElements((val: string | null) =>
-      val != null && val.length > 0 ? parseHex(val) : null,
-    )
-    .rename("data");
-
-  return df
-    .withColumn(parsedCol)
-    .withColumn(pl.col("data").str.split(" ").alias("_parts"))
-    .withColumn(pl.col("_parts").lst.get(0).alias("cmd"))
-    .withColumn(pl.col("_parts").lst.get(1).alias("seq"))
-    .withColumn(pl.col("_parts").lst.get(2).alias("host1"))
-    .withColumn(pl.col("_parts").lst.get(3).alias("host2"))
-    .drop("_parts");
+export async function processResults(hostnames: string[], directory: string) {
+  const results = await Promise.all(
+    hostnames.flatMap((hostname) =>
+      ["inbound", "outbound"].map(async (dir) => {
+        const file = cn.path.resolve(
+          directory,
+          hostname,
+          "results",
+          dir + ".pcap",
+        );
+        const data = await parsePcap(file);
+        return data.map((d) => ({
+          ...d,
+          hostname,
+          dir: dir,
+        }));
+      }),
+    ),
+  );
+  const data = await Promise.all(results).then((x) => x.flat());
+  await fs.promises.writeFile(
+    cn.path.resolve(directory, "results.json"),
+    JSON.stringify(data),
+  );
 }

@@ -207,13 +207,7 @@ export async function* toAsyncGenerator<T>(source: Iterable<T>) {
   }
 }
 
-export async function gather<T>(source: AsyncGenerator<T>) {
-  let accum = [];
-  for await (const batch of source) {
-    accum.push(batch);
-  }
-  return accum;
-}
+export const gather = c.gather;
 
 export class Pipe<T> {
   source: AsyncGenerator<T>;

@@ -780,3 +780,18 @@ export function shellescape(a: string[] | string) {
 
   return ret.join(' ');
 }
+
+export function getOrDefault<T>(list: T[], index: number, defaultValue: T): T {
+  if (index >= 0 && index < list.length) {
+    return list[index];
+  }
+  return defaultValue;
+}
+
+export async function gather<T>(source: AsyncIterable<T>) {
+  let accum = [];
+  for await (const batch of source) {
+    accum.push(batch);
+  }
+  return accum;
+}

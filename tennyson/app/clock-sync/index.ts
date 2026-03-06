@@ -6,9 +6,9 @@ import * as host from "tennyson/lib/infra/host";
 import * as execlib from "tennyson/lib/core/exec";
 
 import * as path from "path";
+import * as fs from "fs/promises";
 import * as pl from "nodejs-polars";
 import dns from "dns";
-import * as fs from "fs";
 
 import { PYTHON_SCRIPT } from "./python-script";
 import * as util from "./util";
@@ -48,18 +48,6 @@ const zones = (() => {
   );
 })();
 const totalDelay = Math.ceil(iterations * fleetSize * (delay + jitterDelay));
-
-// frame.number,frame.time,eth.src,eth.dst,ip.src,ip.dst,ip.proto,udp.payload,data
-type CsvRow = {
-  "frame.number": number;
-  "frame.time": string;
-  "eth.src": string;
-  "eth.dst": string;
-  "ip.src": string;
-  "ip.dst": string;
-  "ip.proto": string;
-  "udp.payload": string | number | null;
-};
 
 class Node {
   readonly name: string;
@@ -170,7 +158,7 @@ class Fleet {
       await Promise.all([
         bg_cmd(
           node,
-          `sudo timeout ${totalDelay + 5} tcpdump -U -s 0 -i any -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
+          `sudo timeout ${totalDelay + 5} tcpdump -U -n inbound -i any -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
         ),
         bg_cmd(
           node,
@@ -187,7 +175,7 @@ class Fleet {
         ),
         bg_cmd(
           node,
-          "sudo python3 /tmp/script.py client &> /tmp/results/client.stdout",
+          "python3 /tmp/script.py client &> /tmp/results/client.stdout",
         ),
       ]);
     }
@@ -211,31 +199,9 @@ class Fleet {
     c.info("Test complete. Retrieving results");
     await Promise.all(this.nodes.map(finNode));
     c.info("Processing results");
-    await this.processResults();
-  }
-
-  async processResults() {
-    const results = await Promise.all(
-      this.nodes.flatMap((node) =>
-        ["inbound", "outbound"].map(async (dir) => {
-          const file = path.resolve(
-            this.directory,
-            node.box!.hostname(),
-            "results",
-            dir + ".pcap",
-          );
-          const data = await util.parsePcap(file);
-          return data.map((d) => ({
-            ...d!,
-            dir: dir,
-          }));
-        }),
-      ),
-    );
-    const data = await Promise.all(results).then((x) => x.flat());
-    await fs.promises.writeFile(
-      path.resolve(this.directory, "results.json"),
-      JSON.stringify(data),
+    await util.processResults(
+      this.nodes.map((x) => x.box!.hostname()),
+      this.directory,
     );
   }
 
@@ -284,7 +250,6 @@ class Fleet {
 }
 
 async function main() {
-  c.info("main");
   let fleet = new Fleet(fleetSize, { availabilityZones: zones });
   await fleet.withLive(async () => {
     c.info("Fleet start-up complete");
@@ -292,6 +257,12 @@ async function main() {
   });
   c.info("Cleaned up");
 }
+
+// async function main() {
+//   const dir = "/tmp/fleet-results/2026-03-05T13:53:33.508Z";
+//   const hosts = await c.gather(fs.glob(`${dir}/*/`));
+//   await util.processResults(hosts.map(x => cn.path.basename(x)), dir);
+// }
 
 main().catch((error) => {
   c.log.error("error in main");
