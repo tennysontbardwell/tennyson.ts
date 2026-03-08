@@ -144,6 +144,7 @@ const matches = () => [
   m("↘", ["se"]),
   m("↙", ["sw"]),
   m("↔", ["iff"]),
+  m("↦", ["mapsto"]),
 
   m("∀", ["forall"]),
   m("∃", ["exists"]),
