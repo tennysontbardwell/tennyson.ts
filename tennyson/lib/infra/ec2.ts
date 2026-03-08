@@ -86,8 +86,8 @@ const debAMIs = {
 export type Region = keyof typeof debAMIs;
 
 export type AvailabilityZone = {
-  region: Region;
-  zone: common.AlphaNumeric.AlphaLower;
+  readonly region: Region;
+  readonly zone: common.AlphaNumeric.AlphaLower;
 };
 
 export namespace AvailabilityZone {
@@ -255,7 +255,12 @@ async function createNewFromParams(name: string, params: Params) {
       await common.retryExn(3000, 10, () =>
         common.didRaise(() => common.ignoreAsync(host_.learnHostKey())),
       );
-      return host_;
+      return {
+        host: host_,
+        [Symbol.asyncDispose]: async () => {
+          purgeByName(name, params.region);
+        },
+      };
     }
   }
   throw { message: "unable to create aws ec2 host", instance: instance };

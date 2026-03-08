@@ -13,14 +13,13 @@ export namespace Devbox {
   }
 
   async function runThenKill(size: Size) {
-    let util = await import("tennyson/lib/core/util");
-    let ec2 = await import("tennyson/lib/infra/ec2");
-    let name = rndName();
-    let instance = ec2.sizes[size];
-    let box = await ec2.createNew(name, { instance });
-    await box.passthroughSsh();
+    const util = await import("tennyson/lib/core/util");
+    const ec2 = await import("tennyson/lib/infra/ec2");
+    const name = rndName();
+    const instance = ec2.sizes[size];
+    await using box = await ec2.createNew(name, { instance });
+    await box.host.passthroughSsh();
     await util.askQuestion("Proceed?");
-    await ec2.purgeByName(name);
   }
 
   export const cmd: yargs.CommandModule<{}, {}> = {

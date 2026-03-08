@@ -26,8 +26,11 @@ export class Member {
     const name = ["tmp-fleet", fleetname, "box", memberName_]
       .filter((x) => x !== null)
       .join("-");
-    const host = await ec2.createNewSmall(name, { terminateOnShutdown: true });
-    return new Member(name, host);
+    // const host = await ec2.createNewSmall(name, { terminateOnShutdown: true });
+    const box = await ec2.createNewSmall(name, {
+      terminateOnShutdown: true,
+    });
+    return new Member(name, box.host);
   }
 
   async destroy() {

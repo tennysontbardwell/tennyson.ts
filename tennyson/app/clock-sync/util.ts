@@ -2,6 +2,7 @@ import * as c from "tennyson/lib/core/common";
 import * as cn from "tennyson/lib/core/common-node";
 
 import * as execlib from "tennyson/lib/core/exec";
+import * as host from "tennyson/lib/infra/host";
 
 import * as fs from "fs";
 
@@ -36,10 +37,10 @@ async function parsePcap(file: string) {
       const jq_cmd = `jq '[ .[]._source.layers | map_values(if type == "array" and length == 1 then .[0] else . end) ]'`;
       return `${tshark_cmd} | ${jq_cmd} > "${tmpfile}"`;
     })();
-    c.info(cmd)
+    c.info(cmd);
     await execlib.sh(`${cmd}`);
 
-    c.info(tmpfile)
+    c.info(tmpfile);
     // await c.sleep(100_000)
 
     const res = (await cn.parseBigJson(tmpfile)) as {
@@ -88,3 +89,86 @@ export async function processResults(hostnames: string[], directory: string) {
     JSON.stringify(data),
   );
 }
+
+export const withSiginTrap = async (
+  f: () => Promise<void>,
+  cleanup: () => Promise<void>,
+) => {
+  const wrappedCleanup = async () => {
+    try {
+      await cleanup();
+    } catch (error) {
+      c.log.error(["Error during cleanup:", error]);
+    }
+  };
+
+  try {
+    let onSigint: () => void;
+    const sigintTrap = new Promise<never>((_, reject) => {
+      onSigint = () => {
+        c.log.warn("Received SIGINT (Ctrl+C). Starting cleanup...");
+        reject(new Error("SIGINT"));
+      };
+    });
+    process.on("SIGINT", onSigint!);
+    await Promise.race([f(), sigintTrap]);
+  } finally {
+    await wrappedCleanup();
+  }
+};
+
+async function disposeAllParallel(resources: AsyncDisposable[]): Promise<void> {
+  const results = await Promise.allSettled(
+    resources.map((r) => r[Symbol.asyncDispose]()),
+  );
+  const errors = results
+    .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+    .map((r) => r.reason);
+  if (errors.length) {
+    throw { errors, msg: "Errors during parallel resource disposal" };
+  }
+}
+
+export function combineAsyncDisposables<R>(
+  factories: (() => Promise<AsyncDisposable & R>)[],
+): () => Promise<AsyncDisposable & R[]> {
+  return async () => {
+    const resources: (AsyncDisposable & R)[] = [];
+
+    try {
+      for (const factory of factories) {
+        resources.push(await factory());
+      }
+    } catch (acquireError) {
+      // Partially acquired — clean up what we have
+      await disposeAllParallel(resources);
+      throw acquireError;
+    }
+
+    return Object.assign(resources as R[], {
+      [Symbol.asyncDispose]: () => disposeAllParallel(resources),
+    });
+  };
+}
+
+export async function withResource<R, Z>(
+  acquire: () => Promise<AsyncDisposable & R>,
+  f: (resource: R) => Z | Promise<Z>,
+): Promise<Z> {
+  await using resource = await acquire();
+  return f(resource);
+}
+
+export async function withResources<R, Z>(
+  factories: (() => Promise<AsyncDisposable & R>)[],
+  f: (resources: R[]) => Z | Promise<Z>,
+) {
+  return await withResource(combineAsyncDisposables(factories), f);
+}
+
+export const bg_cmds = (h: host.Host) => (cmds: string[]) =>
+  Promise.all(
+    cmds.map((cmd) =>
+      h.exec("/usr/bin/env", ["-S", "bash", "-c", `nohup ${cmd} &`]),
+    ),
+  );
