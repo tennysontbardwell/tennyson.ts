@@ -187,6 +187,7 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.website("www.worldatlas.com/"),
     fzf.website("www.allareacodes.com/", "phone area codes"),
     fzf.website("detexify.kirelabs.org/classify.html", "draw latex"),
+    fzf.website("instances.vantage.sh", 'aws ec2 pricing')
   ].concat(options.additions?.websites ?? []);
 
   const vdWikidata = (name: string, query: string) =>
