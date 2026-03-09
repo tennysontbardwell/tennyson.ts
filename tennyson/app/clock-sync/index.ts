@@ -7,62 +7,30 @@ import * as execlib from "tennyson/lib/core/exec";
 
 import * as path from "path";
 import * as fs from "fs/promises";
-import * as pl from "nodejs-polars";
 import dns from "dns";
 
 import { PYTHON_SCRIPT } from "./python-script";
 import * as util from "./util";
 
-const iterations = 150;
-const jitterDelay = 0.01;
-const delay = 0.1;
-
-// const fleetSize = 36;
-// const zones = (() => {
-//   const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
-//   const zones = ["a", "b", "c"] as const;
-//   const per = 3;
-//   return new Map(
-//     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
-//   );
-// })();
-
-// const fleetSize = 12;
-// const zones = (() => {
-//   const regions = ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const;
-//   const zones = ["a", "b", "c"] as const;
-//   const per = 1;
-//   return new Map(
-//     regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
-//   );
-// })();
-// const totalDelay = Math.ceil(iterations * fleetSize * (delay + jitterDelay));
-
-const fleetSize = 2;
-const zones = (() => {
-  const regions = ["us-east-1"] as const;
-  const zones = ["a"] as const;
-  const per = 2;
-  return new Map(
-    regions.flatMap((region) => zones.map((zone) => [{ region, zone }, per])),
-  );
-})();
-const totalDelay = Math.ceil(iterations * fleetSize * (delay + jitterDelay));
-
 interface NodeConfig {
   readonly name: string;
+  readonly humanName: string;
   readonly availabilityZone: ec2.AvailabilityZone;
 }
 
 namespace NodeConfig {
-  export const make = (availabilityZone: ec2.AvailabilityZone) =>
-    c.id({ name: "temp-box-" + c.rndAlphNum(8), availabilityZone });
+  export const make = (
+    availabilityZone: ec2.AvailabilityZone,
+    humanName: string,
+  ) =>
+    c.id({ name: "temp-box-" + c.rndAlphNum(8), humanName, availabilityZone });
 }
 
 interface LiveNode {
   readonly config: NodeConfig;
   readonly host: host.Host;
   readonly ip: string;
+  readonly privateIp: string;
   readonly [Symbol.asyncDispose]: () => Promise<void>;
 }
 
@@ -78,31 +46,41 @@ namespace LiveNode {
         : {}),
     });
     const dnsRes = await dns.promises.lookup(h.host.fqdn());
-    return { ...h, config, ip: dnsRes.address };
+    return {
+      ...h,
+      config,
+      ip: dnsRes.address,
+      privateIp: h.instance.PrivateIpAddress!,
+    };
   };
 }
 
 type FleetConfig = readonly NodeConfig[];
 
-type Fleet_ = readonly LiveNode[];
+type Fleet = readonly LiveNode[];
 
-namespace Fleet_ {
-  const config = (options: {
-    regions: ec2.Region[];
-    zones: c.AlphaNumeric.AlphaLower[];
+namespace Fleet {
+  export const config = (options: {
+    regions: readonly ec2.Region[];
+    zones: readonly c.AlphaNumeric.AlphaLower[];
     perZone: number;
   }): FleetConfig => {
     const { regions, zones, perZone } = options;
     return regions.flatMap((region) =>
-      zones.flatMap((zone) =>
-        c.range(perZone).map((_) => NodeConfig.make({ region, zone })),
-      ),
+      zones.flatMap((zone) => {
+        const az = { region, zone };
+        return c
+          .range(1, 1 + perZone)
+          .map((i) =>
+            NodeConfig.make(az, `${ec2.AvailabilityZone.toString(az)}-${i}`),
+          );
+      }),
     );
   };
 
-  const withFleet = async <T>(
+  export const withFleet = async <T>(
     config: FleetConfig,
-    f: (fleet: Fleet_) => Promise<T>,
+    f: (fleet: Fleet) => Promise<T>,
   ) => {
     const factories = config.map(
       (nodeConfig) => () => LiveNode.ofConfig(nodeConfig),
@@ -111,79 +89,62 @@ namespace Fleet_ {
   };
 }
 
-class Node {
-  readonly name: string;
-  box: host.Host | undefined;
-
-  constructor(readonly availabilityZone?: ec2.AvailabilityZone) {
-    this.name = "temp-box-" + c.rndAlphNum(8);
-  }
-
-  async expertStart() {
-    c.info(`Starting ${this.name}`);
-    const box = await ec2.createNewSmall(this.name, {
-      additionalSecurityGroups: ["default", "all-8000s"],
-      ...(this.availabilityZone !== undefined
-        ? {
-            region: this.availabilityZone.region,
-            availabityZone: this.availabilityZone,
-          }
-        : {}),
-    });
-    this.box = box.host;
-  }
-
-  async cleanup() {
-    c.info(`Cleaning ${this.name}`);
-    await ec2.purgeByName(this.name, this.availabilityZone?.region);
-  }
-
-  async withLive(f: (node: Node) => Promise<void>) {
-    await this.expertStart();
-    const name = this.name;
-    f(this).finally(async () => {
-      await ec2.purgeByName(name);
-    });
-  }
+interface TestConfig {
+  jitterDelay: number;
+  iterations: number;
+  delay: number;
 }
 
+const totalDelay = (config: TestConfig, fleetSize: number) =>
+  Math.ceil(
+    config.iterations * fleetSize * (config.delay + config.jitterDelay),
+  );
+
 namespace Setup {
-  const configFile = (node: LiveNode, fleet: Fleet_) =>
+  const configFile = (forNode: LiveNode, fleet: Fleet, config: TestConfig) =>
     JSON.stringify({
       nodes: fleet.map((node) => ({
-        name: node.config.name,
+        name: node.config.humanName,
         hostname: node.host.fqdn(),
-        ip: node.ip,
+        ip:
+          forNode.config.availabilityZone.region ==
+          node.config.availabilityZone.region
+            ? node.privateIp
+            : node.ip,
       })),
       self: {
-        name: node.config.name,
-        ip: node.ip,
+        name: forNode.config.humanName,
+        ip: forNode.ip,
       },
-      jitterDelay,
-      iterations,
-      delay,
+      jitterDelay: config.jitterDelay,
+      iterations: config.iterations,
+      delay: config.delay,
     });
 
-  export const setupNode = (fleet: Fleet_) => async (node: LiveNode) => {
-    const h = node.host;
-    await h.exec("mkdir", ["/tmp/results"]);
-    await Promise.all([
-      h.putFile("/tmp/config.json", configFile(node, fleet)),
-      h.putFile("/tmp/script.py", PYTHON_SCRIPT),
-      h.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
-    ]);
-    const bg = util.bg_cmds(h);
+  export const setupNode =
+    (fleet: Fleet, config: TestConfig) => async (node: LiveNode) => {
+      const h = node.host;
+      await h.exec("mkdir", ["/tmp/results"]);
+      await Promise.all([
+        h.putFile("/tmp/config.json", configFile(node, fleet, config)),
+        h.putFile("/tmp/script.py", PYTHON_SCRIPT),
+        h.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
+      ]);
+    };
+}
+
+const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
+  const dir = `/tmp/fleet-results/${new Date().toISOString()}`;
+
+  async function startListening(node: LiveNode) {
+    const bg = util.bg_cmds(node.host);
     await bg(
       ["in", "out"].map(
         (x) =>
-          `sudo timeout ${totalDelay + 5} tcpdump -U -n ${x}bound -i any -w /tmp/results/${x}bound.pcap --time-stamp-precision=nano &> /tmp/results/${x}bound-tcpdump.stdout`,
+          `sudo timeout ${totalDelay(config, fleet.length) + 5 + fleet.length} tcpdump -U -n ${x}bound -i any -w /tmp/results/${x}bound.pcap --time-stamp-precision=nano &> /tmp/results/${x}bound-tcpdump.stdout`,
       ),
     );
-  };
-}
-
-async function fleetTest(fleet: Fleet_) {
-  const dir = `/tmp/fleet-results/${new Date().toISOString()}`;
+  }
 
   async function runNode(node: LiveNode) {
     const bg = util.bg_cmds(node.host);
@@ -200,166 +161,67 @@ async function fleetTest(fleet: Fleet_) {
     await execlib.exec("scp", [
       "-r",
       `${node.host.user}@${node.host.fqdn()}:/tmp/results`,
-      dir,
+      d,
     ]);
   }
 
-  await Promise.all(fleet.map(Setup.setupNode(fleet)));
+  const totalDelay_ = totalDelay(config, fleet.length);
+
+  await Promise.all(fleet.map(Setup.setupNode(fleet, config)));
   c.info("Fleet setup complete. Beginning Test");
+  await Promise.all(fleet.map(startListening));
   await Promise.all(fleet.map(runNode));
-  c.info(`Waiting ${totalDelay + 15} seconds for completion`);
-  await c.sleep((totalDelay + 15) * 1000);
+  const waitTime = totalDelay_ * 1.05 + 15 + fleet.length;
+  c.info(`Waiting ${waitTime} seconds for completion`);
+  await c.sleep(waitTime * 1000);
   c.info("Test complete. Retrieving results");
   await Promise.all(fleet.map(finNode));
   c.info("Processing results");
   await util.processResults(
-    fleet.map((x) => x.host.hostname()),
+    fleet.map((x) =>
+      c.id({ hostname: x.host.hostname(), zone: x.config.availabilityZone }),
+    ),
     dir,
   );
-}
+};
 
-class Fleet {
-  readonly nodes: Node[];
-  ips: Record<string, string> = {};
-  directory: string;
-
-  constructor(
-    n: number,
-    options?: {
-      availabilityZones?: Map<ec2.AvailabilityZone, number>;
+const configs = {
+  full: {
+    fleetConfig: {
+      regions: ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const,
+      zones: ["a", "b", "c"] as const,
+      perZone: 3,
     },
-  ) {
-    this.nodes = (() => {
-      const zones = options?.availabilityZones;
-      if (zones !== undefined) {
-        c.assert(Array.from(zones.values()).reduce(c.add, 0) === n);
-        return Array.from(zones.entries()).flatMap(([k, v]) =>
-          c.range(v).map((_) => new Node(k)),
-        );
-      } else return Array.from({ length: n }, (_) => new Node());
-    })();
-
-    this.directory = `/tmp/fleet-results/${new Date().toISOString()}`;
-  }
-
-  async fetchIps() {
-    await Promise.all(
-      this.nodes.map(async (node) => {
-        const res = await dns.promises.lookup(node.box!.fqdn());
-        this.ips[node.name] = res.address;
-      }),
-    );
-  }
-
-  async runTest() {
-    const fleet = this;
-
-    const bg_cmds = (h: host.Host, cmds: string[] | string) =>
-      Promise.all(
-        c.toArray(cmds).map((cmd) =>
-          h.exec("/usr/bin/env", ["-S", "bash", "-c", `nohup ${cmd} &`]),
-        ),
-      );
-    const configFile = (node: Node) =>
-      JSON.stringify({
-        nodes: this.nodes.map((node) => ({
-          name: node.name,
-          hostname: node.box!.fqdn(),
-          ip: this.ips[node.name],
-        })),
-        self: {
-          name: node.name,
-          ip: this.ips[node.name],
-        },
-        jitterDelay,
-        iterations,
-        delay,
-      });
-
-    async function setupNode(node: Node) {
-      // const apt = box!.apt();
-      await node.box!.exec("mkdir", ["/tmp/results"]);
-      await Promise.all([
-        node.box!.putFile("/tmp/config.json", configFile(node)),
-        node.box!.putFile("/tmp/script.py", PYTHON_SCRIPT),
-        node.box!.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
-        // apt?.upgrade().then(() => apt.install(["python3-websockets", "python3-aiottp"]))
-      ]);
-      // c.info(`Node ${node.name} setup almost complete`);
-      await Promise.all([
-        bg_cmds(
-          node.box!,
-          `sudo timeout ${totalDelay + 5} tcpdump -U -n inbound -i any -w /tmp/results/inbound.pcap --time-stamp-precision=nano &> /tmp/results/inbound-tcpdump.stdout`,
-        ),
-        bg_cmds(
-          node.box!,
-          `sudo timeout ${totalDelay + 5} tcpdump -U -n outbound -w /tmp/results/outbound.pcap --time-stamp-precision=nano &> /tmp/results/outbound-tcpdump.stdout`,
-        ),
-      ]);
-    }
-
-    async function runNode(node: Node) {
-      await Promise.all([
-        bg_cmds(
-          node.box!,
-          "python3 /tmp/script.py server &> /tmp/results/server.stdout",
-        ),
-        bg_cmds(
-          node.box!,
-          "python3 /tmp/script.py client &> /tmp/results/client.stdout",
-        ),
-      ]);
-    }
-
-    async function finNode(node: Node) {
-      const dir = path.resolve(fleet.directory, node.box!.hostname());
-      await execlib.exec("mkdir", ["-p", dir]);
-      await execlib.exec("scp", [
-        "-r",
-        `${node.box!.user}@${node.box!.fqdn()}:/tmp/results`,
-        dir,
-      ]);
-    }
-
-    await this.fetchIps();
-    await Promise.all(this.nodes.map(setupNode));
-    c.info("Fleet setup complete. Beginning Test");
-    await Promise.all(this.nodes.map(runNode));
-    c.info(`Waiting ${totalDelay + 15} seconds for completion`);
-    await c.sleep((totalDelay + 15) * 1000);
-    c.info("Test complete. Retrieving results");
-    await Promise.all(this.nodes.map(finNode));
-    c.info("Processing results");
-    await util.processResults(
-      this.nodes.map((x) => x.box!.hostname()),
-      this.directory,
-    );
-  }
-
-  async withLive(f: (nodes: Node[]) => Promise<void>) {
-    const nodes = this.nodes;
-
-    const cleanup = async () => {
-      await Promise.all(nodes.map((x) => x.cleanup()));
-      c.info("Cleanup completed successfully.");
-    };
-
-    async function run() {
-      await Promise.all(nodes.map((x) => x.expertStart()));
-      await f(nodes);
-    }
-
-    await util.withSiginTrap(run, cleanup);
-  }
-}
+    testConfig: {
+      iterations: 150,
+      jitterDelay: 0.01,
+      delay: 0.1,
+    },
+  },
+  small: {
+    fleetConfig: {
+      regions: ["us-east-1", "us-east-2"] as const,
+      zones: ["a", "b"] as const,
+      perZone: 1,
+    },
+    testConfig: {
+      iterations: 50,
+      jitterDelay: 0.01,
+      delay: 0.1,
+    },
+  },
+};
 
 async function main() {
-  let fleet = new Fleet(fleetSize, { availabilityZones: zones });
-  await fleet.withLive(async () => {
-    c.info("Fleet start-up complete");
-    await fleet.runTest();
-  });
-  c.info("Cleaned up");
+  // let config = configs.small;
+  let config = configs.full;
+
+  let fleetConfig = Fleet.config(config.fleetConfig);
+  let testConfig = config.testConfig;
+
+  c.info({ fleetConfig, testConfig });
+
+  await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
 }
 
 // async function main() {
@@ -370,5 +232,5 @@ async function main() {
 
 main().catch((error) => {
   c.log.error("error in main");
-  c.log.error("error in main", error);
+  c.log.error(error);
 });

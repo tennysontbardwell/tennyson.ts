@@ -14,6 +14,7 @@ with open(CONFIG_PATH, 'r') as f:
     config = json.load(f)
 my_name = config['self']['name']
 my_ip = config['self']['ip']
+name_to_ip = { n['name']: n['ip'] for n in config['nodes'] }
 
 def send_udp_packet(host, message):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -24,16 +25,16 @@ def send_udp_packet(host, message):
         sock.close()
 
 ping_count = 0
-def send_ping(host):
+def send_ping(host, name):
     global ping_count
-    send_udp_packet(host, f'ping {ping_count} {my_ip} {host} null')
+    send_udp_packet(host, f'ping {ping_count} {my_name} {name} null')
     ping_count += 1
 
-ping_pong_count = 0
-def send_ping_pong(h1, h2):
-    global ping_pong_count
-    send_udp_packet(h1, f'ping2 {ping_count} {my_ip} {h1} {h2}')
-    ping_pong_count += 1
+# ping_pong_count = 0
+# def send_ping_pong(h1, h2):
+#     global ping_pong_count
+#     send_udp_packet(h1, f'ping2 {ping_count} {my_ip} {h1} {h2}')
+#     ping_pong_count += 1
 
 def receive_udp_packets():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -43,11 +44,12 @@ def receive_udp_packets():
         data, address = sock.recvfrom(4096)
         cmd, id, host1, host2, host3 = data.decode().split(' ')
         if cmd == 'ping' and host3 == 'null':
-            send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
-        if cmd == 'ping2' and host3 != 'null':
-            send_udp_packet(host3, f'pong {id} {host1} {host2} {host3}')
-        if cmd == 'pong':
-            send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
+            replyTo = name_to_ip[host1]
+            send_udp_packet(replyTo, f'resp {id} {host1} {host2} {host3}')
+        # if cmd == 'ping2' and host3 != 'null':
+        #     send_udp_packet(host3, f'pong {id} {host1} {host2} {host3}')
+        # if cmd == 'pong':
+        #     send_udp_packet(host1, f'resp {id} {host1} {host2} {host3}')
         print(f"Received one complete packet: {data.decode()}, From: {address}")
 
 def ping_bot():
@@ -55,11 +57,10 @@ def ping_bot():
     others = [node for node in config['nodes'] if node['name'] != my_name]
     for _ in range(config['iterations']):
         for node in others:
-            host = node['ip']
-            send_ping(host);
+            send_ping(node['ip'], node['name']);
             time.sleep(config['jitterDelay'])
-            send_ping(host);
-            time.sleep(config['jitterDelay'])
+            send_ping(node['ip'], node['name']);
+            # time.sleep(config['jitterDelay'])
             # h1, h2 = random.sample(others, 2)
             # send_ping_pong(h1['ip'], h2['ip']);
             time.sleep(config['delay'] - config['jitterDelay'] * 2)

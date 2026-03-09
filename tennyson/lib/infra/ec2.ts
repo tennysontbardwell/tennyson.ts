@@ -248,18 +248,19 @@ async function createNewFromParams(name: string, params: Params) {
   await common.retryExn(3000, 10, isRunning);
   const instance = await getInstance();
   if (instance) {
-    const name = instance.PublicDnsName;
-    common.log.info(`EC2 Instance ${name} with id ${newId} started`);
-    if (name) {
-      const host_ = new host.Host(name, "admin");
+    const dnsname = instance.PublicDnsName;
+    common.log.debug(
+      `EC2 Instance ${dnsname} (tag: ${name}) with id ${newId} started`,
+    );
+    if (dnsname) {
+      const host_ = new host.Host(dnsname, "admin");
       await common.retryExn(3000, 10, () =>
         common.didRaise(() => common.ignoreAsync(host_.learnHostKey())),
       );
       return {
         host: host_,
-        [Symbol.asyncDispose]: async () => {
-          purgeByName(name, params.region);
-        },
+        instance,
+        [Symbol.asyncDispose]: () => purgeByName(name, params.region),
       };
     }
   }

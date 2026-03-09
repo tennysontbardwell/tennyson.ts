@@ -3,6 +3,7 @@ import * as cn from "tennyson/lib/core/common-node";
 
 import * as execlib from "tennyson/lib/core/exec";
 import * as host from "tennyson/lib/infra/host";
+import * as ec2 from "tennyson/lib/infra/ec2";
 
 import * as fs from "fs";
 
@@ -37,11 +38,7 @@ async function parsePcap(file: string) {
       const jq_cmd = `jq '[ .[]._source.layers | map_values(if type == "array" and length == 1 then .[0] else . end) ]'`;
       return `${tshark_cmd} | ${jq_cmd} > "${tmpfile}"`;
     })();
-    c.info(cmd);
     await execlib.sh(`${cmd}`);
-
-    c.info(tmpfile);
-    // await c.sleep(100_000)
 
     const res = (await cn.parseBigJson(tmpfile)) as {
       [K in (typeof fields)[number]]: string | null;
@@ -64,9 +61,12 @@ async function parsePcap(file: string) {
   });
 }
 
-export async function processResults(hostnames: string[], directory: string) {
+export async function processResults(
+  nodes: { hostname: string; zone: ec2.AvailabilityZone }[],
+  directory: string,
+) {
   const results = await Promise.all(
-    hostnames.flatMap((hostname) =>
+    nodes.flatMap(({hostname, zone}) =>
       ["inbound", "outbound"].map(async (dir) => {
         const file = cn.path.resolve(
           directory,
@@ -78,6 +78,7 @@ export async function processResults(hostnames: string[], directory: string) {
         return data.map((d) => ({
           ...d,
           hostname,
+          zone,
           dir: dir,
         }));
       }),
@@ -136,9 +137,9 @@ export function combineAsyncDisposables<R>(
     const resources: (AsyncDisposable & R)[] = [];
 
     try {
-      for (const factory of factories) {
-        resources.push(await factory());
-      }
+      await Promise.allSettled(
+        factories.map(async (factory) => resources.push(await factory())),
+      );
     } catch (acquireError) {
       // Partially acquired — clean up what we have
       await disposeAllParallel(resources);
@@ -156,7 +157,7 @@ export async function withResource<R, Z>(
   f: (resource: R) => Z | Promise<Z>,
 ): Promise<Z> {
   await using resource = await acquire();
-  return f(resource);
+  return await f(resource);
 }
 
 export async function withResources<R, Z>(
