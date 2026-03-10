@@ -152,6 +152,7 @@ export async function purgeByName(
   name: string,
   region: Region = defaultParams.region,
 ) {
+  // c.assert(false, {msg: "purgebyname", name}) // TODO
   const client_ec2 = await import("@aws-sdk/client-ec2");
   const ec2 = new client_ec2.EC2Client({ region: region });
   const ids = await lookupByName(name, region);
@@ -177,6 +178,7 @@ async function createNewFromParams(name: string, params: Params) {
     if (params.terminateOnShutdown) return "terminate";
     else "stop";
   })();
+  // c.assert(false, {msg: createNewFromParams, name}) // TODO
   if (params.availabityZone)
     c.assert(params.availabityZone.region === params.region);
   const cmd = new client_ec2.RunInstancesCommand({
@@ -248,23 +250,21 @@ async function createNewFromParams(name: string, params: Params) {
   await common.retryExn(3000, 10, isRunning);
   const instance = await getInstance();
   if (instance) {
-    const dnsname = instance.PublicDnsName;
-    common.log.debug(
-      `EC2 Instance ${dnsname} (tag: ${name}) with id ${newId} started`,
+    c.assert(instance.PublicIpAddress !== undefined);
+    const host_ = new host.Host(instance.PublicIpAddress!, "admin");
+    await common.retryExn(3000, 20, () =>
+      common.didRaise(() => common.ignoreAsync(host_.learnHostKey())),
     );
-    if (dnsname) {
-      const host_ = new host.Host(dnsname, "admin");
-      await common.retryExn(3000, 10, () =>
-        common.didRaise(() => common.ignoreAsync(host_.learnHostKey())),
-      );
-      return {
-        host: host_,
-        instance,
-        [Symbol.asyncDispose]: () => purgeByName(name, params.region),
-      };
-    }
+    return {
+      host: host_,
+      instance,
+      [Symbol.asyncDispose]: async () => {
+        return await purgeByName(name, params.region);
+      },
+    };
   }
-  throw { message: "unable to create aws ec2 host", instance: instance };
+  // throw { message: "unable to create aws ec2 host", instance: instance };
+  throw new Error("unable to create aws ec2 host");
 }
 
 export async function createNew(name: string, params: Partial<Params> = {}) {

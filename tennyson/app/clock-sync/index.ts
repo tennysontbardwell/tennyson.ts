@@ -7,7 +7,6 @@ import * as execlib from "tennyson/lib/core/exec";
 
 import * as path from "path";
 import * as fs from "fs/promises";
-import dns from "dns";
 
 import { PYTHON_SCRIPT } from "./python-script";
 import * as util from "./util";
@@ -45,11 +44,10 @@ namespace LiveNode {
           }
         : {}),
     });
-    const dnsRes = await dns.promises.lookup(h.host.fqdn());
     return {
       ...h,
       config,
-      ip: dnsRes.address,
+      ip: h.instance.PublicIpAddress!,
       privateIp: h.instance.PrivateIpAddress!,
     };
   };
@@ -135,6 +133,7 @@ namespace Setup {
 
 const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
   const dir = `/tmp/fleet-results/${new Date().toISOString()}`;
+  const totalDelay_ = totalDelay(config, fleet.length);
 
   async function startListening(node: LiveNode) {
     const bg = util.bg_cmds(node.host);
@@ -165,8 +164,7 @@ const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
     ]);
   }
 
-  const totalDelay_ = totalDelay(config, fleet.length);
-
+  c.info("Fleet procured, starting setup");
   await Promise.all(fleet.map(Setup.setupNode(fleet, config)));
   c.info("Fleet setup complete. Beginning Test");
   await Promise.all(fleet.map(startListening));
@@ -213,13 +211,14 @@ const configs = {
 };
 
 async function main() {
-  // let config = configs.small;
-  let config = configs.full;
+  // const config = configs.small;
+  const config = configs.full;
 
-  let fleetConfig = Fleet.config(config.fleetConfig);
-  let testConfig = config.testConfig;
+  const fleetConfig = Fleet.config(config.fleetConfig);
+  const testConfig = config.testConfig;
 
-  c.info({ fleetConfig, testConfig });
+  // c.info({ fleetConfig, testConfig });
+  c.info(config);
 
   await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
 }

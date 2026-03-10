@@ -1,15 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 14",
-  "include": [
-    "tennyson/**/*.ts",
-    "tennyson/**/*.tsx",
-  ],
+  "include": ["tennyson/**/*.ts", "tennyson/**/*.tsx"],
   "compilerOptions": {
-    "lib": [
-      "es2020",
-      "dom"
-    ],
+    "lib": ["es2021", "dom"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",
@@ -31,9 +25,7 @@
     "allowUnusedLabels": false,
     "jsx": "react-jsx",
     "paths": {
-      "tennyson/*": [
-        "tennyson/*"
-      ]
+      "tennyson/*": ["tennyson/*"]
     }
   }
 }

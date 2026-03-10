@@ -96,7 +96,10 @@ const debugOn = inNode
 const minLevel = debugOn ? 2 : 3;
 export const prettyLog = new tslog.Logger({
   type: "pretty",
+  prettyLogTemplate:
+    "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}} {{filePathWithLine}}{{nameWithDelimiterPrefix}}\n{{logLevelName}} ",
   minLevel,
+  prettyInspectOptions: { depth: Infinity },
 });
 
 export const jsonStdErrlog = new tslog.Logger({
@@ -117,10 +120,14 @@ const webLog = {
   fatal: console.error,
 };
 
-export var log = inNode ? prettyLog : webLog;
+// export var log = inNode ? prettyLog : webLog;
+export var log = inNode ? (await import("./logger")).createLogger() : webLog;
 
 // export const debug = log.debug.bind(log);
 export const info = log.info.bind(log);
+export const warn = log.warn.bind(log);
+export const error = log.error.bind(log);
+export const fatal = log.fatal.bind(log);
 export const infoTap = <T>(a: T): T => {
   log.info(a);
   return a;
@@ -769,16 +776,17 @@ export namespace Option {
 export function shellescape(a: string[] | string) {
   var ret: string[] = [];
 
-  toArray(a).forEach(function(s) {
+  toArray(a).forEach(function (s) {
     if (!/^[A-Za-z0-9_\/-]+$/.test(s)) {
-      s = "'"+s.replace(/'/g,"'\\''")+"'";
-      s = s.replace(/^(?:'')+/g, '') // unduplicate single-quote at the beginning
-        .replace(/\\'''/g, "\\'" ); // remove non-escaped single-quote if there are enclosed between 2 escaped
+      s = "'" + s.replace(/'/g, "'\\''") + "'";
+      s = s
+        .replace(/^(?:'')+/g, "") // unduplicate single-quote at the beginning
+        .replace(/\\'''/g, "\\'"); // remove non-escaped single-quote if there are enclosed between 2 escaped
     }
     ret.push(s);
   });
 
-  return ret.join(' ');
+  return ret.join(" ");
 }
 
 export function getOrDefault<T>(list: T[], index: number, defaultValue: T): T {

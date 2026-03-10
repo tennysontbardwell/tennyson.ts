@@ -44,20 +44,22 @@ async function parsePcap(file: string) {
       [K in (typeof fields)[number]]: string | null;
     }[];
 
-    return res.map((row) => {
-      const val = row["udp.payload"];
-      const parts =
-        val != null && val.length > 0 ? parseHex(val).split(" ") : [];
-      return {
-        time_relative: row["frame.time_relative"],
-        src: row["ip.src"],
-        dst: row["ip.dst"],
-        cmd: c.getOrDefault(parts, 0, null),
-        seq: c.getOrDefault(parts, 1, null),
-        host1: c.getOrDefault(parts, 2, null),
-        host2: c.getOrDefault(parts, 3, null),
-      };
-    });
+    return res
+      .map((row) => {
+        const val = row["udp.payload"];
+        const parts =
+          val != null && val.length > 0 ? parseHex(val).split(" ") : [];
+        return {
+          time_relative: row["frame.time_relative"],
+          src: row["ip.src"],
+          dst: row["ip.dst"],
+          cmd: c.getOrDefault(parts, 0, null),
+          seq: c.getOrDefault(parts, 1, null),
+          host1: c.getOrDefault(parts, 2, null),
+          host2: c.getOrDefault(parts, 3, null),
+        };
+      })
+      .filter((row) => row.cmd === "ping" || row.cmd === "resp");
   });
 }
 
@@ -66,7 +68,7 @@ export async function processResults(
   directory: string,
 ) {
   const results = await Promise.all(
-    nodes.flatMap(({hostname, zone}) =>
+    nodes.flatMap(({ hostname, zone }) =>
       ["inbound", "outbound"].map(async (dir) => {
         const file = cn.path.resolve(
           directory,
@@ -126,7 +128,10 @@ async function disposeAllParallel(resources: AsyncDisposable[]): Promise<void> {
     .filter((r): r is PromiseRejectedResult => r.status === "rejected")
     .map((r) => r.reason);
   if (errors.length) {
-    throw { errors, msg: "Errors during parallel resource disposal" };
+    throw new AggregateError(
+      errors,
+      "Errors during parallel resource disposal",
+    );
   }
 }
 
@@ -134,20 +139,36 @@ export function combineAsyncDisposables<R>(
   factories: (() => Promise<AsyncDisposable & R>)[],
 ): () => Promise<AsyncDisposable & R[]> {
   return async () => {
-    const resources: (AsyncDisposable & R)[] = [];
+    c.info("Starting procurement");
+    const results = await Promise.allSettled(factories.map((f) => f()));
 
-    try {
-      await Promise.allSettled(
-        factories.map(async (factory) => resources.push(await factory())),
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+      .map((r) => r.reason);
+
+    c.info({ resultsLen: results.length, errors });
+    const resources = results
+      .filter(
+        (r): r is PromiseFulfilledResult<Awaited<AsyncDisposable & R>> =>
+          r.status === "fulfilled",
+      )
+      .map((r) => r.value);
+
+    if (errors.length) {
+      c.log.warn(
+        "One or more resource factories failed. Starting cleanup",
+        errors,
       );
-    } catch (acquireError) {
-      // Partially acquired — clean up what we have
       await disposeAllParallel(resources);
-      throw acquireError;
+      throw new AggregateError(errors, "One or more resource factories failed");
     }
 
-    return Object.assign(resources as R[], {
-      [Symbol.asyncDispose]: () => disposeAllParallel(resources),
+    c.assert(resources.length == factories.length);
+
+    return Object.assign(resources, {
+      [Symbol.asyncDispose]: async () => {
+        return await disposeAllParallel(resources);
+      },
     });
   };
 }
@@ -156,8 +177,12 @@ export async function withResource<R, Z>(
   acquire: () => Promise<AsyncDisposable & R>,
   f: (resource: R) => Z | Promise<Z>,
 ): Promise<Z> {
-  await using resource = await acquire();
-  return await f(resource);
+  const resource = await acquire();
+  try {
+    return await f(resource);
+  } finally {
+    await resource[Symbol.asyncDispose]();
+  }
 }
 
 export async function withResources<R, Z>(
