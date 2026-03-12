@@ -21,15 +21,20 @@ async function profile(cmd: string) {
 async function main() {
   const commands = [
     "ttp --help",
-    "./bin/index.js --help",
+    "ttp meta test perf-effect-module -m none",
+    "ttp meta test perf-effect-module -m data",
+    "ttp meta test perf-effect-module -m stream",
+    "ttp meta test perf-effect-module -m stream-effect",
+    "ttp meta test perf-effect-module -m stream-effect-and-run",
+    // "./bin/index.js --help",
     "tt --help",
-    "./bin/index.js meta test perf-effect-quit",
-    "./bin/index.js meta test perf-effect-quit -p node",
-    "./bin/index.js meta test perf-effect-quit -p bun",
-    "bun run tennyson/index.ts -- meta test perf-effect-quit",
-    "bun run tennyson/index.ts -- meta test perf-effect-quit -p node",
-    "bun run tennyson/index.ts -- meta test perf-effect-quit -p bun",
-    "bun run tennyson/index.ts -- --help",
+    // "./bin/index.js meta test perf-effect-quit",
+    // "./bin/index.js meta test perf-effect-quit -p node",
+    // "./bin/index.js meta test perf-effect-quit -p bun",
+    // "bun run tennyson/index.ts -- meta test perf-effect-quit",
+    // "bun run tennyson/index.ts -- meta test perf-effect-quit -p node",
+    // "bun run tennyson/index.ts -- meta test perf-effect-quit -p bun",
+    // "bun run tennyson/index.ts -- --help",
   ];
 
   const res = await c.mapSeq(commands, profile);
