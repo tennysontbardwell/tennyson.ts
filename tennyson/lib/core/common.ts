@@ -238,7 +238,7 @@ export async function retryExn(
 ): Promise<void> {
   const res = await retry(ms, retries, task);
   if (!res) {
-    throw { message: "Retry failed", ms: ms, retires: retries };
+    throw new ErrorWithData("Retry failed", { ms: ms, retries });
   }
 }
 

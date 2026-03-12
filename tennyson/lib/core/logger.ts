@@ -1,4 +1,22 @@
 import { inspect } from "node:util";
+import { fileURLToPath } from "node:url";
+
+interface CallSite {
+  getFileName(): string | null;
+  getLineNumber(): number | null;
+  getColumnNumber(): number | null;
+  getFunctionName(): string | null;
+  getTypeName(): string | null;
+  isEval(): boolean;
+}
+
+const THIS_FILE = /* @__PURE__ */ (() => {
+  try {
+    return fileURLToPath(import.meta.url);
+  } catch {
+    return __filename;
+  }
+})();
 
 // --- ANSI colors ---
 const C = {
@@ -31,16 +49,31 @@ const LEVEL_STYLE: Record<LogLevel, { label: string; color: string }> = {
 
 // --- Internals ---
 
-function getCallerLocation(stackDepth: number = 4): string {
-  const stack = new Error().stack?.split("\n") ?? [];
-  // [0] Error, [1] getCallerLocation, [2] _log, [3] debug/info/…, [4] actual caller
-  const frame = stack[stackDepth] ?? "";
+function getCallerLocation(): string {
+  const originalPrepare = Error.prepareStackTrace;
+  try {
+    Error.prepareStackTrace = (_err, sites) => sites;
+    const err = {} as { stack: CallSite[] };
+    Error.captureStackTrace(err, getCallerLocation);
+    const sites = err.stack;
 
-  //  "    at foo (/abs/path/file.ts:12:5)"   or   "    at /abs/path/file.ts:12:5"
-  const match =
-    frame.match(/\((.+):(\d+):\d+\)/) ?? frame.match(/at\s+(.+):(\d+):\d+/);
+    for (const site of sites) {
+      let file = site.getFileName();
+      if (!file) continue;
 
-  return match ? `${match[1]}:${match[2]}` : "unknown";
+      if (file.startsWith("file://")) {
+        try { file = fileURLToPath(file); } catch {}
+      }
+
+      if (file === THIS_FILE) continue;
+
+      const line = site.getLineNumber() ?? "?";
+      return `${file}:${line}`;
+    }
+  } finally {
+    Error.prepareStackTrace = originalPrepare;
+  }
+  return "unknown";
 }
 
 function formatTimestamp(): string {
