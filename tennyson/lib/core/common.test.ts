@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 
+import * as c from "./common";
 import { getWeekNumber } from "./common";
 
 test("week number", () => {
@@ -21,4 +22,15 @@ test("week number", () => {
   expect(getWeekNumber(new Date(2020, 0, 6, 12, 0, 0))).toMatchInlineSnapshot(
     `2`,
   );
+});
+
+test("si formatting", () => {
+  expect(c.formatSI(10001)).toMatchInlineSnapshot(`"10k"`);
+  expect(c.formatSI(10010)).toMatchInlineSnapshot(`"10.01k"`);
+  expect(c.formatSI(1000)).toMatchInlineSnapshot(`"1k"`);
+  expect(c.formatSI(1010)).toMatchInlineSnapshot(`"1.01k"`);
+  expect(c.formatSI(1001)).toMatchInlineSnapshot(`"1k"`);
+  expect(c.formatSI(1000.1)).toMatchInlineSnapshot(`"1k"`);
+  expect(c.formatSI(.1)).toMatchInlineSnapshot(`"100m"`);
+  expect(c.formatSI(1e10)).toMatchInlineSnapshot(`"10G"`);
 });
