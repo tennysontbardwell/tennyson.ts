@@ -84,6 +84,14 @@ const debAMIs = {
 };
 
 export type Region = keyof typeof debAMIs;
+namespace Region {
+  export const valid = Object.keys(debAMIs) as Region[];
+
+  export const ofString_exn = (str: string): Region => {
+    c.assert(valid.includes(str as Region), `Invalid region: ${str}`);
+    return str as Region;
+  };
+}
 
 export type AvailabilityZone = {
   readonly region: Region;
@@ -94,6 +102,12 @@ export namespace AvailabilityZone {
   export const toString = ({ region, zone }: AvailabilityZone) =>
     [region, zone].join("");
 
+  export const ofString_exn = (str: string): AvailabilityZone => {
+    const zone = str.slice(-1) as common.AlphaNumeric.AlphaLower;
+    c.assert(common.AlphaNumeric.alphaLower.includes(zone), "invalid zone");
+    const region = Region.ofString_exn(str.slice(0, -1));
+    return { region, zone };
+  };
   // declare const brand: unique symbol;
   // export type key = common.BrandedString<typeof brand>;
 

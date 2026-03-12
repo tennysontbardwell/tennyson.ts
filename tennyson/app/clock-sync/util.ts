@@ -28,6 +28,7 @@ async function parsePcap(file: string) {
     "ip.src",
     "ip.dst",
     "udp.payload",
+    "sll.pkttype",
   ] as const;
 
   return await cn.withTempDir(async (dir) => {
@@ -49,6 +50,14 @@ async function parsePcap(file: string) {
         const val = row["udp.payload"];
         const parts =
           val != null && val.length > 0 ? parseHex(val).split(" ") : [];
+        const dir =
+          row["sll.pkttype"] === null
+            ? null
+            : ["0", "1", "2"].includes(row["sll.pkttype"])
+              ? "inbound"
+              : "4" == row["sll.pkttype"]
+                ? "outbound"
+                : null;
         return {
           time_relative: row["frame.time_relative"],
           src: row["ip.src"],
@@ -57,6 +66,7 @@ async function parsePcap(file: string) {
           seq: c.getOrDefault(parts, 1, null),
           host1: c.getOrDefault(parts, 2, null),
           host2: c.getOrDefault(parts, 3, null),
+          dir,
         };
       })
       .filter((row) => row.cmd === "ping" || row.cmd === "resp");
@@ -64,27 +74,19 @@ async function parsePcap(file: string) {
 }
 
 export async function processResults(
-  nodes: { hostname: string; zone: ec2.AvailabilityZone }[],
+  nodes: { name: string; zone: ec2.AvailabilityZone }[],
   directory: string,
 ) {
   const results = await Promise.all(
-    nodes.flatMap(({ hostname, zone }) =>
-      ["inbound", "outbound"].map(async (dir) => {
-        const file = cn.path.resolve(
-          directory,
-          hostname,
-          "results",
-          dir + ".pcap",
-        );
-        const data = await parsePcap(file);
-        return data.map((d) => ({
-          ...d,
-          hostname,
-          zone,
-          dir: dir,
-        }));
-      }),
-    ),
+    nodes.map(async ({ name, zone }) => {
+      const file = cn.path.resolve(directory, name, "mydata", "tcpdump.pcap");
+      const data = await parsePcap(file);
+      return data.map((d) => ({
+        ...d,
+        name,
+        zone,
+      }));
+    }),
   );
   const data = await Promise.all(results).then((x) => x.flat());
   await fs.promises.writeFile(
@@ -122,7 +124,9 @@ export const withSiginTrap = async (
 
 async function disposeAllParallel(resources: AsyncDisposable[]): Promise<void> {
   const results = await Promise.allSettled(
-    resources.map((r) => r[Symbol.asyncDispose]()),
+    resources.map(async (r) => {
+      await r[Symbol.asyncDispose]();
+    }),
   );
   const errors = results
     .filter((r): r is PromiseRejectedResult => r.status === "rejected")
@@ -139,14 +143,31 @@ export function combineAsyncDisposables<R>(
   factories: (() => Promise<AsyncDisposable & R>)[],
 ): () => Promise<AsyncDisposable & R[]> {
   return async () => {
+    process.on("exit", (code) => {
+      console.error(`Process exiting with code: ${code}`);
+      console.trace();
+    });
+    process.on("uncaughtException", (err) => {
+      console.error("Uncaught exception:", err);
+    });
+
+    process.on("unhandledRejection", (reason) => {
+      console.error("Unhandled rejection:", reason);
+      // NOTE: don't call process.exit() here during debugging
+    });
+
+    const promises = factories.map(async (f) => {
+      return await f();
+    });
     c.info("Starting procurement");
-    const results = await Promise.allSettled(factories.map((f) => f()));
+    const keepAlive = setInterval(() => {}, 60_000);
+    const results = await Promise.allSettled(promises);
+    clearInterval(keepAlive); // let the process exit normally when done
 
     const errors = results
       .filter((r): r is PromiseRejectedResult => r.status === "rejected")
       .map((r) => r.reason);
 
-    c.info({ resultsLen: results.length, errors });
     const resources = results
       .filter(
         (r): r is PromiseFulfilledResult<Awaited<AsyncDisposable & R>> =>

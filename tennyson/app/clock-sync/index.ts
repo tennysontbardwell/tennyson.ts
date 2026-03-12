@@ -122,10 +122,10 @@ namespace Setup {
   export const setupNode =
     (fleet: Fleet, config: TestConfig) => async (node: LiveNode) => {
       const h = node.host;
-      await h.exec("mkdir", ["/tmp/results"]);
+      await h.exec("mkdir", ["/tmp/mydata"]);
       await Promise.all([
-        h.putFile("/tmp/config.json", configFile(node, fleet, config)),
-        h.putFile("/tmp/script.py", PYTHON_SCRIPT),
+        h.putFile("/tmp/mydata/config.json", configFile(node, fleet, config)),
+        h.putFile("/tmp/mydata/script.py", PYTHON_SCRIPT),
         h.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
       ]);
     };
@@ -135,40 +135,35 @@ const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
   const dir = `/tmp/fleet-results/${new Date().toISOString()}`;
   const totalDelay_ = totalDelay(config, fleet.length);
 
-  async function startListening(node: LiveNode) {
-    const bg = util.bg_cmds(node.host);
-    await bg(
-      ["in", "out"].map(
-        (x) =>
-          `sudo timeout ${totalDelay(config, fleet.length) + 5 + fleet.length} tcpdump -U -n ${x}bound -i any -w /tmp/results/${x}bound.pcap --time-stamp-precision=nano &> /tmp/results/${x}bound-tcpdump.stdout`,
-      ),
-    );
-  }
-
-  async function runNode(node: LiveNode) {
-    const bg = util.bg_cmds(node.host);
-    await bg(
-      ["server", "client"].map(
-        (arg) => `python3 /tmp/script.py ${arg} &> /tmp/results/${arg}.stdout`,
-      ),
+  async function bgOnAllNodes(cmds: string[]) {
+    await Promise.all(
+      fleet.map(async (node) => {
+        await util.bg_cmds(node.host)(cmds);
+      }),
     );
   }
 
   async function finNode(node: LiveNode) {
-    const d = path.resolve(dir, node.host.hostname());
+    const d = path.resolve(dir, node.config.humanName);
     await fs.mkdir(d, { recursive: true });
     await execlib.exec("scp", [
       "-r",
-      `${node.host.user}@${node.host.fqdn()}:/tmp/results`,
+      `${node.host.user}@${node.host.fqdn()}:/tmp/mydata`,
       d,
     ]);
   }
 
+  const pyCmd = (arg: "server" | "client") =>
+    `python3 /tmp/mydata/script.py ${arg} &> /tmp/mydata/${arg}.stdout`;
+
   c.info("Fleet procured, starting setup");
   await Promise.all(fleet.map(Setup.setupNode(fleet, config)));
   c.info("Fleet setup complete. Beginning Test");
-  await Promise.all(fleet.map(startListening));
-  await Promise.all(fleet.map(runNode));
+  await bgOnAllNodes([
+    `sudo timeout ${totalDelay_ + 5 + fleet.length} tcpdump -U -n -i any -w /tmp/mydata/tcpdump.pcap --time-stamp-precision=nano &> /tmp/mydata/tcpdump.stdout`,
+    pyCmd("server"),
+  ]);
+  await bgOnAllNodes([pyCmd("client")]);
   const waitTime = totalDelay_ * 1.05 + 15 + fleet.length;
   c.info(`Waiting ${waitTime} seconds for completion`);
   await c.sleep(waitTime * 1000);
@@ -177,7 +172,7 @@ const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
   c.info("Processing results");
   await util.processResults(
     fleet.map((x) =>
-      c.id({ hostname: x.host.hostname(), zone: x.config.availabilityZone }),
+      c.id({ name: x.config.humanName, zone: x.config.availabilityZone }),
     ),
     dir,
   );
@@ -210,24 +205,35 @@ const configs = {
   },
 };
 
-async function main() {
-  // const config = configs.small;
-  const config = configs.full;
-
-  const fleetConfig = Fleet.config(config.fleetConfig);
-  const testConfig = config.testConfig;
-
-  // c.info({ fleetConfig, testConfig });
-  c.info(config);
-
-  await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
-}
-
 // async function main() {
-//   const dir = "/tmp/fleet-results/2026-03-05T13:53:33.508Z";
-//   const hosts = await c.gather(fs.glob(`${dir}/*/`));
-//   await util.processResults(hosts.map(x => cn.path.basename(x)), dir);
+//   // const config = configs.small;
+//   const config = configs.full;
+
+//   const fleetConfig = Fleet.config(config.fleetConfig);
+//   const testConfig = config.testConfig;
+
+//   // c.info({ fleetConfig, testConfig });
+//   c.info(config);
+
+//   await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
 // }
+
+async function main() {
+  const dir = cn.resolveHome(
+    "~/Desktop/research/clock-test/2026-03-11T23:20:35.235Z",
+  );
+  const hosts = await c.gather(fs.glob(`${dir}/*/`));
+  await util.processResults(
+    hosts.map((x) => {
+      const name = cn.path.basename(x);
+      return c.id({
+        name,
+        zone: ec2.AvailabilityZone.ofString_exn(name.slice(0, -2)),
+      });
+    }),
+    dir,
+  );
+}
 
 main().catch((error) => {
   c.log.error("error in main");
