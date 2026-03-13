@@ -55,14 +55,16 @@ namespace LiveNode {
 
 type FleetConfig = readonly NodeConfig[];
 
+interface FleetPreConfig {
+  regions: readonly ec2.Region[];
+  zones: readonly c.AlphaNumeric.AlphaLower[];
+  perZone: number;
+}
+
 type Fleet = readonly LiveNode[];
 
 namespace Fleet {
-  export const config = (options: {
-    regions: readonly ec2.Region[];
-    zones: readonly c.AlphaNumeric.AlphaLower[];
-    perZone: number;
-  }): FleetConfig => {
+  export const config = (options: FleetPreConfig): FleetConfig => {
     const { regions, zones, perZone } = options;
     return regions.flatMap((region) =>
       zones.flatMap((zone) => {
@@ -178,51 +180,19 @@ const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
   );
 };
 
-const configs = {
-  full: {
-    fleetConfig: {
-      regions: ["us-east-1", "us-east-2", "us-west-2", "ap-east-1"] as const,
-      zones: ["a", "b", "c"] as const,
-      perZone: 3,
-    },
-    testConfig: {
-      iterations: 150,
-      jitterDelay: 0.01,
-      delay: 0.1,
-    },
-  },
-  small: {
-    fleetConfig: {
-      regions: ["us-east-1", "us-east-2"] as const,
-      zones: ["a", "b"] as const,
-      perZone: 1,
-    },
-    testConfig: {
-      iterations: 50,
-      jitterDelay: 0.01,
-      delay: 0.1,
-    },
-  },
-};
+export async function run(config: {
+  fleetConfig: FleetPreConfig;
+  testConfig: TestConfig;
+}) {
+  const fleetConfig = Fleet.config(config.fleetConfig);
+  const testConfig = config.testConfig;
+  c.info(config);
+  await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
+}
 
-// async function main() {
-//   // const config = configs.small;
-//   const config = configs.full;
-
-//   const fleetConfig = Fleet.config(config.fleetConfig);
-//   const testConfig = config.testConfig;
-
-//   // c.info({ fleetConfig, testConfig });
-//   c.info(config);
-
-//   await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
-// }
-
-async function main() {
-  const dir = cn.resolveHome(
-    "~/Desktop/research/clock-test/2026-03-11T23:20:35.235Z",
-  );
-  const hosts = await c.gather(fs.glob(`${dir}/*/`));
+export async function processResults(dir: string) {
+  const dir_ = cn.resolveHome(dir);
+  const hosts = await c.gather(fs.glob(`${dir_}/*/`));
   await util.processResults(
     hosts.map((x) => {
       const name = cn.path.basename(x);
@@ -234,8 +204,3 @@ async function main() {
     dir,
   );
 }
-
-main().catch((error) => {
-  c.log.error("error in main");
-  c.log.error(error);
-});

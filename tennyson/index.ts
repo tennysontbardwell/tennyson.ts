@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
+import * as c from "tennyson/lib/core/common";
 import * as cli from "tennyson/lib/core/cli";
-import * as common from "tennyson/lib/core/common";
 
 import { cmds } from "tennyson/app/cli";
 

@@ -1,5 +1,6 @@
 import * as c from "tennyson/lib/core/common";
 import * as cn from "tennyson/lib/core/common-node";
+import * as clock_sync from "tennyson/app/clock-sync/cmds";
 
 import * as cli from "tennyson/lib/core/cli";
 
@@ -16,6 +17,7 @@ export const cmds = async () => {
         x.gen(),
       );
     }),
+    cli.group("clock-sync", clock_sync.cmds),
 
     // cli.command("", async () => {
     //   // Create a client.
