@@ -39,7 +39,7 @@ export const cmds = [
     { dir: { type: "string", required: true } },
     async (args) => {
       const main = await import("./index");
-      main.processResults(args.dir);
+      main.processResultsDir(args.dir);
     },
   ),
   cli.flagsCommand(

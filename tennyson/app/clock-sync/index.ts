@@ -10,6 +10,7 @@ import * as fs from "fs/promises";
 
 import { PYTHON_SCRIPT } from "./python-script";
 import * as util from "./util";
+import { processResults } from "./process-results";
 
 interface NodeConfig {
   readonly name: string;
@@ -133,67 +134,52 @@ namespace Setup {
     };
 }
 
-const fleetTest = (config: TestConfig) => async (fleet: Fleet) => {
-  const dir = `/tmp/fleet-results/${new Date().toISOString()}`;
-  const totalDelay_ = totalDelay(config, fleet.length);
+const fleetTest =
+  (config: TestConfig, dir_?: string) => async (fleet: Fleet) => {
+    const dir = dir_ ?? util.mkdir();
+    const totalDelay_ = totalDelay(config, fleet.length);
 
-  async function bgOnAllNodes(cmds: string[]) {
-    await Promise.all(
-      fleet.map(async (node) => {
-        await util.bg_cmds(node.host)(cmds);
-      }),
-    );
-  }
+    async function bgOnAllNodes(cmds: string[]) {
+      await Promise.all(
+        fleet.map(async (node) => {
+          await util.bg_cmds(node.host)(cmds);
+        }),
+      );
+    }
 
-  async function finNode(node: LiveNode) {
-    const d = path.resolve(dir, node.config.humanName);
-    await fs.mkdir(d, { recursive: true });
-    await execlib.exec("scp", [
-      "-r",
-      `${node.host.user}@${node.host.fqdn()}:/tmp/mydata`,
-      d,
+    async function finNode(node: LiveNode) {
+      const d = path.resolve(dir, node.config.humanName);
+      await fs.mkdir(d, { recursive: true });
+      await execlib.exec("scp", [
+        "-r",
+        `${node.host.user}@${node.host.fqdn()}:/tmp/mydata`,
+        d,
+      ]);
+    }
+
+    const pyCmd = (arg: "server" | "client") =>
+      `python3 /tmp/mydata/script.py ${arg} &> /tmp/mydata/${arg}.stdout`;
+
+    c.info("Fleet procured, starting setup");
+    await Promise.all(fleet.map(Setup.setupNode(fleet, config)));
+    c.info("Fleet setup complete. Beginning Test");
+    await bgOnAllNodes([
+      `sudo timeout ${totalDelay_ + 5 + fleet.length} tcpdump -U -n -i any -w /tmp/mydata/tcpdump.pcap --time-stamp-precision=nano &> /tmp/mydata/tcpdump.stdout`,
+      pyCmd("server"),
     ]);
-  }
+    await bgOnAllNodes([pyCmd("client")]);
+    const waitTime = totalDelay_ * 1.05 + 15 + fleet.length;
+    c.info(`Waiting ${waitTime} seconds for completion`);
+    await c.sleep(waitTime * 1000);
+    c.info("Test complete. Retrieving results");
+    await Promise.all(fleet.map(finNode));
+    c.info("Done with Fleet");
+  };
 
-  const pyCmd = (arg: "server" | "client") =>
-    `python3 /tmp/mydata/script.py ${arg} &> /tmp/mydata/${arg}.stdout`;
-
-  c.info("Fleet procured, starting setup");
-  await Promise.all(fleet.map(Setup.setupNode(fleet, config)));
-  c.info("Fleet setup complete. Beginning Test");
-  await bgOnAllNodes([
-    `sudo timeout ${totalDelay_ + 5 + fleet.length} tcpdump -U -n -i any -w /tmp/mydata/tcpdump.pcap --time-stamp-precision=nano &> /tmp/mydata/tcpdump.stdout`,
-    pyCmd("server"),
-  ]);
-  await bgOnAllNodes([pyCmd("client")]);
-  const waitTime = totalDelay_ * 1.05 + 15 + fleet.length;
-  c.info(`Waiting ${waitTime} seconds for completion`);
-  await c.sleep(waitTime * 1000);
-  c.info("Test complete. Retrieving results");
-  await Promise.all(fleet.map(finNode));
-  c.info("Processing results");
-  await util.processResults(
-    fleet.map((x) =>
-      c.id({ name: x.config.humanName, zone: x.config.availabilityZone }),
-    ),
-    dir,
-  );
-};
-
-export async function run(config: {
-  fleetConfig: FleetPreConfig;
-  testConfig: TestConfig;
-}) {
-  const fleetConfig = Fleet.config(config.fleetConfig);
-  const testConfig = config.testConfig;
-  c.info(config);
-  await Fleet.withFleet(fleetConfig, fleetTest(testConfig));
-}
-
-export async function processResults(dir: string) {
+export async function processResultsDir(dir: string) {
   const dir_ = cn.resolveHome(dir);
   const hosts = await c.gather(fs.glob(`${dir_}/*/`));
-  await util.processResults(
+  await processResults(
     hosts.map((x) => {
       const name = cn.path.basename(x);
       return c.id({
@@ -203,4 +189,18 @@ export async function processResults(dir: string) {
     }),
     dir,
   );
+}
+
+export async function run(config: {
+  fleetConfig: FleetPreConfig;
+  testConfig: TestConfig;
+}) {
+  const fleetConfig = Fleet.config(config.fleetConfig);
+  const testConfig = config.testConfig;
+  c.info(config);
+  const dir = util.mkdir();
+  await Fleet.withFleet(fleetConfig, fleetTest(testConfig, dir));
+  c.info("Processing results");
+  process;
+  await processResultsDir(dir);
 }
