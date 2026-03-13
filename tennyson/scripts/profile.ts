@@ -8,7 +8,7 @@ async function profile(cmd: string) {
   const trials = 10;
   await c.mapSeq(c.range(warmup), () => cn.exec.sh(cmd));
   const raw = await c.mapSeq(c.range(trials), () =>
-    c.withTimer(() => cn.exec.sh(cmd)).then((x) => x.elapsed),
+    c.withStopwatch(() => cn.exec.sh(cmd)).then((x) => x.elapsed),
   );
   return {
     cmd,

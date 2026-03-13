@@ -31,6 +31,6 @@ test("si formatting", () => {
   expect(c.formatSI(1010)).toMatchInlineSnapshot(`"1.01k"`);
   expect(c.formatSI(1001)).toMatchInlineSnapshot(`"1k"`);
   expect(c.formatSI(1000.1)).toMatchInlineSnapshot(`"1k"`);
-  expect(c.formatSI(.1)).toMatchInlineSnapshot(`"100m"`);
+  expect(c.formatSI(0.1)).toMatchInlineSnapshot(`"100m"`);
   expect(c.formatSI(1e10)).toMatchInlineSnapshot(`"10G"`);
 });
