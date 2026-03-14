@@ -8,15 +8,28 @@ import * as fs from "fs/promises";
 
 export const cmds = async () => {
   return [
-    cli.command("espanso-gen", async () => {
-      const x = await import("tennyson/lib/random/espanso");
-      await fs.writeFile(
-        cn.resolveHome(
-          "~/repos/tennysontbardwell/dotfiles/espanso/Library/Application Support/espanso/match/autogen.yml",
-        ),
-        x.gen(),
-      );
-    }),
+    cli.flagsCommand(
+      "espanso-gen",
+      {
+        reload: {
+          alias: "r",
+          describe: "restarts or reloads the service",
+          type: "boolean",
+          required: "false",
+          default: true,
+        },
+      },
+      async (args) => {
+        const x = await import("tennyson/lib/random/espanso");
+        await fs.writeFile(
+          cn.resolveHome(
+            "~/repos/tennysontbardwell/dotfiles/espanso/Library/Application Support/espanso/match/autogen.yml",
+          ),
+          x.gen(),
+        );
+        if (args.reload) await cn.exec.sh("espanso service restart");
+      },
+    ),
     cli.group("clock-sync", clock_sync.cmds),
 
     // cli.command("", async () => {

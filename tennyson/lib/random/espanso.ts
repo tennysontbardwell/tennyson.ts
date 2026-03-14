@@ -21,6 +21,7 @@ const matches = () => [
   m("\uFE0F", ["var16"]),
 
   m("🌸", ["flower"]),
+  m("😊", ["smile", ":)"]),
   m("😘", ["kiss"]),
   m("😘", ["heart eyes"]),
   m("🥵", ["gasp"]),

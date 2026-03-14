@@ -181,13 +181,14 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.website("old.reddit.com"),
     fzf.website("xkcd.com"),
     fzf.website("jsvine.github.io/visidata-cheat-sheet/en/"),
+    fzf.website("www.visidata.org/man/"),
     fzf.website("lazamar.co.uk/nix-versions/"),
     fzf.website("query.wikidata.org/"),
     fzf.website("ucum.org/ucum", "Unified Code for Units of Measure"),
     fzf.website("www.worldatlas.com/"),
     fzf.website("www.allareacodes.com/", "phone area codes"),
     fzf.website("detexify.kirelabs.org/classify.html", "draw latex"),
-    fzf.website("instances.vantage.sh", 'aws ec2 pricing')
+    fzf.website("instances.vantage.sh", "aws ec2 pricing"),
   ].concat(options.additions?.websites ?? []);
 
   const vdWikidata = (name: string, query: string) =>
@@ -207,6 +208,10 @@ export const hometty = (options: HomettyOptions = {}) => {
     vd("~/repos/datasets/nasdaq-listings/data/nasdaq-listed-symbols.csv"),
     vd("~/repos/tennysontbardwell/public/ref/ascii.csv"),
     vd("~/repos/tennysontbardwell/public/ref/greek-alpha.csv"),
+    vd(
+      "~/excluded-backup/tstore/media/datasets/hygdata_v42.csv",
+      "HYG Star Database v42",
+    ),
     ...Object.entries(wikidata.QUERIES).map(([k, v]) => vdWikidata(k, v)),
   ];
 
