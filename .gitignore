@@ -1,8 +1,8 @@
-node_modules/
-build/
-dist/
-build-bun/
-bin/
-*.log
+/node_modules/
+/build/
+/dist/
+/build-bun/
+/bin/
+/*.log
 .#*
 .lock
