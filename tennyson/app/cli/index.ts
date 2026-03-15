@@ -7,17 +7,17 @@ import * as unsorted from "tennyson/app/cli/unsorted";
 const c = common;
 
 async function electron() {
-  // await common.passthru("zsh", ['-ic', 'find . | fzf']);
-  const { app, BrowserWindow } = await import("electron");
+  c.info("Reinstall `electron` dep and enable this function")
+  // const { app, BrowserWindow } = await import("electron");
 
-  const createWindow = () => {
-    const win = new BrowserWindow({ width: 800, height: 1500 });
-    win.loadURL("https://google.com");
-  };
+  // const createWindow = () => {
+  //   const win = new BrowserWindow({ width: 800, height: 1500 });
+  //   win.loadURL("https://google.com");
+  // };
 
-  app.whenReady().then(() => {
-    createWindow();
-  });
+  // app.whenReady().then(() => {
+  //   createWindow();
+  // });
 }
 
 async function quickdev() {

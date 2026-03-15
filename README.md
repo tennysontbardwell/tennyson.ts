@@ -1,24 +1,25 @@
 # todo
 - [x] Migrate to `tsup` https://kagi.com/assistant/3dd0a185-dfa8-407a-8219-51e5638fe39e
-- [ ] remove unused
-  - [ ] `yup`
-  - [ ] `@sodaru/yup-to-json-schema`
-  - [ ] `csstype`
-  - [ ] `tiny-invariant`
-  - [ ] `@types/shell-quote`
+- [ ] switch to uv
+- [X] remove unused
+  - [X] `yup`
+  - [X] `@sodaru/yup-to-json-schema`
+  - [X] `csstype`
+  - [X] `tiny-invariant`
+  - [X] `@types/shell-quote`
 - [ ] rewrite to remove
   - [ ] `@sinclair/typebox`: used for old ai tool call style
   - [ ] `axios`: probably not necessary, a few requests calls
   - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
   - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`
-  - [ ] `url-parse`: used for git in hometty, small place
+  - [X] `url-parse`: used for git in hometty, small place
   - [ ] `zod` (used in a small place)
-  - [ ] `shell-escape` (single function)
+  - [X] `shell-escape` (single function)
 - [ ] audit deps
-  - [ ] `blessed`
-  - [ ] `constructs`
+  - [X] `blessed`
+  - [X] `constructs`
   - [ ] `electron`
-  - [ ] `gcn-kafka`
+  - [X] `gcn-kafka`
   - [ ] `fast-xml-parser`
   - [ ] `papaparse`
   - [ ] `rxjs`

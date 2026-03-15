@@ -1,7 +1,8 @@
 import React from "react";
 import type { JSX } from "react";
 import type { RangerItem } from "./Ranger";
-import ReactJson from 'react-json-view';
+import JsonView from "react18-json-view";
+import "react18-json-view/src/style.css";
 
 import * as c from "tennyson/lib/core/common";
 
@@ -120,9 +121,15 @@ function ItemDisplay({ url }: { url: string }) {
             </div>,
           );
         } else if (contentType.startsWith("application/json")) {
-          const obj = await response.json()
+          const obj = await response.json();
+          /* <JsonView src={obj} theme="default" /> */
+          /* <ReactJson src={obj} /> */
           setContent(
-            <ReactJson src={obj} />
+            <JsonView
+              src={obj}
+              theme="default"
+              style={{ overflow: "scroll", flex: 1 }}
+            />,
           );
         } else {
           setContent(<div></div>);

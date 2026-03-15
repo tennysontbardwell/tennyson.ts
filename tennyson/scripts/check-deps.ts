@@ -3,6 +3,8 @@ import * as cn from "tennyson/lib/core/common-node";
 
 import { promises as fs } from "fs";
 
+// npm ls --all 2&>/dev/null | sed 's/[├─┬│└]/ /g; s/^    //; s/ /  /g' | vim '+set foldmethod=indent'
+
 export async function view(dir: string) {
   const dropVer = (s: string) => s.replace(/(.+)@[^@]+$/, "$1");
 

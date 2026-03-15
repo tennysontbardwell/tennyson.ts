@@ -13,8 +13,6 @@ import { promises as fs } from "fs";
 import * as common_node from "tennyson/lib/core/common-node";
 import { view } from "tennyson/scripts/check-deps";
 
-const { Kafka } = require("gcn-kafka");
-
 export async function quickdev() {
   await view(cn.resolveHome("~/repos/tennysontbardwell/tennyson.ts"));
 

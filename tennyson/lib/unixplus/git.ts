@@ -5,7 +5,6 @@ import * as process from "process";
 import * as execlib from "tennyson/lib/core/exec";
 import * as fzf from "tennyson/lib/core/fzf";
 import * as readline from "readline";
-import { default as urlparse } from "url-parse";
 import * as fs from "fs/promises";
 import * as os from "os";
 import Path from "path";
@@ -31,8 +30,9 @@ export namespace GithubRepo {
   }
 
   export function ofURL(url: string): t {
-    const components = urlparse(url).pathname.split("/");
-    return { user: components[1], repo: components[2] };
+    const { pathname } = new URL(url);
+    const parts = pathname.split("/");
+    return { user: parts[1], repo: parts[2] };
   }
 
   export function localPath(t: t) {
