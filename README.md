@@ -21,12 +21,12 @@
   - [X] `electron`
   - [X] `gcn-kafka`
   - [X] `fast-xml-parser`
-  - [ ] `papaparse`
+  - [X] `papaparse`
   - [ ] `rxjs`
   - [ ] `solid-js` (should i be using this one in particular?)
   - [ ] `sqlite3`
   - [X] `yaml`
-  - [ ] `vvard-ts`
+  - [X] `vcard-ts`
   - [ ] `ws`
 - [ ] eslint from
   - https://github.com/nkzw-tech/expo-app-template?tab=readme-ov-file
