@@ -18,9 +18,9 @@
 - [ ] audit deps
   - [X] `blessed`
   - [X] `constructs`
-  - [ ] `electron`
+  - [X] `electron`
   - [X] `gcn-kafka`
-  - [ ] `fast-xml-parser`
+  - [X] `fast-xml-parser`
   - [ ] `papaparse`
   - [ ] `rxjs`
   - [ ] `solid-js` (should i be using this one in particular?)
