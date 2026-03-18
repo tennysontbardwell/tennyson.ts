@@ -355,13 +355,17 @@ namespace KeyStack {
       timer: null,
     });
 
-  export const keystrokeToString = (e: React.KeyboardEvent) =>
-    [
+  export const keystrokeToString = (e: React.KeyboardEvent) => {
+    const remap: Record<string, string> = {
+      " ": "SPC",
+    };
+    return [
       e.ctrlKey ? "C-" : "",
       e.metaKey ? "D-" : "", // Command key
       e.altKey ? "M-" : "", // Alt/Meta key
-      e.key,
+      remap[e.key] ?? e.key,
     ].join("");
+  };
 
   export const clear = (t: KeyStack) => {
     t.timer && clearTimeout(t.timer);
@@ -385,26 +389,6 @@ namespace KeyStack {
       return false;
     }
   };
-
-  /* export const hasKeymap = (name: string) =>
-*   keymaps.find((x) => x.name === name) !== undefined;
-
-* export const setKeymap = (name: string, keymap: Keymap | null) => {
-*   clear();
-*   keymaps = keymaps.filter((x) => x.name !== name);
-*   if (keymap !== null) keymaps.push({ name, keymap });
-*   merged = Object.assign(
-*     {},
-*     ...keymaps.map((map) =>
-*       c.mapValues(map.keymap, (cmd) =>
-*         c.id({
-*           keymap: map.name,
-*           ...cmd,
-*         }),
-*       ),
-*     ),
-*   );
-* }; */
 }
 
 namespace GrammarGraph {
@@ -452,8 +436,12 @@ namespace Nav {
     table: Table<any>,
     onFocusCell: (a: { rowIdx: number; colIdx: number }) => void,
   ) => {
-    const [cursor, setCursor] = useState({ rowIdx: 0, colIdx: 0 });
-    const cursorRef = rc.useLatest(cursor);
+    /* const [cursor, setCursor] = useState({ rowIdx: 0, colIdx: 0 });
+     * const cursorRef = rc.useLatest(cursor); */
+    const [cursor, setCursor, cursorRef] = rc.useStateAndLatest({
+      rowIdx: 0,
+      colIdx: 0,
+    });
 
     const go = (rowIdx: number, colIdx: number) => {
       setCursor({ rowIdx, colIdx });
@@ -474,78 +462,22 @@ namespace Nav {
       const rCount = table.getRowCount();
       const cCount = table.getVisibleFlatColumns().length;
       const cur = cursorRef.current;
-      const rowIdx = c.clamp(cur.rowIdx + dr, 0, rCount);
-      const colIdx = c.clamp(cur.colIdx + dc, 0, cCount);
+      const rowIdx = c.clamp(cur.rowIdx + dr, 0, rCount - 1);
+      const colIdx = c.clamp(cur.colIdx + dc, 0, cCount - 1);
       go(rowIdx, colIdx);
     };
 
     return {
       cursor,
+      cursorRef,
       goAbs,
       goRel,
     };
   };
-
-  const goRel = (t: () => Nav, dr: number, dc: number) => () =>
-    t().focusCell(
-      c.clamp(t().rowIdx + dr, 0, t().maxRow),
-      c.clamp(t().colIdx + dc, 0, t().visibleColumns.length - 1),
-    );
-  const goAbs = (t: () => Nav, r_?: number, c_?: number) => () =>
-    t().focusCell(
-      r_ !== undefined ? c.posMod(r_, t().maxRow + 1) : t().rowIdx,
-      c_ !== undefined ? c.posMod(c_, t().visibleColumns.length) : t().colIdx,
-    );
-
-  const colName = <T extends string>(t: Nav<T>) =>
-    t.visibleColumns[t.colIdx].id as T;
-
-  type SimpleMapping = "x" | "y" | "z" | "color" | "size" | "symbol";
-
-  const getMap = <T extends string>(t: Nav<T>, ks: SimpleMapping[]) =>
-    ks.map((k) => t.dimensionsMapping[k]);
-
-  const setMap = <T extends string>(t: Nav<T>, k: SimpleMapping, v: T | null) =>
-    t.setDimensionsMapping(
-      c.copyAndModify(t.dimensionsMapping, (d) => {
-        if (v === null) delete d[k];
-        else d[k] = v;
-      }),
-    );
-
-  const checkAndSet = <T extends string>(
-    t: Nav<T>,
-    val: T,
-    to: SimpleMapping,
-    check: SimpleMapping[],
-  ) => {
-    if (!getMap(t, check).find((x) => x === colName(t)))
-      setMap<T>(t, to, colName(t));
-  };
-
-  const keymapForSimpleTable = (t: () => Nav) => {
-    const moves: Record<string, () => void> = {
-      h: goRel(t, 0, -1),
-      ArrowLeft: goRel(t, 0, -1),
-      l: goRel(t, 0, 1),
-      ArrowRight: goRel(t, 0, 1),
-      j: goRel(t, 1, 0),
-      ArrowDown: goRel(t, 1, 0),
-      k: goRel(t, -1, 0),
-      ArrowUp: goRel(t, -1, 0),
-      "0": goAbs(t, undefined, 0),
-      Home: goAbs(t, undefined, 0),
-      $: goAbs(t, undefined, -1),
-      End: goAbs(t, undefined, -1),
-      G: goAbs(t, -1, undefined),
-      "g g": goAbs(t, 0, undefined),
-    };
-
-    return;
-  };
 }
 
 const data = DataFlicker.dataA;
+const dimensions = ["x", "y", "z", "name"];
 const columns = Object.keys(data[0]).map((s) =>
   c.id({ accessorKey: s, header: s }),
 );
@@ -563,85 +495,37 @@ export default function SimpleTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  /* const [cursor, setCursor] = useState({ rowIndex: 0, colIndex: 0 }); */
-
-
+  const tipOnFocus = useRef(true);
+  const tipRow = (row: number) => {
+    ref.current?.dispatchAction({
+      type: "showTip",
+      seriesIndex: 0,
+      dataIndex: row,
+    });
+  };
   const onFocusCell = useMemo(
     () => (cord: { rowIdx: number; colIdx: number }) => {
-      if (tipOnFocus.current)
-        ref.current?.dispatchAction({
-          type: "showTip",
-          seriesIndex: 0,
-          dataIndex: cord.rowIdx,
-        });
+      if (tipOnFocus.current) tipRow(cord.rowIdx);
     },
     [data],
   );
 
-  const { goAbs, goRel, cursor } = Nav.useNav(table, onFocusCell);
+  const { goAbs, goRel, cursor, cursorRef } = Nav.useNav(table, onFocusCell);
 
-  const focusCell = useMemo(
-    () => (row: number, col: number) => {
-      /* setCursor({ rowIndex: row, colIndex: col }); */
-      goAbs(row, col)
-      if (tipOnFocus.current)
-        ref.current?.dispatchAction({
-          type: "showTip",
-          seriesIndex: 0,
-          dataIndex: row,
-        });
-    },
-    [data],
-  );
-
-
-
-  const [encode, setEncode] = useState({ x: "x", y: "y" } as Record<
-    "x" | "y",
-    string
-  > &
-    Partial<Record<"z" | "c" | "s", string>>);
-  const dimensions = useMemo(() => ["x", "y", "z", "name"], []);
-
-  const rows = table.getRowModel().rows;
-  const visibleColumns = table.getVisibleLeafColumns();
-
-  const mkNav = () => {
-    const maxRow = rows.length - 1;
-    const maxCol = visibleColumns.length - 1;
-
-    const goRel = (dr: number, dc: number) => () => {
-      focusCell(
-        c.clamp(cursor.rowIdx + dr, 0, maxRow),
-        c.clamp(cursor.colIdx + dc, 0, maxCol),
-      );
-    };
-    const goAbs = (r_?: number, c_?: number) => () => {
-      focusCell(
-        r_ !== undefined ? c.posMod(r_, maxRow + 1) : cursor.rowIdx,
-        c_ !== undefined ? c.posMod(c_, maxCol + 1) : cursor.colIdx,
-      );
-    };
-    return { goRel, goAbs, maxRow, maxCol, cursor, visibleColumns, encode };
-  };
-
-  const nav = useRef(mkNav());
-  nav.current = mkNav();
-  const tipOnFocus = useRef(true);
-
-  const cellKey = (row: number, col: number) => `${row}:${col}`;
-
+  const [encode, setEncode, encodeRef] = rc.useStateAndLatest<
+    Record<"x" | "y", string> & Partial<Record<"z" | "c" | "s", string>>
+  >({ x: "x", y: "y" });
 
   const keystack = useMemo(() => {
     type TMP = "x" | "y" | "z" | "c" | "s";
-    const n = () => nav.current;
-    /* const goRel = (a: number, b: number) => () => nav.current.goRel(a, b)(); */
-    const goAbs = (a?: number, b?: number) => () => nav.current.goAbs(a, b)();
-    const colName = () => columns[n().cursor.colIdx].header;
-    const getEncode = (ks: TMP[]) => ks.map((k) => n().encode[k]);
+    const cur = () => cursorRef.current;
+    const colName = () =>
+      table.getVisibleLeafColumns()[cursorRef.current.colIdx].id;
+    const getEncode = (ks: TMP[]) => ks.map((k) => encodeRef.current[k]);
+
     const setEncode_ = (k: TMP, v: string | null) =>
       setEncode(
-        c.copyAndModify(n().encode, (d) => {
+        c.copyAndModify(encodeRef.current, (d) => {
           if (v === null) delete d[k];
           else d[k] = v;
         }),
@@ -659,16 +543,16 @@ export default function SimpleTable() {
       ArrowDown: () => goRel(1, 0),
       k: () => goRel(-1, 0),
       ArrowUp: () => goRel(-1, 0),
-      "0": goAbs(undefined, 0),
-      Home: goAbs(undefined, 0),
-      $: goAbs(undefined, -1),
-      End: goAbs(undefined, -1),
-      G: goAbs(-1, undefined),
-      "g g": goAbs(0, undefined),
+      "0": () => goAbs(undefined, 0),
+      Home: () => goAbs(undefined, 0),
+      $: () => goAbs(undefined, -1),
+      End: () => goAbs(undefined, -1),
+      G: () => goAbs(-1, undefined),
+      "g g": () => goAbs(0, undefined),
       "]": () =>
-        n().visibleColumns[n().cursor.colIdx].toggleSorting(true, false),
+        table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(true, false),
       "[": () =>
-        n().visibleColumns[n().cursor.colIdx].toggleSorting(false, false),
+        table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(false, false),
       "s x": () => checkAndSet(colName(), "x", ["y", "z"]),
       "s y": () => checkAndSet(colName(), "y", ["x", "z"]),
       "s z": () => checkAndSet(colName(), "z", ["x", "y"]),
@@ -679,6 +563,7 @@ export default function SimpleTable() {
       "c z": () => setEncode_("z", null),
       "c c": () => setEncode_("c", null),
       "c s": () => setEncode_("s", null),
+      "SPC t": () => tipRow(cursorRef.current.rowIdx),
       "t t": () => {
         tipOnFocus.current = !tipOnFocus.current;
         if (!tipOnFocus.current)
@@ -702,7 +587,7 @@ export default function SimpleTable() {
       if (KeyStack.presentKey(keystack, KeyStack.keystrokeToString(e)))
         e.preventDefault();
     },
-    [cursor, rows.length, visibleColumns.length, focusCell],
+    [],
   );
 
   return (
@@ -736,7 +621,6 @@ export default function SimpleTable() {
             <tr key={row.id}>
               {row.getVisibleCells().map((cell, cId) => (
                 <td
-                  id={cellKey(rId, cId)}
                   tabIndex={-1}
                   key={cell.id}
                   className={
@@ -744,7 +628,7 @@ export default function SimpleTable() {
                       ? "selected"
                       : ""
                   }
-                  onFocus={() => focusCell(rId, cId)}
+                  onFocus={() => goAbs(rId, cId)}
                   onKeyDown={handleKeyDown}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -246,3 +246,9 @@ export function useLatest<T>(value: T) {
   ref.current = value;
   return ref;
 }
+
+export function useStateAndLatest<T>(value: T) {
+  const [state, setState] = useState(value)
+  const latest = useLatest(state)
+  return [state, setState, latest] as const
+}
