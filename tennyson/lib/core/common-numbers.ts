@@ -4,6 +4,11 @@ export function clamp(n: number, min: number, max: number) {
 
 export const add = (a: number, b: number) => a + b;
 
+export const posMod = (a: number, b: number) => {
+    const r = a % b;
+    return r < 0 ? r + b : r;
+  };
+
 export function mean(values: number[]): number {
   return values.reduce(add, 0) / values.length;
 }

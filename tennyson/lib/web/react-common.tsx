@@ -1,7 +1,8 @@
-import { useRef } from "react";
-import type { JSX, ReactNode } from "react";
-import React, { useState, useLayoutEffect, useEffect, useMemo } from "react";
 import * as c from "tennyson/lib/core/common";
+
+import { useRef } from "react";
+import type { JSX, ReactNode, RefObject } from "react";
+import React, { useState, useLayoutEffect, useEffect, useMemo } from "react";
 
 import * as rx from "rxjs";
 
@@ -12,10 +13,17 @@ import {
   getCoreRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import { Effect, Either, Option } from "effect";
+import "echarts-gl";
 
-export function EChart(props: { option: echarts.EChartsOption }) {
+import { Effect, Either, Option, pipe, Stream, Fiber } from "effect";
+
+export function EChart(props: {
+  option: echarts.EChartsOption;
+  is3D?: boolean;
+  ref?: RefObject<echarts.ECharts | null> | undefined;
+}) {
   const { option } = props;
+  const is3D = props.is3D ?? false;
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -23,6 +31,7 @@ export function EChart(props: { option: echarts.EChartsOption }) {
     if (!chartRef.current || chartInstance.current) return;
 
     chartInstance.current = echarts.init(chartRef.current);
+    if (props.ref) props.ref.current = chartInstance.current;
 
     const resizeObserver = new ResizeObserver(() => {
       chartInstance.current?.resize();
@@ -36,11 +45,13 @@ export function EChart(props: { option: echarts.EChartsOption }) {
         chartInstance.current = null;
       }
     };
-  }, []);
+  }, [is3D]);
 
   useEffect(() => {
     if (chartInstance.current && option) {
-      chartInstance.current.setOption(option, true);
+      chartInstance.current.setOption(option, {
+        replaceMerge: ["visualMap"],
+      });
     }
   }, [option, chartInstance]);
 
@@ -76,6 +87,28 @@ export function useEffectTS<A, B>(
   );
 
   return useSafePromise(promise);
+}
+
+export function useStream<T>(
+  stream: Stream.Stream<T, never, never>,
+  initialValue: T,
+): T {
+  const [value, setValue] = useState<T>(initialValue);
+
+  useLayoutEffect(() => {
+    const fiber = Effect.runFork(
+      pipe(
+        stream,
+        Stream.runForEach((value) => Effect.sync(() => setValue(value))),
+      ),
+    );
+
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber));
+    };
+  }, [stream]);
+
+  return value;
 }
 
 export function PromiseResolver<T>(props: {
@@ -206,4 +239,10 @@ export function BasicTable<T>({
       </table>
     </div>
   );
+}
+
+export function useLatest<T>(value: T) {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
 }
