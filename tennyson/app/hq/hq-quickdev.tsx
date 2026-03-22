@@ -3,7 +3,6 @@ import * as rc from "tennyson/lib/web/react-common";
 import * as tpipe from "tennyson/lib/core/pipe";
 
 import * as d3 from "d3";
-import * as rx from "rxjs";
 import { Stream, Schedule, SubscriptionRef, pipe, Data } from "effect";
 import {
   useReactTable,
@@ -25,11 +24,7 @@ import React, {
   type KeyboardEvent,
   type RefObject,
 } from "react";
-import ReactDOM from "react-dom/client";
 
-import { fetchFileSystem } from "./ItemDisplay";
-import type { RangerItem } from "./Ranger";
-import { Ranger } from "./Ranger";
 import * as echarts from "echarts";
 
 namespace DataFlicker {

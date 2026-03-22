@@ -1,5 +1,7 @@
 export type NotFunction<T> = T extends Function ? never : T;
 
+export type F1<In, Out> = (a: In) => Out;
+
 export type Modify<T, R> = Omit<T, keyof R> & R;
 
 export type KeyType = string | number | symbol;
