@@ -66,6 +66,9 @@ export function cmds(
       const r = new ranger.Ranger(ranger.lsFiles);
       await r.run();
     }),
+    cli.lazyGroup("hq", async () => {
+      return (await import("tennyson/app/hq/cmds")).cmds;
+    }),
     cli.lazyGroup("scrape", async () => {
       const scraper = await import("tennyson/lib/web/scraper");
       return [

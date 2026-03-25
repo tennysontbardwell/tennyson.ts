@@ -1,5 +1,6 @@
 import { ViewerApp } from "tennyson/app/hq/viewer";
 import { HQQuickDev } from "tennyson/app/hq/hq-quickdev";
+import { AuthPairing } from "./AuthPairing";
 import {
   Outlet,
   createRoute,
@@ -12,6 +13,11 @@ export const tabs = [
     name: "Home",
     path: "/",
     component: () => <h3>Welcome Home!</h3>,
+  },
+  {
+    name: "AuthPairing",
+    path: "/authpairing",
+    component: () => <AuthPairing />,
   },
   {
     name: "About",

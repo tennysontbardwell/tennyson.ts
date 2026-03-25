@@ -4,11 +4,7 @@
   "main": "build/tennyson/index.js",
   "version": "0.0.10",
   "type": "module",
-  "files": [
-    "build/**/*",
-    "README.md",
-    "package.json"
-  ],
+  "files": ["build/**/*", "README.md", "package.json"],
   "scripts": {
     "run": "export NODE_PATH=./build && node --enable-source-maps build/tennyson/index.js",
     "build": "npm-run-all clean build:types build:build build:test",
@@ -19,7 +15,7 @@
     "watch:check": "tsc --watch --preserveWatchOutput",
     "watch:build": "tsup --watch",
     "watch:test": "vitest",
-    "hq": "vite -c vite.config.ts --open",
+    "hq": "./run-task.sh hq",
     "electron": "electron bin/electron.cjs electron",
     "clean": "rm -rf build bin"
   },

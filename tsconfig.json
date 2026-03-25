@@ -1,7 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 14",
-  "include": ["tennyson/**/*.ts", "tennyson/**/*.tsx"],
+  "include": [
+    "tennyson/**/*.ts",
+    "tennyson/**/*.tsx",
+    "tennyson/app/hq/keystackx"
+  ],
   "compilerOptions": {
     "lib": ["es2021", "dom"],
     "module": "esnext",
