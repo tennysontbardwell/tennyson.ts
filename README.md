@@ -1,33 +1,43 @@
 # todo
 - [x] Migrate to `tsup` https://kagi.com/assistant/3dd0a185-dfa8-407a-8219-51e5638fe39e
-- [ ] switch to uv
+- [ ] switch to uv?
+- [ ] try
+  - [ ] prisma
+- [ ] ensure unused
+  - [ ] `@types/source-map-support` (will source mapping break without this dev dep?)
 - [X] remove unused
   - [X] `yup`
   - [X] `@sodaru/yup-to-json-schema`
   - [X] `csstype`
   - [X] `tiny-invariant`
   - [X] `@types/shell-quote`
+  - [ ] `@effect/rpc`
+  - [X] `@effect/workflow`
+  - [X] `@effect/cluster`
+  - [X] `@effect/dynamodb`
+  - [X] `@aws-sdk/client-route-53`
 - [ ] rewrite to remove
   - [ ] `@sinclair/typebox`: used for old ai tool call style
   - [ ] `axios`: probably not necessary, a few requests calls
   - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
-  - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`
+  - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`?
   - [X] `url-parse`: used for git in hometty, small place
   - [ ] `zod` (used in a small place)
   - [X] `shell-escape` (single function)
+  - [ ] `rxjs` (I would like to rip this out at some point, prefer effects?)
+  - [ ] `@aws-skd/client-ses` (maybe keep?)
 - [ ] audit deps
-  - [X] `blessed`
+  - [X] `blessed` (seems self contained and decent)
   - [X] `constructs`
   - [X] `electron`
   - [X] `gcn-kafka`
   - [X] `fast-xml-parser`
   - [X] `papaparse`
-  - [ ] `rxjs`
-  - [ ] `solid-js` (should i be using this one in particular?)
-  - [ ] `sqlite3`
+  - [X] `solid-js` (should i be using this one in particular?)
+  - [X] `sqlite3` (seems reasonable, main one for node to read sqlite3)
   - [X] `yaml`
   - [X] `vcard-ts`
-  - [ ] `ws`
+  - [X] `ws` (need a server implementation of ws)
 - [ ] eslint from
   - https://github.com/nkzw-tech/expo-app-template?tab=readme-ov-file
     - which uses https://github.com/nkzw-tech/eslint-config?tab=readme-ov-file
