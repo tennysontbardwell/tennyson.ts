@@ -7,9 +7,10 @@ import * as fs from "fs";
 
 import { parseHex } from "./util";
 
-import { Command, FileSystem } from "@effect/platform"
-import { NodeContext, NodeRuntime } from "@effect/platform-node"
-import { Chunk, Effect, Stream } from "effect"
+import * as pl from "nodejs-polars";
+import { Command, FileSystem } from "@effect/platform";
+import { NodeContext, NodeRuntime } from "@effect/platform-node";
+import { Chunk, Effect, Stream } from "effect";
 
 async function parsePcap(file: string) {
   const fields = [
@@ -68,20 +69,46 @@ export async function processResults(
   nodes: { name: string; zone: ec2.AvailabilityZone }[],
   directory: string,
 ) {
-  const results = await Promise.all(
-    nodes.map(async ({ name, zone }) => {
-      const file = cn.path.resolve(directory, name, "mydata", "tcpdump.pcap");
-      const data = await parsePcap(file);
-      return data.map((d) => ({
-        ...d,
-        name,
-        zone,
-      }));
-    }),
-  );
-  const data = await Promise.all(results).then((x) => x.flat());
-  await fs.promises.writeFile(
-    cn.path.resolve(directory, "results.json"),
-    JSON.stringify(data),
-  );
+  // const results2 = async function* () {
+  //   for (const { name, zone } of nodes) {
+  //     const file = cn.path.resolve(directory, name, "mydata", "tcpdump.pcap");
+  //     c.info(`Processing ${file}`)
+  //     const data = await parsePcap(file);
+  //     const data2 = data.map((d) => ({
+  //       ...d,
+  //       name,
+  //       zone,
+  //     }));
+  //     for (const x of data2) {
+  //       const { zone, ...rest } = x;
+  //       yield rest;
+  //     }
+  //   }
+  // };
+  // await cn.writeJsonLines(
+  //   results2(),
+  //   cn.path.resolve(directory, "results.jsonl"),
+  // );
+
+  const results = await (async () => {
+    const res = await Promise.all(
+      nodes.map(async ({ name, zone }) => {
+        const file = cn.path.resolve(directory, name, "mydata", "tcpdump.pcap");
+        const data = await parsePcap(file);
+        return data.map((d) => ({
+          ...d,
+          name,
+        }));
+      }),
+    ).then(x => x.flat());
+    return res;
+  })();
+  const df = pl.DataFrame(results);
+  df.writeParquet(cn.path.resolve(directory, "results.parquet"));
+
+  // const data = await Promise.all(results).then((x) => x.flat());
+  // await fs.promises.writeFile(
+  //   cn.path.resolve(directory, "results.json"),
+  //   JSON.stringify(data),
+  // );
 }

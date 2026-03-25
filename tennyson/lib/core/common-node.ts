@@ -4,6 +4,7 @@ const c = common;
 import * as os from "os";
 import * as path_ from "path";
 import { promises as fs } from "fs";
+import { createWriteStream } from "node:fs";
 import * as fsSync from "fs";
 import * as uuid from "uuid";
 
@@ -11,7 +12,10 @@ import * as stream from "stream";
 import * as stream_chain from "stream-chain";
 import * as stream_json from "stream-json";
 import Assembler from "stream-json/Assembler.js";
-import { finished } from "node:stream/promises";
+import { pipeline, finished } from "node:stream/promises";
+import { Readable } from "node:stream";
+
+import { createZstdCompress } from "node:zlib";
 
 import * as exec_ from "tennyson/lib/core/exec";
 import * as process from "process";
@@ -235,6 +239,25 @@ export async function parseJsonFileToArray<T>(filePath: string): Promise<T[]> {
     .split("\n")
     .filter((line) => line.trim() !== "")
     .map((line) => JSON.parse(line));
+}
+
+export async function writeJsonLines<T>(
+  iterable: AsyncIterable<T>,
+  filePath: string,
+): Promise<void> {
+  const outputStream = createWriteStream(filePath, { encoding: "utf-8" });
+
+  const readable = Readable.from(
+    (async function* () {
+      for await (const item of iterable) {
+        yield JSON.stringify(item) + "\n";
+      }
+    })(),
+  );
+
+  if (filePath.endsWith(".zst"))
+    await pipeline(readable, createZstdCompress(), outputStream);
+  else await pipeline(readable, outputStream);
 }
 
 export async function editorInput() {

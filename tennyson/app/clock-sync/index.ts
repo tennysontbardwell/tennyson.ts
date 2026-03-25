@@ -178,7 +178,9 @@ const fleetTest =
 
 export async function processResultsDir(dir: string) {
   const dir_ = cn.resolveHome(dir);
-  const hosts = await c.gather(fs.glob(`${dir_}/*/`));
+  const hosts = (await c.gather(fs.glob(`${dir_}/*/`))).filter(
+    (x) => !cn.path.basename(x).startsWith("_"),
+  );
   await processResults(
     hosts.map((x) => {
       const name = cn.path.basename(x);
