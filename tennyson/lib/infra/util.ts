@@ -1,3 +1,5 @@
+import * as common from "tennyson/lib/core/common";
+
 import * as client_ses from "@aws-sdk/client-ses";
 import * as process from "process";
 

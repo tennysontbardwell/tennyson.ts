@@ -77,7 +77,11 @@ export class Host {
   }
 
   async passthroughSsh() {
-    await common_node.passthru("ssh", [`${this.user}@${this.fqdn()}`]);
+    await common_node.passthru("ssh", [
+      "-o",
+      "UserKnownHostsFile=" + process.env["HOME"] + "/.ssh/known_hosts_auto",
+      `${this.user}@${this.fqdn()}`,
+    ]);
   }
 
   apt() {
@@ -186,7 +190,7 @@ export class Host {
       "yes yes | ssh-keyscan -H " + this.fqdn(),
     ]);
     await execlib.appendFile(
-      process.env["HOME"] + "/.ssh/known_hosts",
+      process.env["HOME"] + "/.ssh/known_hosts_auto",
       hostKey.stdout,
     );
   }
@@ -202,12 +206,14 @@ export class Host {
     const localPort_ =
       localPort === undefined ? await net_util.getRandomFreePort() : localPort;
 
-    const process = spawn("ssh", [
+    const process_ = spawn("ssh", [
+      "-o",
+      "UserKnownHostsFile=" + process.env["HOME"] + "/.ssh/known_hosts_auto",
       "-NL",
       `${localPort_}:localhost:${remotePort}`,
       `${this.user}@${this.fqdn()}`,
     ]);
 
-    return { localPort: localPort_, process };
+    return { localPort: localPort_, process: process_ };
   }
 }
