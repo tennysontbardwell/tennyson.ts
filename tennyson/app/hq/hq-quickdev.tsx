@@ -1,6 +1,7 @@
 import * as c from "tennyson/lib/core/common";
 import * as rc from "tennyson/lib/web/react-common";
-import * as tpipe from "tennyson/lib/core/pipe";
+
+import * as keystack from './keystack'
 
 import * as d3 from "d3";
 import { Stream, Schedule, SubscriptionRef, pipe, Data } from "effect";
@@ -19,6 +20,7 @@ import React, {
   useRef,
   useLayoutEffect,
   useMemo,
+  memo,
   useImperativeHandle,
   type Ref,
   type KeyboardEvent,
@@ -70,6 +72,16 @@ namespace DataFlicker {
       z: 0,
     },
   ];
+
+  export const dataC = () =>
+    c.range(1000).map((i) =>
+      c.id({
+        name: i,
+        x: Math.random() * 10,
+        y: Math.random() * 10,
+        z: Math.random() * 10,
+      }),
+    );
 
   export const stream = pipe(
     Schedule.spaced("30000 millis"),
@@ -333,59 +345,6 @@ tbody tr:nth-child(even) {
 }
         `;
 
-namespace KeyStack {
-  type KeyCmd = { name: string; command: () => void };
-  type Keymap = Record<string, KeyCmd>;
-
-  interface KeyStack {
-    keymap: Keymap;
-    stack: string[];
-    timer: NodeJS.Timeout | null;
-  }
-
-  export const empty = () =>
-    c.id({
-      keymap: {},
-      stack: [],
-      timer: null,
-    });
-
-  export const keystrokeToString = (e: React.KeyboardEvent) => {
-    const remap: Record<string, string> = {
-      " ": "SPC",
-    };
-    return [
-      e.ctrlKey ? "C-" : "",
-      e.metaKey ? "D-" : "", // Command key
-      e.altKey ? "M-" : "", // Alt/Meta key
-      remap[e.key] ?? e.key,
-    ].join("");
-  };
-
-  export const clear = (t: KeyStack) => {
-    t.timer && clearTimeout(t.timer);
-    t.stack = [];
-  };
-
-  export const presentKey = (t: KeyStack, key: string) => {
-    t.timer && clearTimeout(t.timer);
-    t.stack.push(key);
-    const name = t.stack.join(" ");
-    const cmd = t.keymap[name];
-    if (cmd !== undefined) {
-      clear(t);
-      cmd.command();
-      return true;
-    } else if (Object.keys(t.keymap).find((x) => x.startsWith(name + " "))) {
-      t.timer = setTimeout(() => clear(t), 1000);
-      return true;
-    } else {
-      clear(t);
-      return false;
-    }
-  };
-}
-
 namespace GrammarGraph {
   export type Action = Data.TaggedEnum<{
     ShowTooltip: { dataId: number };
@@ -471,15 +430,16 @@ namespace Nav {
   };
 }
 
-const data = DataFlicker.dataA;
+/* const data = DataFlicker.dataA; */
+const data = DataFlicker.dataC();
 const dimensions = ["x", "y", "z", "name"];
 const columns = Object.keys(data[0]).map((s) =>
   c.id({ accessorKey: s, header: s }),
 );
 
 export default function SimpleTable() {
-  const data$ = useMemo(() => DataFlicker.stream, []);
-  const data = rc.useStream(data$, DataFlicker.dataA);
+  /* const data$ = useMemo(() => DataFlicker.stream, []);
+   * const data = rc.useStream(data$, DataFlicker.dataA); */
 
   const ref = useRef<echarts.ECharts | null>(null);
 
@@ -511,7 +471,7 @@ export default function SimpleTable() {
     Record<"x" | "y", string> & Partial<Record<"z" | "c" | "s", string>>
   >({ x: "x", y: "y" });
 
-  const keystack = useMemo(() => {
+  const keystack_ = useMemo(() => {
     type TMP = "x" | "y" | "z" | "c" | "s";
     const cur = () => cursorRef.current;
     const colName = () =>
@@ -548,6 +508,8 @@ export default function SimpleTable() {
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(true, false),
       "[": () =>
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(false, false),
+      "C-d": () => goRel(5, 0),
+      "C-u": () => goRel(-5, 0),
       "s x": () => checkAndSet(colName(), "x", ["y", "z"]),
       "s y": () => checkAndSet(colName(), "y", ["x", "z"]),
       "s z": () => checkAndSet(colName(), "z", ["x", "y"]),
@@ -570,7 +532,7 @@ export default function SimpleTable() {
     };
 
     return {
-      ...KeyStack.empty(),
+      ...keystack.empty(),
       keymap: c.mapValues(moves, (command) =>
         c.id({ command, name: "unnamed" }),
       ),
@@ -578,12 +540,32 @@ export default function SimpleTable() {
   }, []);
 
   const handleKeyDown = useMemo(
-    () => (e: KeyboardEvent<HTMLTableCellElement>) => {
-      if (KeyStack.presentKey(keystack, KeyStack.keystrokeToString(e)))
+    () => (e: KeyboardEvent<HTMLTableElement>) => {
+      if (keystack.presentKey(keystack_, keystack.keystrokeToString(e)))
         e.preventDefault();
     },
     [],
   );
+
+  const Row = useMemo(() => {}, []);
+
+  const [viewRangeStart, viewRangeEnd] = (() => {
+    cursor.rowIdx;
+    return [1, 2];
+  })();
+
+  const rows = table.getRowModel().rows;
+  const renderRange = (() => {
+    const pageSize = 11;
+    if (cursor.rowIdx < pageSize / 2) return { min: 0, max: pageSize };
+    else if (cursor.rowIdx > rows.length - pageSize / 2)
+      return { min: rows.length - pageSize, max: rows.length };
+    return {
+      min: Math.max(cursor.rowIdx - 5, 0),
+      max: Math.min(cursor.rowIdx + 5 + 1, table.getRowModel().rows.length),
+    };
+  })();
+  const rowsToRender = rows.slice(renderRange.min, renderRange.max);
 
   return (
     <>
@@ -596,7 +578,7 @@ export default function SimpleTable() {
         />
       </div>
       <style>{tablestyle}</style>
-      <table>
+      <table tabIndex={-1} onKeyDown={handleKeyDown}>
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
@@ -612,25 +594,26 @@ export default function SimpleTable() {
           ))}
         </thead>
         <tbody>
-          {table.getRowModel().rows.map((row, rId) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell, cId) => (
-                <td
-                  tabIndex={-1}
-                  key={cell.id}
-                  className={
-                    rId === cursor.rowIdx && cId === cursor.colIdx
-                      ? "selected"
-                      : ""
-                  }
-                  onFocus={() => goAbs(rId, cId)}
-                  onKeyDown={handleKeyDown}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rowsToRender.map((row, i) => {
+            const rId = i + renderRange.min;
+            return (
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell, cId) => (
+                  <td
+                    key={cell.id}
+                    className={
+                      rId === cursor.rowIdx && cId === cursor.colIdx
+                        ? "selected"
+                        : ""
+                    }
+                    onFocus={() => goAbs(rId, cId)}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </>
