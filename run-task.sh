@@ -10,7 +10,7 @@ case "$1" in
         trap cleanup EXIT INT TERM
 
         export HQ_TOKEN="$(pwgen 40 1 | tr -d '\n')"
-        vite -c vite.config.ts &
+        vite -c vite.config.ts --clearScreen false &
         ./run.sh hq server &
         sleep 1
         open "http://localhost:2300/authpairing#token=${HQ_TOKEN}"

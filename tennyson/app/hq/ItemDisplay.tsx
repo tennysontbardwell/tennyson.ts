@@ -144,5 +144,5 @@ function ItemDisplay({ url }: { url: string }) {
 }
 
 export async function fetchFileSystem(): Promise<Array<RangerItem>> {
-  return await fetchDirectoryListing("http://localhost:5173/api");
+  return await fetchDirectoryListing("/api");
 }
