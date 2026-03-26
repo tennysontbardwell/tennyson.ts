@@ -1,11 +1,10 @@
 import * as c from "tennyson/lib/core/common";
 import * as rc from "tennyson/lib/web/react-common";
 
-import * as keystack from './keystack'
-import {DataFlicker, oneKRows} from './scratch-test-data'
-import * as gg from './GrammarGraph'
+import * as keystack from "./keystack";
+import { oneKRows } from "./scratch-test-data";
+import * as gg from "./GrammarGraph";
 
-import { Stream, Schedule, SubscriptionRef, pipe, Data } from "effect";
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,117 +14,7 @@ import {
   type Table,
 } from "@tanstack/react-table";
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useLayoutEffect,
-  useMemo,
-  useImperativeHandle,
-  type Ref,
-  type KeyboardEvent,
-  type RefObject,
-} from "react";
-
-import * as echarts from "echarts";
-
-const EchartsBasic = (options: {
-  dataset: any;
-  dimensions: string[];
-  encode: Record<"x" | "y", string> & Partial<Record<"z" | "c" | "s", string>>;
-  ref?: RefObject<echarts.ECharts | null>;
-}) => {
-  const is3D = options.encode.z !== undefined;
-  const x: echarts.EChartsOption = useMemo(
-    () =>
-      c.id({
-        animationDuration: 0,
-        animationDurationUpdate: 150,
-        ...(is3D
-          ? {
-              xAxis3D: { name: options.encode.x, type: "value" },
-              yAxis3D: { name: options.encode.y, type: "value" },
-              zAxis3D: { name: options.encode.z, type: "value" },
-              grid3D: {
-                viewControl: {
-                  projection: "orthographic",
-                  autoRotate: true,
-                  autoRotateSpeed: 3,
-                },
-              },
-            }
-          : {
-              xAxis: { name: options.encode.x, type: "value" },
-              yAxis: { name: options.encode.y, type: "value" },
-            }),
-        dataset: {
-          dimensions: options.dimensions,
-          source: options.dataset,
-        },
-        visualMap: [
-          ...(options.encode.c !== undefined
-            ? [
-                {
-                  min: Math.min(
-                    ...options.dataset.map((d: any) => d[options.encode.c!]),
-                  ),
-                  max: Math.max(
-                    ...options.dataset.map((d: any) => d[options.encode.c!]),
-                  ),
-                  orient: "vertical",
-                  right: 0,
-                  top: "center",
-                  dimension: options.encode.c,
-                  calculable: true,
-                  inRange: {
-                    color: ["#121122", "rgba(3,4,5,0.4)", "red"],
-                  },
-                },
-              ]
-            : []),
-          ...(options.encode.s !== undefined
-            ? [
-                {
-                  min: Math.min(
-                    ...options.dataset.map((d: any) => d[options.encode.s!]),
-                  ),
-                  max: Math.max(
-                    ...options.dataset.map((d: any) => d[options.encode.s!]),
-                  ),
-                  orient: "vertical",
-                  right: 0,
-                  top: "top",
-                  dimension: options.encode.s,
-                  calculable: true,
-                  inRange: {
-                    symbolSize: [5, 20],
-                  },
-                },
-              ]
-            : []),
-        ],
-        tooltip: {
-          trigger: "item",
-          formatter: (params: any) =>
-            '<code style="white-space: pre;">' +
-            JSON.stringify(params.data, null, 2) +
-            "</code>",
-        },
-        series: [
-          {
-            type: is3D ? "scatter3D" : "scatter",
-            encode: {
-              x: options.encode.x,
-              y: options.encode.y,
-              ...(is3D ? { z: options.encode.z } : {}),
-            },
-          },
-        ],
-      } as any),
-    [options.dataset, options.dimensions, options.encode],
-  );
-  return <rc.EChart option={x} is3D={is3D} ref={options.ref} />;
-};
+import { useState, useRef, useMemo, type KeyboardEvent } from "react";
 
 const tablestyle = `
 table {
@@ -208,8 +97,6 @@ namespace Nav {
     table: Table<any>,
     onFocusCell: (a: { rowIdx: number; colIdx: number }) => void,
   ) => {
-    /* const [cursor, setCursor] = useState({ rowIdx: 0, colIdx: 0 });
-     * const cursorRef = rc.useLatest(cursor); */
     const [cursor, setCursor, cursorRef] = rc.useStateAndLatest({
       rowIdx: 0,
       colIdx: 0,
@@ -248,9 +135,9 @@ namespace Nav {
   };
 }
 
-/* const data = DataFlicker.dataA; */
 const data = oneKRows();
-const dimensions = ["x", "y", "z", "name"];
+const dimensions = ["x", "y", "z", "name"] as const;
+type Dims = (typeof dimensions)[number];
 const columns = Object.keys(data[0]).map((s) =>
   c.id({ accessorKey: s, header: s }),
 );
@@ -259,7 +146,7 @@ export default function SimpleTable() {
   /* const data$ = useMemo(() => DataFlicker.stream, []);
    * const data = rc.useStream(data$, DataFlicker.dataA); */
 
-  const ref = useRef<echarts.ECharts | null>(null);
+  const controlRef = useRef<((a: gg.Action) => void) | null>(null);
 
   const table = useReactTable({
     data,
@@ -268,14 +155,12 @@ export default function SimpleTable() {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const tipOnFocus = useRef(true);
-  const tipRow = (row: number) => {
-    ref.current?.dispatchAction({
-      type: "showTip",
-      seriesIndex: 0,
-      dataIndex: row,
-    });
+  const tipOnFocus = useRef(false);
+  const tipRow = (row: number | null) => {
+    if (row === null) controlRef.current?.({ _tag: "HideTooltip" });
+    else controlRef.current?.({ _tag: "ShowTooltip", dataId: row });
   };
+
   const onFocusCell = useMemo(
     () => (cord: { rowIdx: number; colIdx: number }) => {
       if (tipOnFocus.current) tipRow(cord.rowIdx);
@@ -284,29 +169,36 @@ export default function SimpleTable() {
   );
 
   const { goAbs, goRel, cursor, cursorRef } = Nav.useNav(table, onFocusCell);
+  const [refreshIdx, setRefreshIdx, refreshIdxRef] = rc.useStateAndLatest(0);
+  const [dimMapping, setDimMapping] = useState<gg.DimensionMapping<Dims>>({
+    x: "x",
+    y: "y",
+  });
 
-  const [encode, setEncode, encodeRef] = rc.useStateAndLatest<
-    Record<"x" | "y", string> & Partial<Record<"z" | "c" | "s", string>>
-  >({ x: "x", y: "y" });
+  const setOneDimMapping = useMemo(
+    () => (k: Exclude<keyof gg.DimensionMapping, "facet">, v: Dims | null) =>
+      setDimMapping((state: gg.DimensionMapping<Dims>) => {
+        if (["x", "y"].includes(k) && v === null) return state;
+        const state_ = c.copyAndModify(state, (d) => {
+          if (v === null) delete d[k];
+          else d[k] = v;
+        });
+        if (
+          state_.x == state_.y ||
+          state_.x == state_.z ||
+          state_.y == state_.z
+        )
+          return state;
+        return state_;
+      }),
+    [setDimMapping],
+  );
 
   const keystack_ = useMemo(() => {
-    type TMP = "x" | "y" | "z" | "c" | "s";
     const cur = () => cursorRef.current;
     const colName = () =>
       table.getVisibleLeafColumns()[cursorRef.current.colIdx].id;
-    const getEncode = (ks: TMP[]) => ks.map((k) => encodeRef.current[k]);
 
-    const setEncode_ = (k: TMP, v: string | null) =>
-      setEncode(
-        c.copyAndModify(encodeRef.current, (d) => {
-          if (v === null) delete d[k];
-          else d[k] = v;
-        }),
-      );
-    const checkAndSet = (val: string, to: TMP, check: TMP[]) => {
-      if (!getEncode(check).find((x) => x === val))
-        setEncode_(to, val);
-    };
     const moves: Record<string, () => void> = {
       h: () => goRel(0, -1),
       ArrowLeft: () => goRel(0, -1),
@@ -322,31 +214,35 @@ export default function SimpleTable() {
       End: () => goAbs(undefined, -1),
       G: () => goAbs(-1, undefined),
       "g g": () => goAbs(0, undefined),
+      "g h": () => goAbs(undefined, 0),
+      "g l": () => goAbs(undefined, -1),
       "]": () =>
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(true, false),
       "[": () =>
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(false, false),
       "C-d": () => goRel(5, 0),
       "C-u": () => goRel(-5, 0),
-      "s x": () => checkAndSet(colName(), "x", ["y", "z"]),
-      "s y": () => checkAndSet(colName(), "y", ["x", "z"]),
-      "s z": () => checkAndSet(colName(), "z", ["x", "y"]),
-      "s c": () => setEncode_("c", colName()),
-      "s s": () => setEncode_("s", colName()),
-      "c x": () => setEncode_("x", null),
-      "c y": () => setEncode_("y", null),
-      "c z": () => setEncode_("z", null),
-      "c c": () => setEncode_("c", null),
-      "c s": () => setEncode_("s", null),
+      "s x": () => setOneDimMapping("x", colName() as Dims),
+      "s y": () => setOneDimMapping("y", colName() as Dims),
+      "s z": () => setOneDimMapping("z", colName() as Dims),
+      "s c": () => setOneDimMapping("color", colName() as Dims),
+      "s s": () => setOneDimMapping("size", colName() as Dims),
+      "c x": () => setOneDimMapping("x", null),
+      "c y": () => setOneDimMapping("y", null),
+      "c z": () => setOneDimMapping("z", null),
+      "c c": () => setOneDimMapping("color", null),
+      "c s": () => setOneDimMapping("size", null),
+      "g r": () => {
+        setDimMapping({ x: "x", y: "y" });
+        setRefreshIdx(refreshIdxRef.current + 1);
+      },
+      r: () => setRefreshIdx(refreshIdxRef.current + 1),
       "SPC t": () => tipRow(cursorRef.current.rowIdx),
       "t t": () => {
         tipOnFocus.current = !tipOnFocus.current;
-        if (!tipOnFocus.current)
-          ref.current?.dispatchAction({
-            type: "hideTip",
-          });
+        if (tipOnFocus.current) tipRow(cursorRef.current.rowIdx);
+        else tipRow(null);
       },
-      r: () => setEncode({ x: "x", y: "y" }),
     };
 
     return {
@@ -358,7 +254,7 @@ export default function SimpleTable() {
   }, []);
 
   const handleKeyDown = useMemo(
-    () => (e: KeyboardEvent<HTMLTableElement>) => {
+    () => (e: KeyboardEvent<any>) => {
       if (keystack.presentKey(keystack_, keystack.keystrokeToString(e)))
         e.preventDefault();
     },
@@ -379,17 +275,18 @@ export default function SimpleTable() {
   const rowsToRender = rows.slice(renderRange.min, renderRange.max);
 
   return (
-    <>
-      <div style={{ width: "800px", height: "600px" }}>
-        <EchartsBasic
-          dataset={data}
+    <div tabIndex={-1} onKeyDown={handleKeyDown}>
+      <div style={{ width: "1200px", height: "600px" }}>
+        <gg.Comp
+          key={refreshIdx}
+          data={data}
           dimensions={dimensions}
-          encode={encode}
-          ref={ref}
+          dimensionMapping={dimMapping}
+          controlRef={controlRef}
         />
       </div>
       <style>{tablestyle}</style>
-      <table tabIndex={-1} onKeyDown={handleKeyDown}>
+      <table>
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
@@ -427,14 +324,12 @@ export default function SimpleTable() {
           })}
         </tbody>
       </table>
-    </>
+    </div>
   );
 }
 
 export const HQQuickDev = () => (
   <>
-    {/* <D3Flicker /> */}
-    {/* <EchartsFlicker /> */}
     <SimpleTable />
   </>
 );
