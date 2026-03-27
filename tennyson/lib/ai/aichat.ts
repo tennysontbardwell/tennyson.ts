@@ -1,7 +1,7 @@
 import * as common from "tennyson/lib/core/common";
-import * as cNode from "tennyson/lib/core/common-node";
+import * as cn from "tennyson/lib/core/common-node";
+
 import * as openai from "tennyson/lib/ai/openai";
-import type { Static, TSchema } from "@sinclair/typebox";
 import {
   Effect,
   Option,
@@ -26,14 +26,6 @@ type ControlFlow<R> = {
   _tag: "return";
   results: R;
 };
-
-export interface Tool {
-  name: string;
-  inputSchema: TSchema;
-  outSchema: TSchema;
-  description: string;
-  callback: (request: string) => Promise<Attachment>;
-}
 
 export interface Tool2<A, B, R = never> {
   tag: "type2";

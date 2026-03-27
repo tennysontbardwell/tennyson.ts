@@ -1,7 +1,7 @@
-import { Type } from "@sinclair/typebox";
-import type { Attachment, Tool, Tool2 } from "./aichat";
+import type { Attachment, Tool2 } from "./aichat";
 import { query } from "./aichat";
 import { Schema, Effect, Either } from "effect";
+import { Schema as S } from "effect";
 import * as c from "tennyson/lib/core/common";
 import * as cn from "tennyson/lib/core/common-node";
 
@@ -214,26 +214,6 @@ export const urlFetchTool2 = (options?: { maxChar?: number }) =>
     },
   });
 
-export const urlFetchTool: Tool = {
-  name: "tool/network/fetch-webpage",
-  inputSchema: Type.Object({
-    url: Type.String({ format: "uri" }),
-  }),
-  outSchema: Type.Object({
-    title: Type.String(),
-    contents: Type.String(),
-  }),
-  description: "Fetches a webpage and returns its title and text content",
-  callback: async (request: string) => {
-    const input = JSON.parse(request);
-    const result = await fetchWebpage(input.url, "contentTags");
-    return {
-      title: request,
-      contents: JSON.stringify(result),
-    };
-  },
-};
-
 /**
  * Securely resolves a path within bounds, preventing directory traversal attacks.
  * Returns null if path attempts to escape the starting directory.
@@ -314,125 +294,126 @@ async function secureValidatePath(
   return resolvedPath;
 }
 
-export const readFilesTool = (startingPath: string): Tool => ({
-  name: "readFiles",
-  inputSchema: Type.Object({
-    paths: Type.Array(Type.String()),
-  }),
-  outSchema: Type.Object({
-    files: Type.Array(
-      Type.Object({
-        path: Type.String(),
-        title: Type.String(),
-        contents: Type.String(),
-        error: Type.Optional(Type.String()),
-      }),
-    ),
-  }),
-  description:
-    "Reads the contents of one or more files relative to the starting path",
-  callback: async (request: string) => {
-    const input = JSON.parse(request);
-    const fs = await import("fs/promises");
-    const pathModule = await import("path");
-
-    const results = [];
-
-    for (const relativePath of input.paths) {
-      try {
-        const resolvedPath = await secureValidatePath(
-          startingPath,
-          relativePath,
-        );
-        const contents = await fs.readFile(resolvedPath, "utf-8");
-
-        results.push({
-          path: relativePath,
-          title: pathModule.basename(relativePath),
-          contents: contents,
-        });
-      } catch (error) {
-        results.push({
-          path: relativePath,
-          title: relativePath,
-          contents: "",
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
+export const readFilesTool = (startingPath: string) =>
+  (() => {
+    const inputSchema = S.Struct({
+      paths: S.Array(S.String),
+    });
+    const outSchema = S.Struct({
+      files: S.Array(
+        S.Struct({
+          path: S.String,
+          title: S.String,
+          contents: S.String,
+          error: S.optional(S.String),
+        }),
+      ),
+    });
     return {
-      title: "File Read Results",
-      contents: JSON.stringify({ files: results }),
-    };
-  },
-});
+      name: "tool/fs/readFiles",
+      tag: "type2",
+      inputSchema,
+      outSchema,
+      description:
+        "Reads the contents of one or more files relative to the starting path",
+      callback: async (request: S.Schema.Type<typeof inputSchema>) => {
+        const fs = await import("fs/promises");
+        const pathModule = await import("path");
+
+        const results = [];
+
+        for (const relativePath of request.paths) {
+          try {
+            const resolvedPath = await secureValidatePath(
+              startingPath,
+              relativePath,
+            );
+            const contents = await fs.readFile(resolvedPath, "utf-8");
+
+            results.push({
+              path: relativePath,
+              title: pathModule.basename(relativePath),
+              contents: contents,
+            });
+          } catch (error) {
+            results.push({
+              path: relativePath,
+              title: relativePath,
+              contents: "",
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        return Either.right(results);
+      },
+    } satisfies Tool2<any, any>;
+  })();
 
 export const modifyFileTool = (
   startingPath: string,
   proposeChangesOnly = true,
-): Tool => ({
-  name: "modifyFile",
-  inputSchema: Type.Object({
-    path: Type.String(),
-    contents: Type.String(),
-  }),
-  outSchema: Type.Object({
-    success: Type.Boolean(),
-    actualPath: Type.String(),
-    message: Type.String(),
-  }),
-  description: `Writes or modifies a file relative to the starting path${proposeChangesOnly ? " (creates .proposed files for review)" : ""}`,
-  callback: async (request: string) => {
-    const input = JSON.parse(request);
-    const fs = await import("fs/promises");
-    const pathModule = await import("path");
+) =>
+  (() => {
+    const inputSchema = S.Struct({
+      path: S.String,
+      contents: S.String,
+    });
+    const outSchema = S.Struct({
+      success: S.Boolean,
+      actualPath: S.String,
+      message: S.String,
+    });
+    return {
+      name: "modifyFile",
+      tag: "type2",
+      description: `Writes or modifies a file relative to the starting path${proposeChangesOnly ? " (creates .proposed files for review)" : ""}`,
+      inputSchema,
+      outSchema,
+      callback: async (request: S.Schema.Type<typeof inputSchema>) => {
+        const fs = await import("fs/promises");
+        const pathModule = await import("path");
 
-    try {
-      let resolvedPath = await secureValidatePath(
-        startingPath,
-        input.path,
-        true,
-      );
+        try {
+          let resolvedPath = await secureValidatePath(
+            startingPath,
+            request.path,
+            true,
+          );
 
-      // Add .proposed extension if needed
-      if (proposeChangesOnly) {
-        resolvedPath += ".proposed";
-      }
+          // Add .proposed extension if needed
+          if (proposeChangesOnly) {
+            resolvedPath += ".proposed";
+          }
 
-      // Ensure parent directory exists
-      await fs.mkdir(pathModule.dirname(resolvedPath), { recursive: true });
+          // Ensure parent directory exists
+          await fs.mkdir(pathModule.dirname(resolvedPath), { recursive: true });
 
-      // Write the file
-      await fs.writeFile(resolvedPath, input.contents, "utf-8");
+          // Write the file
+          await fs.writeFile(resolvedPath, request.contents, "utf-8");
 
-      const finalPath = proposeChangesOnly
-        ? input.path + ".proposed"
-        : input.path;
-      const message = proposeChangesOnly
-        ? `File proposed changes written to ${finalPath}. Review and rename to apply changes.`
-        : `File successfully written to ${finalPath}`;
+          const finalPath = proposeChangesOnly
+            ? request.path + ".proposed"
+            : request.path;
+          const message = proposeChangesOnly
+            ? `File proposed changes written to ${finalPath}. Review and rename to apply changes.`
+            : `File successfully written to ${finalPath}`;
 
-      return {
-        title: "File Write Success",
-        contents: JSON.stringify({
-          success: true,
-          actualPath: finalPath,
-          message: message,
-        }),
-      };
-    } catch (error) {
-      return {
-        title: "File Write Error",
-        contents: JSON.stringify({
-          success: false,
-          actualPath: input.path,
-          message: `Failed to write file: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-      };
-    }
-  },
-});
+          return Either.right({
+            success: true,
+            actualPath: finalPath,
+            message: message,
+          });
+        } catch (error) {
+          return Either.right({
+            success: false,
+            actualPath: request.path,
+            message: `Failed to write file: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      },
+    } satisfies Tool2<any, any>;
+  })();
 
 /**
  * Reads all files in a directory (recursively) and returns them as attachments.

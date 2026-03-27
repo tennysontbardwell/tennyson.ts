@@ -58,7 +58,6 @@
     "@effect/rpc": "^0.74.0",
     "@effect/sql": "^0.50.0",
     "@effect/workflow": "^0.17.0",
-    "@sinclair/typebox": "^0.34.48",
     "@tanstack/react-router": "^1.167.5",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-core": "^1.167.5",

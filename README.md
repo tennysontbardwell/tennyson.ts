@@ -11,13 +11,10 @@
   - [X] `csstype`
   - [X] `tiny-invariant`
   - [X] `@types/shell-quote`
-  - [ ] `@effect/rpc`
-  - [X] `@effect/workflow`
-  - [X] `@effect/cluster`
   - [X] `@effect/dynamodb`
   - [X] `@aws-sdk/client-route-53`
 - [ ] rewrite to remove
-  - [ ] `@sinclair/typebox`: used for old ai tool call style
+  - [X] `@sinclair/typebox`: used for old ai tool call style
   - [ ] `axios`: probably not necessary, a few requests calls
   - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
   - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`?
@@ -26,7 +23,7 @@
   - [X] `shell-escape` (single function)
   - [ ] `rxjs` (I would like to rip this out at some point, prefer effects?)
   - [ ] `@aws-skd/client-ses` (maybe keep?)
-- [ ] audit deps
+- [X] audit deps
   - [X] `blessed` (seems self contained and decent)
   - [X] `constructs`
   - [X] `electron`
