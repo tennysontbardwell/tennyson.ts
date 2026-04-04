@@ -1,15 +1,16 @@
+import * as common from "tennyson/lib/core/common";
+import * as common_node from "tennyson/lib/core/common-node";
+import * as c from "tennyson/lib/core/common";
+import * as cn from "tennyson/lib/core/common-node";
+
 import * as path from "path";
 import * as fs from "fs/promises";
 
 import * as fzf from "tennyson/lib/core/fzf";
 import * as execlib from "tennyson/lib/core/exec";
 import * as git from "tennyson/lib/unixplus/git";
-import * as common from "tennyson/lib/core/common";
-import * as common_node from "tennyson/lib/core/common-node";
 import * as child_process from "child_process";
 import * as wikidata from "tennyson/lib/random/wikidata";
-
-const c = common;
 
 function py_docs(name: string) {
   var modules: Promise<string[]> | null = null;
@@ -80,6 +81,23 @@ export function vd(file: string, display?: string): fzf.FzfItem {
     action: async () => common_node.passthru("vd", [file]),
   };
 }
+
+export const calcVd = (
+  name: string,
+  fn: () => Promise<any> | any,
+  preview: boolean = false,
+): fzf.FzfItem => {
+  const data = c.lazy(fn);
+  return {
+    choice: name,
+    preview: preview
+      ? () => data.get().then((d) => JSON.stringify(d, null, 2))
+      : "",
+    action: async () => {
+      await cn.vdJson(await data.get());
+    },
+  };
+};
 
 async function zshExec(cmd: string) {
   const ssh = child_process.spawn("zsh", ["-ic", cmd], { detached: true });
@@ -212,6 +230,24 @@ export const hometty = (options: HomettyOptions = {}) => {
     vd(
       "~/excluded-backup/tstore/media/datasets/hygdata_v42.csv",
       "HYG Star Database v42",
+    ),
+    calcVd(
+      "zScores",
+      async () => {
+        return c.range(1, 51).map((i) => {
+          const x = i / 10;
+          const erf = c.erf(x / Math.sqrt(2));
+          const erfc = 1 - erf;
+          return {
+            x,
+            "erf(x/√2)": erf,
+            "erfc(x/√2)": erfc,
+            "erf/erfc ∘ (/√2)": erf / erfc,
+            "log ∘ erf/erfc ∘ (/√2)": Math.log(erf / erfc),
+          };
+        });
+      },
+      true,
     ),
     ...Object.entries(wikidata.QUERIES).map(([k, v]) => vdWikidata(k, v)),
   ];

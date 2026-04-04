@@ -7,6 +7,7 @@ export * from "./common-error";
 export * from "./common-functional";
 export * from "./common-lazy";
 export * from "./common-logger";
+export * from "./common-math";
 export * from "./common-numbers";
 export * from "./common-objects";
 export * from "./common-optionish";
