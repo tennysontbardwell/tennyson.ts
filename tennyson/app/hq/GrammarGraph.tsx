@@ -33,6 +33,43 @@ export type DimensionMapping<T extends string = string> = {
     | undefined;
 };
 
+function isNumeric(data: (string | number | null)[]) {
+  return data.find((x) => x !== null && isNaN(Number(x))) === undefined;
+}
+
+function colorMap(
+  data: readonly Record<string, string | number>[],
+  colorDimension: string,
+) {
+  const col = data.map((d: any) => d[colorDimension]);
+  if (isNumeric(col))
+    return {
+      min: Math.min(...col),
+      max: Math.max(...col),
+      orient: "vertical",
+      /* right: 0, */
+      top: "center",
+      dimension: colorDimension,
+      calculable: true,
+      inRange: {
+        color: ["#121122", "rgba(3,4,5,0.4)", "red"],
+      },
+    };
+  else
+    return {
+      type: "piecewise",
+      categories: Array.from(new Set(col)),
+      max: Math.max(...col),
+      orient: "vertical",
+      top: "center",
+      dimension: colorDimension,
+      calculable: true,
+      inRange: {
+        color: ["#5470C6", "#91CC75", "#EE6666"],
+      },
+    };
+}
+
 export const Comp = <T extends string>(props: {
   data: readonly Record<T, string | number>[];
   dimensions: readonly T[];
@@ -76,26 +113,9 @@ export const Comp = <T extends string>(props: {
           source: props.data,
         },
         visualMap: [
-          ...(mapping.color !== undefined
-            ? [
-                {
-                  min: Math.min(
-                    ...props.data.map((d: any) => d[mapping.color!]),
-                  ),
-                  max: Math.max(
-                    ...props.data.map((d: any) => d[mapping.color!]),
-                  ),
-                  orient: "vertical",
-                  /* right: 0, */
-                  top: "center",
-                  dimension: mapping.color,
-                  calculable: true,
-                  inRange: {
-                    color: ["#121122", "rgba(3,4,5,0.4)", "red"],
-                  },
-                },
-              ]
-            : []),
+          ...(mapping.color !== undefined ? [
+            colorMap(props.data, mapping.color)
+          ] : []),
           ...(mapping.size !== undefined
             ? [
                 {

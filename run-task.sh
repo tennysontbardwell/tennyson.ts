@@ -4,6 +4,7 @@ IFS=$'\n\t'
 
 case "$1" in
     hq)
+        shift 1
         cleanup() {
             jobs -pr | xargs -r kill 2>/dev/null || true
         }
@@ -11,7 +12,7 @@ case "$1" in
 
         export HQ_TOKEN="$(pwgen 40 1 | tr -d '\n')"
         vite -c vite.config.ts --clearScreen false &
-        ./run.sh hq server &
+        ./run.sh hq server "$@" &
         sleep 1
         open "http://localhost:2300/authpairing#token=${HQ_TOKEN}"
         sleep infinity

@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "@tanstack/react-router";
 
-const storageKey = "HQ_TOKEN";
+export const storageKey = "HQ_TOKEN";
 const redirectTo = "/";
 
 export function AuthPairing() {
@@ -24,7 +24,7 @@ export function AuthPairing() {
     url.hash = "";
     window.history.replaceState({}, "", url.toString());
 
-    window.localStorage.setItem(storageKey, token);
+    document.cookie = `${storageKey}=${token}; path=/;`;
     navigate({ to: redirectTo, replace: true });
   }, [navigate]);
 

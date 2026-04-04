@@ -121,7 +121,7 @@ export function PromiseResolver<T>(props: {
     error: null as null | Error,
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     let isMounted = true;
     setState({ data: null, error: null });
 
