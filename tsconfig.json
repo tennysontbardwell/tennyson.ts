@@ -1,11 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 14",
-  "include": [
-    "tennyson/**/*.ts",
-    "tennyson/**/*.tsx",
-    "tennyson/app/hq/keystackx"
-  ],
+  "include": ["tennyson/**/*.ts", "tennyson/**/*.tsx"],
   "compilerOptions": {
     "lib": ["es2021", "dom"],
     "module": "esnext",
@@ -18,7 +14,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "incremental": true,
-    "baseUrl": ".",
     "composite": true,
     // "tsBuildInfoFile": "./build/.tsbuildinfo",
     "declaration": true,
@@ -29,7 +24,7 @@
     "allowUnusedLabels": false,
     "jsx": "react-jsx",
     "paths": {
-      "tennyson/*": ["tennyson/*"]
+      "tennyson/*": ["./tennyson/*"]
     }
   }
 }

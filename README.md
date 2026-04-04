@@ -15,7 +15,7 @@
   - [X] `@aws-sdk/client-route-53`
 - [ ] rewrite to remove
   - [X] `@sinclair/typebox`: used for old ai tool call style
-  - [ ] `axios`: probably not necessary, a few requests calls
+  - [ ] `axios`: probably not necessary, a few requests calls (this is actually much better at some things than fetch for a few things)
   - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
   - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`?
   - [X] `url-parse`: used for git in hometty, small place
