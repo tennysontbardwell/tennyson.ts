@@ -124,7 +124,8 @@ const matches = () => [
   m("❤", ["uheart"]),
   m("✈", ["uplane"]),
   m("⚙", ["ugear️"]),
-  m("✔", ["ucheck"]),
+  m("✓", ["ucheck"]),
+  m("✔", ["uhcheck"]),
   m("❄", ["usnow"]),
   m("ℹ", ["uinfo"]),
   m("⚠", ["uwarn"]),
@@ -179,6 +180,7 @@ const matches = () => [
   m("∫", ["int"]),
   m("√", ["sqrt"]),
 
+  m("∘", ["circ"]),
   m("×", ["times"]),
   m("∏", ["Pi"]),
   m("∑", ["Sigma"]),
