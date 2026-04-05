@@ -9,6 +9,45 @@ import * as fs from "fs/promises";
 export const cmds = async () => {
   return [
     cli.flagsCommand(
+      "profile",
+      {
+        warmup: {
+          alias: "w",
+          describe: "Number of un-timed warmup runs",
+          type: "number",
+          default: 3,
+        },
+        trials: {
+          alias: "t",
+          describe: "Number of timed runs",
+          type: "number",
+          default: 10,
+        },
+      },
+      async (args) => {
+        const warmup = args.warmup;
+        const trials = args.trials;
+        const cmd = args.command;
+        await c.mapSeq(c.range(warmup), () => cn.exec.exec2(cmd));
+        const raw = await c.mapSeq(c.range(trials), () =>
+          c.withStopwatch(() => cn.exec.exec2(cmd)).then((x) => x.elapsed),
+        );
+        const mean = c.mean(raw);
+        const stddev = c.stddev(raw);
+        // c.info({ cmd, mean, stddev, raw });
+        c.info(`${c.formatSI(mean / 1000)}s ± ${c.formatSI(stddev / 1000)}s`);
+      },
+      undefined,
+      {
+        command: {
+          describe: "Command to run",
+          type: "string",
+          required: "true",
+          array: true,
+        },
+      },
+    ),
+    cli.flagsCommand(
       "espanso-gen",
       {
         reload: {
@@ -31,6 +70,7 @@ export const cmds = async () => {
       },
     ),
     cli.group("clock-sync", clock_sync.cmds),
+    cli.command("nop", async () => {}),
 
     // cli.command("", async () => {
     //   // Create a client.
