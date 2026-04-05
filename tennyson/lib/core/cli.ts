@@ -3,31 +3,57 @@ import Yargs from "yargs";
 import type { ArgumentsCamelCase, InferredOptionTypes } from "yargs";
 import * as common from "tennyson/lib/core/common";
 
-type SimpleCommandHandler<O extends { [key: string]: yargs.Options }> = (
-  args: ArgumentsCamelCase<InferredOptionTypes<O>>,
+type SimpleCommandHandler<
+  O extends { [key: string]: yargs.Options },
+  P extends { [key: string]: yargs.PositionalOptions } = {},
+> = (
+  args: ArgumentsCamelCase<InferredOptionTypes<O> & InferredOptionTypes<P>>,
 ) => void | Promise<void>;
 
 export type Command = yargs.CommandModule<{}, any>;
 
-export function flagsCommand<O extends { [key: string]: yargs.Options }>(
+export function flagsCommand<
+  O extends { [key: string]: yargs.Options },
+  P extends { [key: string]: yargs.PositionalOptions } = {},
+>(
   name: string,
   options: O,
-  handler: SimpleCommandHandler<O>,
+  handler: SimpleCommandHandler<O, P>,
   describe?: string,
-): yargs.CommandModule<{}, yargs.InferredOptionTypes<O>> {
+  positionals?: P,
+): yargs.CommandModule<
+  {},
+  yargs.InferredOptionTypes<O> & yargs.InferredOptionTypes<P>
+> {
+  const positionalParts = positionals
+    ? Object.entries(positionals).map(([key, opts]) => {
+        const optional =
+          opts.demandOption === false || opts.default !== undefined;
+        const array = opts.array ?? false;
+        return [
+          optional ? "[" : "<",
+          key,
+          array ? ".." : "",
+          optional ? "]" : ">",
+        ].join("");
+      })
+    : [];
+  const command = [name, ...positionalParts].join(" ");
   return {
-    command: name,
+    command,
     describe: describe ?? "",
-    builder: options,
+    builder: (yargs) => {
+      if (positionals) {
+        for (const [key, opts] of Object.entries(positionals)) {
+          yargs.positional(key, opts);
+        }
+      }
+      return yargs
+        .parserConfiguration({ "unknown-options-as-args": true })
+        .help(false)
+        .options(options) as any;
+    },
     handler,
-    // async (argv: O) => {
-    //   try {
-    //     common.log.info("running " + name);
-    //     await handler(argv);
-    //   } catch (error) {
-    //     common.log.fatal(error);
-    //   }
-    // },
   };
 }
 
