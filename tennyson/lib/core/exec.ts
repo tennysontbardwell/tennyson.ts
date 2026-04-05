@@ -147,6 +147,10 @@ export async function exec(
   return results;
 }
 
+export async function exec2(args: string[], options: ExecOptions = {}) {
+  return await exec(args[0], args.slice(1), options);
+}
+
 export const sh = (cmd: string) => ExecHelpers.sh(exec, cmd);
 
 export async function appendFile(path: string, contents: string) {

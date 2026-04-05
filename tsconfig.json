@@ -2,8 +2,9 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "display": "Node 14",
   "include": ["tennyson/**/*.ts", "tennyson/**/*.tsx"],
+  "exclude": ["tennyson/**/*.test.ts", "tennyson/**/*.test.tsx"],
   "compilerOptions": {
-    "lib": ["es2021", "dom"],
+    "lib": ["esnext", "dom"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",
