@@ -35,7 +35,7 @@ const matches = () => [
   m("❤️", ["heart", "<3"]),
   m("🎂️", ["birthday", "bday"]),
   m("🫡️", ["yessir", "sir"]),
-  m("🤞", ["crossed",]),
+  m("🤞", ["crossed"]),
   m("🖕", ["finger"]),
 
   m("ℹ️", ["info"]),
@@ -180,10 +180,11 @@ const matches = () => [
   m("∫", ["int"]),
   m("√", ["sqrt"]),
 
-  m("∘", ["circ"]),
+  m("±", ["pm", "plusminus"]),
   m("×", ["times"]),
   m("∏", ["Pi"]),
   m("∑", ["Sigma"]),
+  m("∘", ["circ"]),
   m("⊕", ["oplus"]),
   m("⊖", ["ominus"]),
   m("⊗", ["otimes"]),

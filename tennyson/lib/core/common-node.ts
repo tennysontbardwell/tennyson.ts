@@ -18,7 +18,7 @@ import { Readable } from "node:stream";
 import { createZstdCompress } from "node:zlib";
 
 import * as exec_ from "tennyson/lib/core/exec";
-import * as process from "process";
+import process from "node:process";
 export const exec = exec_;
 export const path = path_;
 
