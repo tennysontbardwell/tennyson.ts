@@ -122,8 +122,6 @@ function ItemDisplay({ url }: { url: string }) {
           );
         } else if (contentType.startsWith("application/json")) {
           const obj = await response.json();
-          /* <JsonView src={obj} theme="default" /> */
-          /* <ReactJson src={obj} /> */
           setContent(
             <JsonView
               src={obj}

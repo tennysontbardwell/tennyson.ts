@@ -75,7 +75,15 @@ export const Comp = <T extends string>(props: {
   dimensions: readonly T[];
   dimensionMapping: DimensionMapping<T>;
   controlRef?: Ref<(a: Action) => void>;
+  onClickEvent?: (e: echarts.ECElementEvent) => void;
+  autoRotate?: boolean;
+  useGL?: boolean;
 }) => {
+  const { useGL, autoRotate, data, dimensions } = {
+    useGL: false,
+    autoRotate: false,
+    ...props,
+  };
   const ref = useRef<echarts.ECharts | null>(null);
   const mapping = props.dimensionMapping;
   const is3D = mapping.z !== undefined;
@@ -99,8 +107,10 @@ export const Comp = <T extends string>(props: {
               grid3D: {
                 viewControl: {
                   projection: "orthographic",
-                  autoRotate: true,
+                  autoRotate,
                   autoRotateSpeed: 3,
+                  panMouseButton: "right",
+                  panSensitivity: 0.5,
                 },
               },
             }
@@ -109,22 +119,18 @@ export const Comp = <T extends string>(props: {
               yAxis: { name: mapping.y, type: "value" },
             }),
         dataset: {
-          dimensions: props.dimensions,
-          source: props.data,
+          dimensions: dimensions,
+          source: data,
         },
         visualMap: [
-          ...(mapping.color !== undefined ? [
-            colorMap(props.data, mapping.color)
-          ] : []),
+          ...(mapping.color !== undefined
+            ? [colorMap(data, mapping.color)]
+            : []),
           ...(mapping.size !== undefined
             ? [
                 {
-                  min: Math.min(
-                    ...props.data.map((d: any) => d[mapping.size!]),
-                  ),
-                  max: Math.max(
-                    ...props.data.map((d: any) => d[mapping.size!]),
-                  ),
+                  min: Math.min(...data.map((d: any) => d[mapping.size!])),
+                  max: Math.max(...data.map((d: any) => d[mapping.size!])),
                   orient: "vertical",
                   /* right: 0, */
                   top: "top",
@@ -158,7 +164,7 @@ export const Comp = <T extends string>(props: {
         },
         series: [
           {
-            type: is3D ? "scatter3D" : "scatter",
+            type: is3D ? "scatter3D" : useGL ? "scatterGL" : "scatter",
             encode: {
               x: mapping.x,
               y: mapping.y,
@@ -167,7 +173,7 @@ export const Comp = <T extends string>(props: {
           },
         ],
       } as any),
-    [props.data, props.dimensions, mapping],
+    [data, dimensions, mapping, autoRotate, useGL],
   );
 
   useImperativeHandle(
@@ -188,5 +194,12 @@ export const Comp = <T extends string>(props: {
     [],
   );
 
-  return <rc.EChart option={x} is3D={is3D} ref={ref} />;
+  return (
+    <rc.EChart
+      key={`${is3D}-${useGL}`}
+      option={x}
+      ref={ref}
+      onClickEvent={props.onClickEvent}
+    />
+  );
 };

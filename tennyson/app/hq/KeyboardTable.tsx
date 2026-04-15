@@ -1,10 +1,7 @@
 import * as c from "tennyson/lib/core/common";
 import * as rc from "tennyson/lib/web/react-common";
 
-import {
-  flexRender,
-  type Table,
-} from "@tanstack/react-table";
+import { flexRender, type Table } from "@tanstack/react-table";
 
 const tablestyle = `
 table {
@@ -42,10 +39,9 @@ td {
 	padding: 0.25rem 0.75rem;
 }
 
-/* td:focus, */
 td.selected
 {
-  background: red;
+  background: red !important;
 }
 
 thead th:not(:first-child),
@@ -56,6 +52,15 @@ td {
 th,
 td {
 	border: 1px solid;
+  max-width: 50px;
+  overflow: clip;
+  white-space: nowrap;
+}
+
+tr.highlight.expand td {
+  white-space: normal;
+  word-wrap: anywhere;
+  max-height: 100px;
 }
 
 table {
@@ -70,6 +75,10 @@ tfoot {
 tbody tr:nth-child(even) {
 	background: color-mix(in srgb, var(--color), transparent 60%);
 }
+
+tbody tr.highlight, th.highlight, td.highlight {
+  background: pink;
+}
         `;
 
 export function KeyboardTable<Dims extends string>(props: {
@@ -78,19 +87,30 @@ export function KeyboardTable<Dims extends string>(props: {
     rowIdx: number;
     colIdx: number;
   };
+  wrapFocusedRow?: boolean;
   goAbs: (rIdx: number, cIdx: number) => void;
+  format?: Partial<
+    Record<
+      Dims,
+      (a: string | number) => { text?: string | number; background?: string }
+    >
+  >;
+  pageSize?: number;
 }) {
   const { table, cursor, goAbs } = props;
 
   const rows = table.getRowModel().rows;
   const renderRange = (() => {
-    const pageSize = 11;
+    const pageSize = props.pageSize ?? 11;
     if (cursor.rowIdx < pageSize / 2) return { min: 0, max: pageSize };
     else if (cursor.rowIdx > rows.length - pageSize / 2)
       return { min: rows.length - pageSize, max: rows.length };
+
+    const above = Math.ceil((pageSize - 1) / 2)
+    const below = pageSize - 1 - above
     return {
-      min: Math.max(cursor.rowIdx - 5, 0),
-      max: Math.min(cursor.rowIdx + 5 + 1, table.getRowModel().rows.length),
+      min: Math.max(cursor.rowIdx - above, 0),
+      max: Math.min(cursor.rowIdx + below + 1, table.getRowModel().rows.length),
     };
   })();
   const rowsToRender = rows.slice(renderRange.min, renderRange.max);
@@ -102,8 +122,11 @@ export function KeyboardTable<Dims extends string>(props: {
         <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
-              {hg.headers.map((header) => (
-                <th key={header.id}>
+              {hg.headers.map((header, i) => (
+                <th
+                  key={header.id}
+                  className={i === cursor.colIdx ? "highlight" : ""}
+                >
                   {flexRender(
                     header.column.columnDef.header,
                     header.getContext(),
@@ -117,20 +140,46 @@ export function KeyboardTable<Dims extends string>(props: {
           {rowsToRender.map((row, i) => {
             const rId = i + renderRange.min;
             return (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell, cId) => (
-                  <td
-                    key={cell.id}
-                    className={
-                      rId === cursor.rowIdx && cId === cursor.colIdx
-                        ? "selected"
-                        : ""
-                    }
-                    onClick={() => goAbs(rId, cId)}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
+              <tr
+                key={row.id}
+                className={[
+                  rId === cursor.rowIdx ? "highlight" : "",
+                  props.wrapFocusedRow ? "expand" : "",
+                ].join(" ")}
+              >
+                {row.getVisibleCells().map((cell, cId) => {
+                  {
+                    /* const formatFn = (cell.column.columnDef.meta as any)?.format; */
+                  }
+                  const formatFn = props.format
+                    ? props.format[cell.column.id as Dims]
+                    : undefined;
+                  const { text, background } = formatFn
+                    ? formatFn(cell.getValue() as string | number)
+                    : {};
+                  return (
+                    <td
+                      key={cell.id}
+                      className={
+                        cId === cursor.colIdx
+                          ? rId === cursor.rowIdx
+                            ? "selected"
+                            : "highlight"
+                          : ""
+                      }
+                      style={{
+                        background,
+                      }}
+                      onClick={() => goAbs(rId, cId)}
+                    >
+                      {text ??
+                        flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                    </td>
+                  );
+                })}
               </tr>
             );
           })}

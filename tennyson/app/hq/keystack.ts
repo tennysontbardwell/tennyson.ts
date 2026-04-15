@@ -17,8 +17,14 @@ export const empty = () =>
   });
 
 export const keystrokeToString = (e: React.KeyboardEvent) => {
+  if (["Shift", "Meta", "Alt", "Control"].includes(e.key))
+    return null
   const remap: Record<string, string> = {
     " ": "SPC",
+    "Shift": "",
+    "Meta": "",
+    "Control": "",
+    "Alt": "",
   };
   return [
     e.ctrlKey ? "C-" : "",

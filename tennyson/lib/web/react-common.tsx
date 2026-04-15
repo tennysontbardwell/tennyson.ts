@@ -19,11 +19,10 @@ import { Effect, Either, Option, pipe, Stream, Fiber } from "effect";
 
 export function EChart(props: {
   option: echarts.EChartsOption;
-  is3D?: boolean;
   ref?: RefObject<echarts.ECharts | null> | undefined;
+  onClickEvent?: ((e: echarts.ECElementEvent) => void) | undefined;
 }) {
   const { option } = props;
-  const is3D = props.is3D ?? false;
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -34,26 +33,37 @@ export function EChart(props: {
     if (props.ref) props.ref.current = chartInstance.current;
 
     const resizeObserver = new ResizeObserver(() => {
-      chartInstance.current?.resize();
+      if (chartInstance.current && !chartInstance.current.isDisposed())
+        chartInstance.current.resize();
     });
     resizeObserver.observe(chartRef.current);
 
     return () => {
       resizeObserver.disconnect();
-      if (chartInstance.current) {
+      if (chartInstance.current && !chartInstance.current.isDisposed()) {
         chartInstance.current.dispose();
         chartInstance.current = null;
+        if (props.ref) props.ref.current = null;
       }
     };
-  }, [is3D]);
+  }, []);
 
   useEffect(() => {
-    if (chartInstance.current && option) {
-      chartInstance.current.setOption(option, {
-        replaceMerge: ["visualMap"],
-      });
-    }
-  }, [option, chartInstance]);
+    const chart = chartInstance.current;
+    const handler = props.onClickEvent;
+    if (!chart || !handler) return;
+    chart.on("click", handler);
+
+    return () => {
+      if (!chart.isDisposed()) chart.off("click", handler);
+    };
+  }, [props.onClickEvent, chartInstance.current]);
+
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+    chart.setOption(option, { replaceMerge: ["visualMap"] });
+  }, [option, chartInstance.current]);
 
   return <div style={{ height: "100%", width: "100%" }} ref={chartRef} />;
 }
@@ -241,6 +251,12 @@ export function BasicTable<T>({
   );
 }
 
+export function useCounter() {
+  const [state, setState] = useState(0);
+  const inc = setState(c.inc);
+  return [state, inc];
+}
+
 export function useLatest<T>(value: T) {
   const ref = useRef(value);
   ref.current = value;
@@ -248,7 +264,23 @@ export function useLatest<T>(value: T) {
 }
 
 export function useStateAndLatest<T>(value: T) {
-  const [state, setState] = useState(value)
-  const latest = useLatest(state)
-  return [state, setState, latest] as const
+  const [state, setState] = useState(value);
+  const latest = useLatest(state);
+  return [state, setState, latest] as const;
+}
+
+export function stringToColor(str: string): string {
+  let hash = 77;
+
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash & hash;
+  }
+
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x45d9f3b);
+  hash ^= hash >>> 16;
+
+  const hue = ((hash % 360) + 360) % 360; // 0–359
+  return `hsl(${hue}, 70%, 50%)`;
 }

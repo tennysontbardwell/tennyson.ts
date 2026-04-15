@@ -4,10 +4,14 @@ import * as rc from "tennyson/lib/web/react-common";
 import * as keystack from "./keystack";
 import * as gg from "./GrammarGraph";
 
+import JsonView from "react18-json-view";
+import "react18-json-view/src/style.css";
+
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
+  getFacetedMinMaxValues,
   type Column,
   type Table,
 } from "@tanstack/react-table";
@@ -76,11 +80,25 @@ export function DataViewer<Dims extends string>(props: {
 
   const controlRef = useRef<((a: gg.Action) => void) | null>(null);
 
+  const [format, setFormat] = useState(
+    {} as Partial<
+      Record<
+        Dims,
+        (a: string | number) => {
+          text?: string | number;
+          background?: string;
+        }
+      >
+    >,
+  );
+
   const { dimensions, columns } = useMemo(() => {
     const dimensions = Object.keys(data[0]) as Dims[];
-    const columns = Object.keys(data[0]).map((s) =>
-      c.id({ accessorKey: s, header: s }),
-    );
+    const columns = Object.keys(data[0]).map((s) => ({
+      accessorKey: s,
+      header: s,
+      id: s,
+    }));
     return { dimensions, columns };
   }, [data]);
 
@@ -89,13 +107,26 @@ export function DataViewer<Dims extends string>(props: {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFacetedMinMaxValues: getFacetedMinMaxValues(),
   });
 
   const tipOnFocus = useRef(false);
   const tipRow = (row: number | null) => {
     if (row === null) controlRef.current?.({ _tag: "HideTooltip" });
-    else controlRef.current?.({ _tag: "ShowTooltip", dataId: row });
+    else
+      controlRef.current?.({
+        _tag: "ShowTooltip",
+        dataId: table.getRowModel().rows[row].index,
+      });
   };
+
+  const [wrapFocusedRow, setFocusedRow] = useState(false);
+  const [showGraph, setShowGraph] = useState(true);
+  const [showTable, setShowTable] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(true);
+  const [useGL, setUseGL] = useState(false);
+  const [freq, setFreq] = useState(null as string | null);
+  const pageSize = rc.useLatest(showGraph ? 11 : 31);
 
   const onFocusCell = useMemo(
     () => (cord: { rowIdx: number; colIdx: number }) => {
@@ -131,8 +162,35 @@ export function DataViewer<Dims extends string>(props: {
 
   const keystack_ = useMemo(() => {
     const cur = () => cursorRef.current;
-    const colName = () =>
-      table.getVisibleLeafColumns()[cursorRef.current.colIdx].id;
+    const curCol = () =>
+      table.getVisibleLeafColumns()[cursorRef.current.colIdx];
+    const colName = () => curCol().id;
+    const setFormat_ = (
+      fn:
+        | undefined
+        | ((a: string | number) => {
+            text?: string | number;
+            background?: string;
+          }),
+    ) =>
+      setFormat((format) =>
+        c.stripUndefined({
+          ...format,
+          [colName()]: fn,
+        }),
+      );
+    const setFormatText = (
+      fn: undefined | ((a: string | number) => string | number),
+    ) => {
+      setFormat_(fn ? (a: string | number) => ({ text: fn(a) }) : undefined);
+    };
+    const setFormatBackground = (
+      fn: undefined | ((a: string | number) => string),
+    ) => {
+      setFormat_(
+        fn ? (a: string | number) => ({ background: fn(a) }) : undefined,
+      );
+    };
 
     const moves: Record<string, () => void> = {
       h: () => goRel(0, -1),
@@ -155,8 +213,8 @@ export function DataViewer<Dims extends string>(props: {
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(true, false),
       "[": () =>
         table.getVisibleLeafColumns()[cur().colIdx].toggleSorting(false, false),
-      "C-d": () => goRel(5, 0),
-      "C-u": () => goRel(-5, 0),
+      "C-d": () => goRel(Math.floor(pageSize.current / 2), 0),
+      "C-u": () => goRel(-Math.floor(pageSize.current / 2), 0),
       "s x": () => setOneDimMapping("x", colName() as Dims),
       "s y": () => setOneDimMapping("y", colName() as Dims),
       "s z": () => setOneDimMapping("z", colName() as Dims),
@@ -170,14 +228,55 @@ export function DataViewer<Dims extends string>(props: {
       "g r": () => {
         setDimMapping(props.initialMapping);
         setRefreshIdx(refreshIdxRef.current + 1);
+        setFormat({});
       },
       r: () => setRefreshIdx(refreshIdxRef.current + 1),
-      "SPC t": () => tipRow(cursorRef.current.rowIdx),
+      "g t": () => tipRow(cursorRef.current.rowIdx),
+      "g T": () => tipRow(null),
       "t t": () => {
         tipOnFocus.current = !tipOnFocus.current;
         if (tipOnFocus.current) tipRow(cursorRef.current.rowIdx);
         else tipRow(null);
       },
+      "t f": () => setUseGL(c.not),
+      "t s": () => setAutoRotate(c.not),
+      "t e": () => setFocusedRow(c.not),
+      "SPC t g": () => setShowGraph(c.not),
+      "SPC t t": () => setShowTable(c.not),
+      "f s": () => setFormatText(c.compose(c.formatSI, Number)),
+      "f c": () => setFormatText(undefined),
+      "f r": () => setFormatText(c.const_("<redacted>")),
+      "f f": () =>
+        setFormatBackground((a: string | number) =>
+          rc.stringToColor(a.toString()),
+        ),
+      "f z": () => {
+        const col = colName();
+        const vals = table
+          .getRowModel()
+          .rows.map((row) => row.getValue(col) as number);
+        const mean = c.mean(vals);
+        const stddev = c.stddev(vals);
+        setFormatText((a: string | number) =>
+          ((Number(a) - mean) / stddev).toFixed(3),
+        );
+      },
+      "f v": () => {
+        const x = curCol().getFacetedMinMaxValues();
+        if (!x) return;
+        const [min, max] = x;
+        const range = max - min;
+        if (!range) return;
+        setFormatBackground((i) => {
+          const percentage = (100 * (Number(i) - min)) / range;
+          return `linear-gradient(
+              to right,
+              rgba(59, 130, 246, 0.25) ${percentage}%,
+              transparent ${percentage}%
+            )`;
+        });
+      },
+      F: () => setFreq((freq) => (freq === colName() ? null : colName())),
     };
 
     return {
@@ -190,24 +289,86 @@ export function DataViewer<Dims extends string>(props: {
 
   const handleKeyDown = useMemo(
     () => (e: KeyboardEvent<any>) => {
-      if (keystack.presentKey(keystack_, keystack.keystrokeToString(e)))
-        e.preventDefault();
+      const key = keystack.keystrokeToString(e);
+      if (key && keystack.presentKey(keystack_, key)) e.preventDefault();
     },
     [],
   );
 
+  const handleGraphClick = useMemo(
+    () => (e: echarts.ECElementEvent) => {
+      if (e.dataIndex)
+        goAbs(
+          table.getRowModel().rows.findIndex((r) => r.index === e.dataIndex),
+        );
+    },
+    [],
+  );
+
+  const frequency = useMemo(() => {
+    if (freq === null) return {};
+    const counts = {} as Record<KeyType, number>;
+    table.getRowModel().rows.forEach((row) => {
+      const k = row.getValue(freq) as KeyType;
+      counts[k] = (counts[k] ?? 0) + 1;
+    });
+
+    const res = c.pipe(
+      counts,
+      Object.entries,
+      (x) => x.sort((a, b) => a[1] - b[1]),
+      (x) => x.reverse(),
+    );
+    if (res.length > 50)
+      return {
+        common: Object.fromEntries(res.slice(0, 10)),
+        rare: Object.fromEntries(res.slice(-10)),
+        all: Object.fromEntries(res),
+      };
+    else return Object.fromEntries(res);
+  }, [freq, data]);
+
   return (
     <div tabIndex={-1} onKeyDown={handleKeyDown}>
-      <div style={{ width: "1200px", height: "600px" }}>
+      <div
+        style={{
+          width: "1200px",
+          height: showTable ? "600px" : "850px",
+          display: showGraph && freq === null ? "block" : "none",
+        }}
+      >
         <gg.Comp
           key={refreshIdx}
           data={data}
           dimensions={dimensions}
           dimensionMapping={dimMapping}
           controlRef={controlRef}
+          onClickEvent={handleGraphClick}
+          autoRotate={autoRotate}
+          useGL={useGL}
         />
       </div>
-      <KeyboardTable table={table} cursor={cursor} goAbs={goAbs} />
+      {freq === null ? (
+        <></>
+      ) : (
+        <div style={{ width: "1200px", height: "600px", overflow: "scroll" }}>
+          <JsonView
+            src={frequency}
+            collapsed={(x) => x.size > 30}
+            collapseObjectsAfterLength={300}
+          />
+        </div>
+      )}
+      <div style={{ display: showTable ? "block" : "none" }}>
+        <KeyboardTable
+          table={table}
+          cursor={cursor}
+          wrapFocusedRow={wrapFocusedRow}
+          goAbs={goAbs}
+          format={format}
+          pageSize={pageSize.current}
+        />
+      </div>
     </div>
   );
 }
