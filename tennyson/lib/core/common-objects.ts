@@ -1,4 +1,4 @@
-import type { KeyType, NonUndefined, StripUndefined } from "./common-types";
+import type { KeyType, StripUndefined } from "./common-types";
 
 export function mapEntries<A, B, KIn extends KeyType, KOut extends KeyType>(
   obj: Record<KIn, A>,
@@ -23,10 +23,10 @@ export function mapValues<A, B, K extends KeyType>(
 
 export function stripUndefined<T extends Record<string, any>>(
   obj: T,
-): NonUndefined<StripUndefined<T>> {
+): StripUndefined<T> {
   return Object.fromEntries(
     Object.entries(obj).filter(([_, value]) => value !== undefined),
-  ) as NonUndefined<StripUndefined<T>>;
+  ) as StripUndefined<T> ;
 }
 
 export function groupByMulti<T>(lst: T[], keys: (elm: T) => string[]) {
