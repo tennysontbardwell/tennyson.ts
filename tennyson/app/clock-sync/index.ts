@@ -56,27 +56,50 @@ namespace LiveNode {
 
 type FleetConfig = readonly NodeConfig[];
 
-interface FleetPreConfig {
-  regions: readonly ec2.Region[];
-  zones: readonly c.AlphaNumeric.AlphaLower[];
-  perZone: number;
-}
+type FleetPreConfig =
+  | c.DeepReadonly<{
+      _tag: "simple";
+      regions: ec2.Region[];
+      zones: c.AlphaNumeric.AlphaLower[];
+      perZone: number;
+    }>
+  | c.DeepReadonly<{
+      _tag: "zones";
+      nodes: {
+        zone: ec2.AvailabilityZone;
+        count: number;
+      }[];
+    }>;
 
 type Fleet = readonly LiveNode[];
 
 namespace Fleet {
   export const config = (options: FleetPreConfig): FleetConfig => {
-    const { regions, zones, perZone } = options;
-    return regions.flatMap((region) =>
-      zones.flatMap((zone) => {
-        const az = { region, zone };
+    if (options._tag === "simple") {
+      const { regions, zones, perZone } = options;
+      return regions.flatMap((region) =>
+        zones.flatMap((zone) => {
+          const az = { region, zone };
+          return c
+            .range(1, 1 + perZone)
+            .map((i) =>
+              NodeConfig.make(az, `${ec2.AvailabilityZone.toString(az)}-${i}`),
+            );
+        }),
+      );
+    } else if (options._tag === "zones") {
+      return options.nodes.flatMap(({ zone, count }) => {
         return c
-          .range(1, 1 + perZone)
+          .range(1, 1 + count)
           .map((i) =>
-            NodeConfig.make(az, `${ec2.AvailabilityZone.toString(az)}-${i}`),
+            NodeConfig.make(
+              zone,
+              `${ec2.AvailabilityZone.toString(zone)}-${i}`,
+            ),
           );
-      }),
-    );
+      });
+    }
+    c.unreachable(options);
   };
 
   export const withFleet = async <T>(
@@ -126,11 +149,16 @@ namespace Setup {
     (fleet: Fleet, config: TestConfig) => async (node: LiveNode) => {
       const h = node.host;
       await h.exec("mkdir", ["/tmp/mydata"]);
+      const root = execlib.ExecHelpers.su(h.exec.bind(h), "root", false);
+      const apt = new host.Apt(root);
+      await apt.update();
+      await apt.install("adjtimex");
       await Promise.all([
         h.putFile("/tmp/mydata/config.json", configFile(node, fleet, config)),
         h.putFile("/tmp/mydata/script.py", PYTHON_SCRIPT),
         h.exec("bash", ["-c", "sudo systemctl stop systemd-timesyncd"]),
       ]);
+      await h.exec("bash", ["-c", "sudo adjtimex --frequency 0 --offset 0"]);
     };
 }
 
@@ -150,11 +178,7 @@ const fleetTest =
     async function finNode(node: LiveNode) {
       const d = path.resolve(dir, node.config.humanName);
       await fs.mkdir(d, { recursive: true });
-      await execlib.exec("scp", [
-        "-r",
-        `${node.host.user}@${node.host.fqdn()}:/tmp/mydata`,
-        d,
-      ]);
+      await node.host.scpFrom("/tmp/mydata", d, true);
     }
 
     const pyCmd = (arg: "server" | "client") =>
@@ -201,8 +225,9 @@ export async function run(config: {
   const testConfig = config.testConfig;
   c.info(config);
   const dir = util.mkdir();
+  await fs.mkdir(dir, { recursive: true });
+  await cn.writeBigJson(path.join(dir, "config.json"), config);
   await Fleet.withFleet(fleetConfig, fleetTest(testConfig, dir));
   c.info("Processing results");
-  process;
   await processResultsDir(dir);
 }

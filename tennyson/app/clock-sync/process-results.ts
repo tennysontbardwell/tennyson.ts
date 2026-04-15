@@ -24,7 +24,7 @@ async function parsePcap(file: string) {
   ] as const;
 
   return await cn.withTempDir(async (dir) => {
-    const tmpfile = cn.pathjoin(dir, "file.json");
+    const tmpfile = cn.path.join(dir, "file.json");
     const cmd = (() => {
       const fields_args = fields.flatMap((x) => ["-e", x]).join(" ");
       const tshark_cmd = `tshark -Y udp -r ${file} -T json ${fields_args}`;

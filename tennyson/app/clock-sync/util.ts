@@ -66,19 +66,6 @@ export function combineAsyncDisposables<R>(
   factories: (() => Promise<AsyncDisposable & R>)[],
 ): () => Promise<AsyncDisposable & R[]> {
   return async () => {
-    process.on("exit", (code) => {
-      console.error(`Process exiting with code: ${code}`);
-      console.trace();
-    });
-    process.on("uncaughtException", (err) => {
-      console.error("Uncaught exception:", err);
-    });
-
-    process.on("unhandledRejection", (reason) => {
-      console.error("Unhandled rejection:", reason);
-      // NOTE: don't call process.exit() here during debugging
-    });
-
     const promises = factories.map(async (f) => {
       return await f();
     });
