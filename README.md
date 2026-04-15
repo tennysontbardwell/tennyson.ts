@@ -1,8 +1,9 @@
 # todo
-- [x] Migrate to `tsup` https://kagi.com/assistant/3dd0a185-dfa8-407a-8219-51e5638fe39e
-- [ ] ~switch to uv?~ yarn berry is good
+- [X] Migrate to `tsup` https://kagi.com/assistant/3dd0a185-dfa8-407a-8219-51e5638fe39e
+- [X] ~switch to uv?~ yarn berry is good
 - [ ] try
   - [ ] prisma
+  - [ ] ink
 - [ ] ensure unused
   - [ ] `@types/source-map-support` (will source mapping break without this dev dep?)
 - [X] remove unused
@@ -15,14 +16,15 @@
   - [X] `@aws-sdk/client-route-53`
 - [ ] rewrite to remove
   - [X] `@sinclair/typebox`: used for old ai tool call style
-  - [ ] `axios`: probably not necessary, a few requests calls (this is actually much better at some things than fetch for a few things)
   - [ ] `stream-json` and `stream-chain`: used for streaming large JSON, maybe this can be done without them
-  - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`?
   - [X] `url-parse`: used for git in hometty, small place
   - [ ] `zod` (used in a small place)
   - [X] `shell-escape` (single function)
   - [ ] `rxjs` (I would like to rip this out at some point, prefer effects?)
   - [ ] `@aws-skd/client-ses` (maybe keep?)
+- [ ] probably keep
+  - [ ] `axios`: probably not necessary, a few requests calls (this is actually much better at some things than fetch for a few things)
+  - [ ] `csv-writer`: used in personal.ts, can be replaced with `polars`? (probably not, light library and probably good to keep)
 - [X] audit deps
   - [X] `blessed` (seems self contained and decent)
   - [X] `constructs`

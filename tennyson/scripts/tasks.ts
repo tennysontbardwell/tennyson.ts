@@ -13,7 +13,7 @@ const children = new Set<ChildProcess>();
 
 function cleanup() {
   for (const child of children) {
-    child.kill("SIGTERM");
+    child.kill("SIGKILL");
   }
 }
 

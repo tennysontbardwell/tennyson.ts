@@ -4,13 +4,9 @@
   "main": "build/tennyson/index.js",
   "version": "0.0.10",
   "type": "module",
-  "files": [
-    "build/**/*",
-    "README.md",
-    "package.json"
-  ],
+  "files": ["build/**/*", "README.md", "package.json"],
   "scripts": {
-    "run": "bun run tennyson/bin/tt.ts --",
+    "run": "bun run tennyson/index.ts --",
     "task": "bun run tennyson/scripts/tasks.ts --",
     "clean": "rm -rf build bin"
   },
