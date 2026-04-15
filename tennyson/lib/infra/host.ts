@@ -35,11 +35,11 @@ export class Apt {
     return this;
   }
 
-  async install(packages: string[]) {
+  async install(packages: string[] | string) {
     const command =
       "DEBIAN_FRONTEND=noninteractive " +
       c.shellescape(
-        ["apt-get", "install", "-y", "-q", "--force-yes"].concat(packages),
+        ["apt-get", "install", "-y", "-q"].concat(c.toArray(packages)),
       );
     await this.exec("bash", ["-c", command]);
   }
@@ -78,8 +78,7 @@ export class Host {
 
   async passthroughSsh() {
     await common_node.passthru("ssh", [
-      "-o",
-      "UserKnownHostsFile=" + process.env["HOME"] + "/.ssh/known_hosts_auto",
+      ...this.sshargs(),
       `${this.user}@${this.fqdn()}`,
     ]);
   }
@@ -111,12 +110,20 @@ export class Host {
       host_.exec(command, args, options);
   }
 
+  sshargs() {
+    return [
+      "-o",
+      "UserKnownHostsFile=" + process.env["HOME"] + "/.ssh/known_hosts_auto",
+    ];
+  }
+
   exec(command: string, args: string[], options: execlib.ExecOptions = {}) {
     const remoteCommand = c.shellescape([command].concat(args));
     const target = this.sshTarget();
     // const sshArgs = [target, "/bin/bash", "-c", c.shellescape([remoteCommand])];
     const sshArgs = [
       target,
+      ...this.sshargs(),
       "/usr/bin/env",
       "-S",
       "bash",
@@ -195,10 +202,21 @@ export class Host {
     );
   }
 
-  async scpTo(localPath: string, remotePath: string) {
+  async scpTo(localPath: string, remotePath: string, recursive = false) {
     await execlib.exec("scp", [
+      ...this.sshargs(),
+      ...(recursive ? ["-r"] : []),
       localPath,
       `${this.user}@${this.fqdn()}:${remotePath}`,
+    ]);
+  }
+
+  async scpFrom(remotePath: string, localPath: string, recursive = false) {
+    await execlib.exec("scp", [
+      ...this.sshargs(),
+      ...(recursive ? ["-r"] : []),
+      `${this.user}@${this.fqdn()}:${remotePath}`,
+      localPath,
     ]);
   }
 
@@ -207,8 +225,7 @@ export class Host {
       localPort === undefined ? await net_util.getRandomFreePort() : localPort;
 
     const process_ = spawn("ssh", [
-      "-o",
-      "UserKnownHostsFile=" + process.env["HOME"] + "/.ssh/known_hosts_auto",
+      ...this.sshargs(),
       "-NL",
       `${localPort_}:localhost:${remotePort}`,
       `${this.user}@${this.fqdn()}`,
