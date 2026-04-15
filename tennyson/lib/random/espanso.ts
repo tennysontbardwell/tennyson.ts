@@ -147,7 +147,7 @@ const matches = () => [
   m("↗", ["ne"]),
   m("↘", ["se"]),
   m("↙", ["sw"]),
-  m("↔", ["iff"]),
+  m("↔", ["iff", "<->"]),
   m("↦", ["mapsto"]),
 
   m("∀", ["forall"]),
@@ -231,7 +231,7 @@ const matches = () => [
   m("δ", ["delta"]),
   m("ε", ["epsilon"]),
   m("λ", ["lambda"]),
-  m("μ", ["mu"]),
+  m("μ", ["mu", "micro"]),
   m("π", ["pi"]),
   m("σ", ["sigma"]),
   m("∂", ["partial"]),
