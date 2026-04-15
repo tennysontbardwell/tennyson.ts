@@ -302,4 +302,43 @@ export async function plotEchartCDN(options: any, extra?: string) {
   c.log.info("Wrote plot.html (open it in your browser).");
 }
 
-export const pathjoin = path.join;
+export async function writeAtomicFile(
+  filePath: string,
+  content: string,
+  mkdir = false,
+): Promise<void> {
+  const partialPath = `${filePath}.partial`;
+  const dir = path.dirname(filePath);
+  if (mkdir && !fsSync.existsSync(dir))
+    await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(partialPath, content, "utf-8");
+  await fs.rename(partialPath, filePath);
+}
+
+export async function withFileState<T>(
+  filePath: string,
+  defaultState: T,
+  fn: (state: T) => T | Promise<T>,
+): Promise<T> {
+  let state: T;
+
+  if (fsSync.existsSync(filePath)) {
+    try {
+      const raw = await fs.readFile(filePath, "utf-8");
+      state = JSON.parse(raw) as T;
+    } catch (err) {
+      c.warn(
+        `Could not parse state file "${filePath}". Using default state.`,
+        err instanceof Error ? err.message : err,
+      );
+      state = structuredClone(defaultState);
+    }
+  } else {
+    state = structuredClone(defaultState);
+  }
+  const newState = await fn(state);
+  const json = JSON.stringify(newState, null, 2) + "\n";
+  await writeAtomicFile(filePath, json);
+
+  return newState;
+}
