@@ -310,7 +310,7 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.lazySubtree("ss | scripts", async () => {
       const bash = await scripts(
         "~/repos/tennysontbardwell/misc-projects/scripts",
-        "**/*.{sh,py}",
+        "**/*.{sh,py,ts}",
         "",
         async (name: string) => {
           await execlib.exec("chmod", ["+x", name]);
