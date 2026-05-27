@@ -752,3 +752,30 @@ export function Ranger({ items }: { items: RangerItem[] }) {
     </div>
   );
 }
+
+function RangerItemsOfGroup<T>(
+  groups: { items: T[]; prefixes: string[] }[],
+  display: (a: T[]) => JSX.Element,
+  depth: number,
+): RangerItem[] {
+  const grouped = Object.entries(c.groupBy(groups, (x) => x.prefixes[depth]));
+  return grouped.map((elm) => {
+    return {
+      name: elm[0],
+      subitems: () => RangerItemsOfGroup(elm[1], display, depth + 1),
+      display: () => display(elm[1].flatMap((x) => x.items)),
+    };
+  });
+}
+
+export function RangerOfGroupable<T>(
+  groups: { items: T[]; prefixes: string[] }[],
+  display: (a: T[]) => JSX.Element,
+) {
+  return (
+    <RangerOfItems
+      items={RangerItemsOfGroup(groups, display, 0)}
+      initPath={[]}
+    />
+  );
+}
