@@ -34,7 +34,13 @@ function resJson(
   res.end(JSON.stringify(msg));
 }
 
-export const run = (options: { mainScratchFile?: string }) => {
+export const run = (options: {
+  mainScratchFile?: string;
+  additionalPaths?: Record<
+    string,
+    (a: http.ServerResponse<http.IncomingMessage>) => Promise<void>
+  >;
+}) => {
   const wss = new ws.WebSocketServer({ noServer: true });
 
   const server = http.createServer(async (req, res) => {
@@ -46,7 +52,7 @@ export const run = (options: { mainScratchFile?: string }) => {
 
     const urlpath = req.url?.replace(/\/+$/, "");
 
-    const paths = {
+    const paths: Record<string, () => Promise<void>> = {
       "/main-scratch-file": async () => {
         const path = options.mainScratchFile;
         if (!path)
@@ -62,10 +68,16 @@ export const run = (options: { mainScratchFile?: string }) => {
           }
         }
       },
-    } as Record<string, () => Promise<void>>;
+      // ...options.additionalPaths,
+    };
 
     const resFn = urlpath ? paths[urlpath] : undefined;
+    const resFn2 =
+      options.additionalPaths && urlpath
+        ? options.additionalPaths[urlpath]
+        : undefined;
     if (resFn) await resFn();
+    else if (resFn2) await resFn2(res);
     else
       resJson_(404, {
         error: "Not found",

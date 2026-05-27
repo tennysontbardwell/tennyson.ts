@@ -67,7 +67,7 @@ export function cmds(
       await r.run();
     }),
     cli.lazyGroup("hq", async () => {
-      return (await import("tennyson/app/hq/cmds")).cmds;
+      return (await import("tennyson/app/hq/cmds")).cmds();
     }),
     cli.lazyGroup("scrape", async () => {
       const scraper = await import("tennyson/lib/web/scraper");

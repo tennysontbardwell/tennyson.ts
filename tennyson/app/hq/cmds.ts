@@ -3,7 +3,14 @@ import * as cli from "tennyson/lib/core/cli";
 
 import * as server from "./server";
 
-export const cmds = [
+import * as http from "http";
+
+export const cmds = (
+  additionalPaths?: Record<
+    string,
+    (a: http.ServerResponse<http.IncomingMessage>) => Promise<void>
+  >,
+) => [
   cli.flagsCommand(
     "server",
     {
@@ -13,6 +20,7 @@ export const cmds = [
       server.run(
         c.stripUndefined({
           mainScratchFile: args.mainScratchFile,
+          additionalPaths,
         }),
       );
     },
