@@ -78,6 +78,7 @@ const matches = () => [
   m("✈️", ["airplane", "plane", "flight"]),
   m("🚕", ["taxi"]),
   m("🚗", ["car"]),
+  m("🚲", ["bike"]),
   m("🌮", ["taco"]),
   m("💼", ["briefcase"]),
   m("🎮", ["game"]),
