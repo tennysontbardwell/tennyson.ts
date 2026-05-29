@@ -79,6 +79,12 @@ export const cmd = cli.flagsCommand(
       boolean: true,
       default: false,
     },
+    output: {
+      alias: "o",
+      describe: "Output a to a file. Valid extensions are .txt, .md, .html",
+      type: "string",
+      default: null,
+    },
   },
   async (args) => {
     const aichat = await import("tennyson/lib/ai/aichat");
@@ -117,7 +123,7 @@ export const cmd = cli.flagsCommand(
     // await writeBigJson("/tmp/aiattach.json", attachments)
 
     const userText = args.prompt ?? (await cn.editorInput());
-    c.log.info(userText)
+    c.log.info(userText);
 
     try {
       const response = await aichat
@@ -136,7 +142,36 @@ export const cmd = cli.flagsCommand(
           effect.Effect.provide(effect.Logger.json),
           effect.Effect.runPromise,
         );
-      if (!args.quiet) console.log(response);
+      if (!args.quiet && !args.output) c.info(response);
+
+      async function writeHtml(path: string) {
+        return await cn.exec.exec(
+          "pandoc",
+          [
+            "--standalone",
+            "--mathjax",
+            "-f",
+            "markdown+tex_math_single_backslash",
+            "-o",
+            path,
+          ],
+          { stdin: response },
+        );
+      }
+
+      if (args.output) {
+        if (args.output.endsWith(".txt"))
+          cn.writeAtomicFile(args.output, response);
+        else if (args.output.endsWith(".md"))
+          cn.writeAtomicFile(args.output, response);
+        else if (args.output.endsWith(".html")) await writeHtml(args.output);
+        else if (args.output == "html") {
+          const out = await cn.durableTempFile("response.html");
+          await writeHtml(out);
+          await cn.exec.exec("open", [out]);
+        } else
+          c.fatal({ msg: "Invalid `--output` given.", given: args.output });
+      }
     } catch (error) {
       common.log.error("AI query failed:", error);
     }
