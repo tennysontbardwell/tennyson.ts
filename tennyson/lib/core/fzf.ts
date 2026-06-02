@@ -105,11 +105,13 @@ export async function richFzf(choices: Array<FzfItem>) {
 }
 
 export function website(url: string, name?: string): FzfItem {
+  const hasProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(url);
+  const fullUrl = hasProtocol ? url : `https://${url}`;
   const choice = typeof name === "string" ? `${name} | ${url}` : url;
   return {
     choice: choice,
     preview: url,
-    action: async () => execlib.sh(`open "https://${url}"`),
+    action: async () => execlib.sh(`open "${fullUrl}"`),
   };
 }
 
