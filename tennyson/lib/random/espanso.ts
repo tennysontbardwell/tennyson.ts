@@ -54,6 +54,7 @@ const matches = () => [
   m("❌", ["x", "cross"]),
   m("🍰", ["cake"]),
   m("💡", ["idea", "lightbulb", "bulb"]),
+  m("💊", ["pill", "med"]),
 
   m("☀️", ["sun"]),
   m("🌊", ["wave", "ocean"]),
