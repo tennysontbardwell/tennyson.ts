@@ -264,6 +264,9 @@ export const hometty = (options: HomettyOptions = {}) => {
     fzf.websearch(
       "web.archive.org/web/20250000000000*/{query}",
       "wb - wayback machine",
+      {
+        templater: (query) => `web.archive.org/web/20250000000000*/${query}`,
+      },
     ),
     fzf.websearch(
       "www.wolframalpha.com/input?i={query}",
@@ -290,7 +293,9 @@ export const hometty = (options: HomettyOptions = {}) => {
       "webbook.nist.gov/cgi/cbook.cgi?Name={query}",
       "HIST Chemistry WebBook",
     ),
-    fzf.websearch("emojidb.org/{query}-emojis", "emoji/emoticon"),
+    fzf.websearch("emojidb.org/{query}-emojis", "emoji/emoticon", {
+      preprocessor: (str) => str.replace(" ", "-"),
+    }),
     fzf.websearch("howjsay.com/how-to-pronounce-{query}", "howjsay"),
     fzf.websearch("en.wiktionary.org/wiki/{query}"),
   ].concat(options.additions?.websearch ?? []);

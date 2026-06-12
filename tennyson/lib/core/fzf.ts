@@ -131,6 +131,10 @@ export function multiwebsite(urls: string[], name: string): FzfItem {
 export function websearch(
   urlWithQueryTemplate: string,
   name?: string,
+  options?: {
+    preprocessor?: (a: string) => string;
+    templater?: (query: string) => string;
+  },
 ): FzfItem {
   const choice =
     typeof name === "string"
@@ -153,8 +157,12 @@ export function websearch(
         });
       });
 
-      const encodedQuery = encodeURIComponent(query);
-      const url = urlWithQueryTemplate.replace("{query}", encodedQuery);
+      const query_ = options?.preprocessor
+        ? options.preprocessor(query)
+        : query;
+      const url = options?.templater
+        ? options.templater(query)
+        : urlWithQueryTemplate.replace("{query}", encodeURIComponent(query_))
       await execlib.sh(`open "https://${url}"`);
     },
   };

@@ -15,6 +15,8 @@ import Assembler from "stream-json/Assembler.js";
 import { pipeline, finished } from "node:stream/promises";
 import { Readable } from "node:stream";
 
+import { createInterface } from "node:readline/promises";
+
 import { createZstdCompress } from "node:zlib";
 
 import * as exec_ from "tennyson/lib/core/exec";
@@ -341,4 +343,28 @@ export async function withFileState<T>(
   await writeAtomicFile(filePath, json);
 
   return newState;
+}
+
+export async function confirm(
+  question = "Continue?",
+  defaultYes = true,
+): Promise<boolean> {
+  const input = process.stdin;
+  const output = process.stdout;
+  const rl = createInterface({ input, output });
+  const suffix = defaultYes ? "[Y/n]" : "[y/N]";
+
+  try {
+    while (true) {
+      const ans = (await rl.question(`${question} ${suffix} `))
+        .trim()
+        .toLowerCase();
+      if (!ans) return defaultYes;
+      if (["y", "yes"].includes(ans)) return true;
+      if (["n", "no"].includes(ans)) return false;
+      output.write('Please answer "y" or "n".\n');
+    }
+  } finally {
+    rl.close();
+  }
 }

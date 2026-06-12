@@ -39,6 +39,9 @@ const matches = () => [
   m("🫡️", ["yessir", "sir"]),
   m("🤞", ["crossed"]),
   m("🖕", ["finger"]),
+  m("👍", ["thumbs up"]),
+  m("👎", ["thumbs down"]),
+  m("💤", ["sleep", "zzz"]),
 
   m("ℹ️", ["info"]),
   m("⚠️", ["warn"]),
