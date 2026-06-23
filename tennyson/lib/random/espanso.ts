@@ -236,14 +236,17 @@ const matches = () => [
     .map(([u, c]: [string, string]) => m(u, `cal ${c.toUpperCase()}`)),
 
   // greek
+  m("𝛼", ["alpha"]),
   m("β", ["beta"]),
   m("δ", ["delta"]),
   m("ε", ["epsilon"]),
   m("λ", ["lambda"]),
   m("μ", ["mu", "micro"]),
+  m("∂", ["partial"]),
+  m("ϕ", ["phi"]),
   m("π", ["pi"]),
   m("σ", ["sigma"]),
-  m("∂", ["partial"]),
+  m("θ", ["theta"]),
 ];
 
 export function gen() {
