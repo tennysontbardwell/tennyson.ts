@@ -262,3 +262,7 @@ export function sh_snippet(
   };
   return { choice: choice, preview: preview_, action: action };
 }
+
+export async function simple<T extends string>(choices: T[]) {
+  return await fzf({choices, preview: () => "", action: async () => {}}) as T
+}

@@ -345,6 +345,25 @@ export async function withFileState<T>(
   return newState;
 }
 
+export async function prompt(
+  question = "Value?",
+  defaultValue = "",
+): Promise<string> {
+  const input = process.stdin;
+  const output = process.stdout;
+  const rl = createInterface({ input, output });
+
+  try {
+    while (true) {
+      const answer = rl.question(`${question} `);
+      if (defaultValue) rl.write(defaultValue);
+      return (await answer).trim() || defaultValue;
+    }
+  } finally {
+    rl.close();
+  }
+}
+
 export async function confirm(
   question = "Continue?",
   defaultYes = true,
@@ -368,3 +387,4 @@ export async function confirm(
     rl.close();
   }
 }
+
