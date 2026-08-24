@@ -36,6 +36,9 @@ export function cmds(
     cli.lazyGroup("unsorted", async () => {
       return [...(await unsorted.cmds()), ...(options.unsorted_cmds ?? [])];
     }),
+    cli.lazyGroup("u", async () => {
+      return [...(await unsorted.cmds()), ...(options.unsorted_cmds ?? [])];
+    }),
     cli.command("hometty-public", async () => {
       const hometty = await import("tennyson/lib/hometty/hometty");
       await hometty.run();
