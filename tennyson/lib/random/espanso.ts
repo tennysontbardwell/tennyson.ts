@@ -59,6 +59,7 @@ const matches = () => [
   m("🍰", ["cake"]),
   m("💡", ["idea", "lightbulb", "bulb"]),
   m("💊", ["pill", "med"]),
+  m("📚", ["books"]),
 
   m("☀️", ["sun"]),
   m("🌊", ["wave", "ocean"]),
@@ -158,10 +159,14 @@ const matches = () => [
   m("↙", ["sw"]),
   m("↔", ["iff", "<->"]),
   m("↦", ["mapsto"]),
+  m("⇒", ["=>", "implies"]),
 
+  m("¬", ["not"]),
   m("∀", ["forall"]),
   m("∃", ["exists"]),
+  m("∄", ["nexists"]),
   m("∈", ["in"]),
+  m("∉", ["in"]),
   m("∩", ["cap"]),
   m("∪", ["cup"]),
   m("⊆", ["subseteq"]),
@@ -177,7 +182,7 @@ const matches = () => [
 
   m("≤", ["leq"]),
   m("≥", ["geq"]),
-  m("≥", ["neq"]),
+  m("≠", ["neq"]),
   m("≽", ["succeq"]),
   m("≼", ["preceq"]),
   m("≻", ["succ"]),
